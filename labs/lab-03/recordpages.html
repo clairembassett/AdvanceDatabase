@@ -171,6 +171,7 @@ Unit checks: fixtures supply unfinished dependencies; integration tests are not 
 
 <span class="t-pass">1/1 unit checks passed (not the grading score)</span></code></pre>
     <p>The single PASS line covers all four schemas above. You can run this check while the other methods are unfinished.</p>
+    <p><strong>Output note:</strong> This command checks only <code>Layout.__init__</code>. Running <code>python3 test_records.py --unit</code> or <code>python3 test_records.py</code> prints additional test results. That is expected; check each PASS/FAIL result and the final summary.</p>
   </li>
   <li><strong><code>_field_pos</code>, then the four get/set methods</strong>: calculate each field’s byte position and use the page’s read or write method. Reject strings whose UTF-8 byte length exceeds the field’s capacity. Call <code>set_modified()</code> after each write. Test each method with its own target, such as <code>--unit RecordPage._field_pos</code> or <code>--unit RecordPage.set_string</code>.</li>
   <li><strong><code>insert_after</code>, <code>next_after</code>, and <code>delete</code></strong>: search for an EMPTY or USED slot as required, and update the status flag when inserting or deleting. Run <code>--unit RecordPage.insert_after</code>, <code>--unit RecordPage.next_after</code>, and <code>--unit RecordPage.delete</code> as you finish them.</li>
@@ -309,6 +310,7 @@ Unit checks: fixtures supply unfinished dependencies; integration tests are not 
 </ul>
 <p>The <em>one pin at a time</em> test scans three blocks through a <strong>two-frame pool</strong> and checks that no frames remain pinned after <code>close()</code>. Leaving blocks pinned can prevent the scan from loading the next block.</p>
 
+<p><strong>Output note:</strong> The example below is shortened. Your run prints a result for each of the twelve tests, followed by the final summary.</p>
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_records.py</span>
 <span class="t-head">LAYOUT group</span>
   <span class="t-pass">[PASS]</span> LAYOUT: students offsets are 4 / 8 / 20, slot 24

@@ -7,7 +7,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="../../labs/_shared/query-journey.css?v=1">
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
 
@@ -16,6 +17,7 @@
   <p><a href="../../slides/lecture-04.html">Visual slide deck ↗</a></p>
   <ul>
     <li><a href="#plan">Today's plan</a></li>
+    <li><a href="#query-plan">How a query plan fits into the database</a></li>
     <li><a href="#pull">Materializing every intermediate result can exhaust memory</a></li>
     <li><a href="#try-it">A request at the root starts the next round of work</a></li>
     <li><a href="#interface">Five methods provide a common scan interface</a></li>
@@ -44,7 +46,7 @@
   <div class="byline">Daniel G. Graham · UVA School of Data Science</div>
 </header>
 
-<p class="lede">A query can pass rows between stages one at a time instead of storing each stage’s full output. Your <code>TableScan</code> already provides the operations needed to do that: advance to a row, read its fields, and eventually close the scan. Today we use the <strong>Volcano iterator model</strong> to give filters, projections, and products the same interface. Connecting these operators forms a query plan. The operators in this lab stream their results without materializing intermediate tables.</p>
+<p class="lede">A query can pass rows between stages one at a time instead of storing each stage’s full output. Your <code>TableScan</code> already provides the operations needed to do that: advance to a row, read its fields, and eventually close the scan. Today we use the <strong>Volcano iterator model</strong> to give filters, projections, and <span class="gloss" data-gloss="cartesian-product">products</span> the same interface. Connecting these operators forms a query plan. The operators in this lab stream their results without materializing intermediate tables.</p>
 
 <div class="cite">
   Companion reading: Sciore, <em>Database Design and Implementation</em>, ch. 8 (query processing)<sup class="src"><a href="#src-1" title="Database Design and Implementation, Second Edition (Penn State University Libraries catalog record with contents)">1</a></sup> ·
@@ -64,15 +66,64 @@ Hover or tap an underlined term like <span class="gloss-demo">this one</span> to
 
 <p class="keep-in-present">We begin with Quiz 3 (records and the catalog, 10 min), then build query operators on top of your table scanner.</p>
 
-<p class="keep-in-present">An implementation that <span class="gloss" data-gloss="materialization">materializes</span> every stage must store each intermediate result before the next stage can use it. Our simple join first enumerates <code>|students| × |majors|</code> pairs, so materializing that product can require far more memory than either input table.</p>
+<!-- ============================================================ -->
+<h2 id="query-plan">Reminder · how a query plan fits into the database</h2>
 
+<p class="keep-in-present">A <strong>query plan</strong> is a tree of operators that describes how the database produces a query’s result. In this example, <strong>Scan</strong> reads student rows, <strong>Select</strong> keeps rows where <code>gpa &gt; 3.5</code>, and <strong>Project</strong> returns only the <code>name</code> field.</p>
 
-<p class="keep-in-present">A query plan connects operators through a shared interface. <code>TableScan</code> is the input operator you have already built.</p>
+<p>Replay <a href="../lecture-01/anatomy.html#try-it">Lecture 1’s query journey</a> with <strong>Play</strong> or <strong>Step</strong>. Follow SQL into the plan, then watch the operators use the buffer pool to read table blocks and produce results.</p>
+
+<div class="viz" id="viz-query-journey">
+  <div class="viz-title">From Lecture 1 · The life of a query</div>
+  <p class="viz-description">
+    <code>SELECT name FROM students WHERE gpa &gt; 3.5</code>: six rows, two 4&nbsp;KB blocks
+    on disk, a two-frame buffer pool. Watch which rows are touched, which blocks are read, and
+    what the second run skips.
+  </p>
+  <div class="qj-controls">
+    <button type="button" class="btn primary" id="qj-play">▶ Play</button>
+    <button type="button" class="btn" id="qj-step">Step</button>
+    <button type="button" class="btn" id="qj-back">Back</button>
+    <button type="button" class="btn" id="qj-reset">Reset</button>
+    <button type="button" class="btn" id="qj-again" hidden>↻ Run again (buffer is warm)</button>
+  </div>
+  <div class="qj-msg" id="qj-msg" role="status" aria-live="polite" aria-atomic="true">The query arrives as text. Step through to see what the engine does with it.</div>
+  <div class="qj-grid">
+    <div class="qj-col" id="qj-col-front">
+      <div class="qj-col-title">SQL front end</div>
+      <div class="qj-sql" id="qj-sql">SELECT name FROM students WHERE gpa &gt; 3.5</div>
+      <div class="qj-tokens" id="qj-tokens"></div>
+      <div class="qj-plan" id="qj-plan">
+        <div class="qj-plan-node" data-op="project">Project<span>name</span></div>
+        <div class="qj-plan-arrow">↑</div>
+        <div class="qj-plan-node" data-op="select">Select<span>gpa &gt; 3.5</span></div>
+        <div class="qj-plan-arrow">↑</div>
+        <div class="qj-plan-node" data-op="scan">Scan<span>students</span></div>
+      </div>
+    </div>
+    <div class="qj-col" id="qj-col-buffer">
+      <div class="qj-col-title">Buffer pool <span class="qj-sub">(memory · fast)</span></div>
+      <div class="qj-frame" id="qj-frame-0"><div class="qj-frame-label">frame 0</div><div class="qj-frame-body">empty</div></div>
+      <div class="qj-frame" id="qj-frame-1"><div class="qj-frame-label">frame 1</div><div class="qj-frame-body">empty</div></div>
+      <div class="qj-stats" id="qj-stats"></div>
+    </div>
+    <div class="qj-col" id="qj-col-disk">
+      <div class="qj-col-title">Disk <span class="qj-sub">(students.tbl · slow)</span></div>
+      <div class="qj-block" id="qj-block-0"><div class="qj-frame-label">block 0</div><div class="qj-rows" data-block="0"></div></div>
+      <div class="qj-block" id="qj-block-1"><div class="qj-frame-label">block 1</div><div class="qj-rows" data-block="1"></div></div>
+    </div>
+  </div>
+  <div class="qj-results"><span class="qj-results-label">Result rows:</span><span id="qj-results"></span></div>
+  <p class="viz-caption">Both runs examine all six rows and return three. The second run avoids disk reads because both blocks are already in the buffer pool.</p>
+</div>
+
+<p class="keep-in-present">Today we focus on the operator tree: <code>TableScan</code>, <code>SelectScan</code>, and <code>ProjectScan</code>. A request for the next result travels down the tree; rows flow back up. The file and buffer managers you built supply the table’s blocks underneath these operators.</p>
+<p>This overview groups activity by block. The <a href="#try-it">pull-a-row visual</a> later in this lecture traces individual <code>next()</code> calls.</p>
 
 <!-- ============================================================ -->
 <h2 id="pull">Materializing every intermediate result can exhaust memory</h2>
 
-<p>A straightforward staged implementation materializes the scan’s output, then the filter’s output, then the projection. Each intermediate needs memory or temporary storage. Our first join deliberately uses a Cartesian product followed by a filter; production equality joins can avoid enumerating that product.</p>
+<p>A straightforward staged implementation <span class="gloss" data-gloss="materialization">materializes</span> the scan’s output, then the filter’s output, then the projection. Each intermediate needs memory or temporary storage. Our first join deliberately uses a Cartesian product followed by a filter; production equality joins can avoid enumerating that product.</p>
 
 <p class="keep-in-present">Materializing large intermediate results can exhaust memory or require a spill to disk.</p>
 
@@ -85,7 +136,7 @@ Hover or tap an underlined term like <span class="gloss-demo">this one</span> to
   <tbody>
     <tr><td>Memory</td><td>grows with the size of the intermediate results, which can be larger than the tables themselves (a product's output is |left| × |right| rows)</td><td>small <span class="gloss" data-gloss="cursor">cursor</span> state per streaming operator, plus the blocks held by the input scans</td></tr>
     <tr><td>First result arrives</td><td>after the whole stage finishes</td><td>as soon as the operators find the first matching row</td></tr>
-    <tr><td>Operators that must collect everything first</td><td colspan="2">A general sort must inspect all input rows before it can identify the smallest. Hash aggregation usually waits for all input before reporting final groups. These operators can require substantial memory or temporary disk storage. Aggregation over input already ordered by its grouping key can instead emit each completed group. Lecture 9 explains these differences<sup class="src"><a href="#src-2" title="Volcano: An Extensible and Parallel Query Evaluation System (IEEE TKDE, 1994)">2</a></sup>.</td></tr>
+    <tr><td>Operators that must collect everything first</td><td colspan="2">A general sort must inspect all input rows before it can identify the smallest. <span class="gloss" data-gloss="hash-aggregation">Hash aggregation</span> usually waits for all input before reporting final groups. These operators can require substantial memory or temporary disk storage. Aggregation over input already ordered by its grouping key can instead emit each completed group. Lecture 9 explains these differences<sup class="src"><a href="#src-2" title="Volcano: An Extensible and Parallel Query Evaluation System (IEEE TKDE, 1994)">2</a></sup>.</td></tr>
   </tbody>
 </table>
 
@@ -116,7 +167,49 @@ first = next(high_gpa(students))          # reads only as far as the first match
 big = [r for r in students if r["gpa"] > 35]   # eager: every match in memory before
                                                # you can look at the first one</code></pre>
 
-<p><code>yield</code> returns a row and suspends the function until the next request. Its local variables retain the position needed to continue. A generator can therefore filter another generator one row at a time. A list comprehension instead constructs its full list before returning it.</p>
+<p><code>yield</code> hands a row to the caller and pauses the generator. Its local variables and loop position are preserved, so the next request resumes where it left off.</p>
+
+<p>A generator can take another generator as its input. Here, <code>student_rows()</code> yields rows from the example table, and <code>high_gpa()</code> filters those rows. Creating <code>matches</code> connects the two generators; it does not read any rows yet:</p>
+
+<pre><code class="language-python" id="generator-chain-code">def student_rows():
+    for row in students:
+        yield row
+
+matches = high_gpa(student_rows())
+first = next(matches)   # ada: reads one input row
+second = next(matches)  # cyd: reads ben (reject), then cyd (accept)</code></pre>
+
+<p>Calling <code>next(matches)</code> asks the filter for one matching row. The filter requests a row from <code>student_rows()</code>, checks its GPA, and requests another if it fails the condition. Once a row matches, the filter yields it to the caller. Both generators then pause until the next request. <strong>One output row may require several input rows.</strong></p>
+
+<div class="viz" id="viz-generators" role="region" aria-labelledby="gen-title">
+  <div class="viz-title" id="gen-title">Two generators · one row requested at a time</div>
+  <p class="viz-description">Click <strong>next(matches)</strong> to request one matching row. The second click reads Ben and Cyd but returns only Cyd. GPA is stored ×10 here: <code>39</code> means 3.9, and the filter checks <code>gpa &gt; 35</code>.</p>
+  <div class="qj-controls">
+    <button type="button" class="btn primary" id="gen-next">next(matches)</button>
+    <button type="button" class="btn" id="gen-reset">Reset</button>
+  </div>
+  <p class="gen-flow">Requests travel from the caller back to the source. Rows flow from the source through the filter to the caller.</p>
+  <div class="gen-pipeline">
+    <div class="gen-stage"><span class="gen-stage-label">Source generator</span><code>student_rows()</code><p id="gen-source">not started</p></div>
+    <span class="gen-arrow" aria-hidden="true">→</span>
+    <div class="gen-stage"><span class="gen-stage-label">Filtering generator</span><code>high_gpa(rows)</code><p id="gen-filter">waiting for a request</p></div>
+    <span class="gen-arrow" aria-hidden="true">→</span>
+    <div class="gen-stage"><span class="gen-stage-label">Caller</span><code>next(matches)</code><p id="gen-caller">no row requested</p></div>
+  </div>
+  <p class="gen-row-label">Input rows, in order · outlined rows were read during the last request</p>
+  <div class="gen-rows" id="gen-rows" role="group" aria-label="Input rows and their processing status"></div>
+  <dl class="gen-counts">
+    <div><dt>Input rows read</dt><dd id="gen-read">0</dd></div>
+    <div><dt>Matching rows returned</dt><dd id="gen-returned">0</dd></div>
+    <div><dt>Input rows still unread</dt><dd id="gen-remaining">6</dd></div>
+  </dl>
+  <p class="qj-msg" id="gen-msg" role="status" aria-live="polite" aria-atomic="true">No rows have been read. Request a matching row to start both generators.</p>
+  <div class="gen-events-title">What happened during this request?</div>
+  <ol class="gen-events" id="gen-events"></ol>
+  <noscript><p>Expected results: the first three requests return Ada, Cyd, and Eli after reading 1, 3, and 5 input rows. The fourth reads Fay, finds no match, and raises <code>StopIteration</code>.</p></noscript>
+</div>
+
+<p>After returning Ada, the source has five unread rows. After returning Cyd, it has three. Neither generator builds a list of all matching rows. A list comprehension builds that full list before the caller can use its first result.</p>
 
 <p class="keep-in-present">The same choice appears throughout data processing: stream results when possible, and materialize them when an operation requires it.</p>
 
@@ -151,7 +244,7 @@ big = [r for r in students if r["gpa"] > 35]   # eager: every match in memory be
 <h3 class="new-slide" data-kicker="The five methods">Every operator speaks the same five methods</h3>
 
 <div class="code-annotated" data-lang="python">
-  <div class="code-step" data-step="bf" data-step-name="before_first" data-explain="Rewind to before row one. The product operator calls this on its right input over and over; rewind is what makes the nested loop possible.">def before_first()          # rewind</div>
+  <div class="code-step" data-step="bf" data-step-name="before_first" data-explain="Reset the scan to just before its first result. No result row is selected yet: call next() to move to the first row, or get False if there are no rows. For TableScan, the reset position is block 0, slot -1. A product resets its right input for each new left row so it can pair that left row with every right row.">def before_first()          # restart the scan</div>
   <div class="code-step" data-step="next" data-step-name="next" data-explain="Advance to the next row and return True, or return False when exhausted. After exhaustion, keep returning False until before_first() rewinds the scan.">def next() -> bool          # advance; False at the end</div>
   <div class="code-step" data-step="gv" data-step-name="get_val" data-explain="Read a field of the current row. Schema-aware in TableScan (ints vs strings); wrappers mostly delegate it downward.">def get_val(fld)            # read a field of the current row</div>
   <div class="code-step" data-step="hf" data-step-name="has_field" data-explain="Does this scan produce that field? The product uses it to route get_val to the correct side; the project uses it to say which columns it lets through.">def has_field(fld) -> bool  # do I produce this field?</div>
@@ -198,7 +291,7 @@ while plan.next():
 <table>
   <thead><tr><th>Interface method</th><th>What Lab 3's TableScan does for it</th></tr></thead>
   <tbody>
-    <tr><td><code>before_first</code></td><td>back to block 0, slot −1</td></tr>
+    <tr><td><code>before_first</code></td><td>reset to block 0, slot −1; the next <code>next()</code> call searches for the first USED row</td></tr>
     <tr><td><code>next</code></td><td>advance past <span class="gloss" data-gloss="tombstone">EMPTY slots</span> and cross to the next block when needed</td></tr>
     <tr><td><code>get_val</code></td><td><em>new this week</em>: 3 lines, int fields via get_int, strings via get_string</td></tr>
     <tr><td><code>has_field</code></td><td><em>new this week</em>: is the field in my schema?</td></tr>
@@ -253,46 +346,83 @@ while plan.next():
 </div>
 
 <div class="code-annotated" data-lang="python">
-  <div class="code-step" data-step="f" data-step-name="F" data-explain="Four lines that unlock joins: F('mid2') marks a right-hand side as a FIELD to look up, not a literal to compare against.">class F:                                  # "this rhs is a field"</div>
-  <div class="code-step" data-step="f" data-explain="">    def __init__(self, name): self.name = name</div>
-  <div class="code-step" data-step="pr" data-step-name="the check" data-explain="One loop over the AND-ed terms; the only subtlety is resolving the right side: field via the scan, literal as itself.">def is_satisfied(self, scan):</div>
-  <div class="code-step" data-step="pr" data-explain="">    for field, op, rhs in self.terms:</div>
-  <div class="code-step" data-step="pr" data-explain="The line that makes ('mid', '=', F('mid2')) a join condition and ('gpa', '>', 35) a filter: same machinery, one isinstance.">        rhs_val = scan.get_val(rhs.name) if isinstance(rhs, F) else rhs</div>
-  <div class="code-step" data-step="pr" data-explain="Fail one term, fail the row, and stop checking (cheap terms first is a real optimization).">        if not self.OPS[op](scan.get_val(field), rhs_val): return False</div>
-  <div class="code-step" data-step="pr" data-explain="">    return True</div>
-  <div class="code-explain-panel">Hover a line: this is the provided code, worth reading before you write the operators that consult it.</div>
+  <div class="code-step" data-step="f-class" data-step-name="Mark a field reference" data-explain="F is a small wrapper. F('mid2') tells the predicate to read a field named mid2 when it checks a row.">class F:</div>
+  <div class="code-step" data-step="f-init" data-step-name="Receive the field name" data-explain="Constructing F('mid2') passes the string 'mid2' as name. It does not read a row yet.">    def __init__(self, name):</div>
+  <div class="code-step" data-step="f-name" data-step-name="Save the name" data-explain="Store the field name for later. During is_satisfied(), scan.get_val(rhs.name) will read that field from the current row.">        self.name = name</div>
+  <div class="code-explain-panel">Hover a line to see what the wrapper stores. The visual below shows when that name is used.</div>
 </div>
+
+<p><code>F("mid2")</code> stores the <em>name</em> <code>"mid2"</code>, not its value. When the
+predicate checks a row, it uses that name to fetch the value from the scan. A plain number such
+as <code>35</code> is used directly; a plain string such as <code>"mid2"</code> would be compared
+as text. Only the <code>F</code> wrapper requests a field lookup.</p>
 
 <h3 class="new-slide" data-kicker="Select and Project">One false term rejects the row and stops the check</h3>
 
 <div class="viz" id="viz-pred">
-  <div class="viz-title">is_satisfied, one term at a time · pick a predicate, then step through the rows</div>
-  <p class="viz-description">Each press of <strong>check next term</strong> evaluates one triple
-  against the current row: fetch the field, resolve the right-hand side (a literal is itself; an
-  <code>F</code> is looked up in the same row), compare. A false term rejects the row at once and
-  the terms after it are never checked. The third predicate runs over the rows a
-  <code>ProductScan(students, majors)</code> would hand up, so <code>mid</code> and
-  <code>mid2</code> sit side by side in one row.</p>
-  <div class="qj-controls">
+  <div class="viz-title">Follow the code · from a term to True or False</div>
+  <p class="viz-description">Press <strong>Step code</strong> to unpack a term, read its values,
+  compare them, and follow the return. The outlined line is the one just executed. The row stays
+  on screen until you press <strong>Next row</strong>. <strong>Finish row</strong> runs the
+  remaining steps for that row.</p>
+  <div class="qj-controls" role="group" aria-label="Choose a predicate">
     <button type="button" class="btn" id="pd-p1">gpa &gt; 35</button>
     <button type="button" class="btn" id="pd-p2">gpa &gt; 35 AND mid = 2</button>
-    <button type="button" class="btn" id="pd-p3">mid = F(mid2) AND gpa &gt; 35</button>
-    <button type="button" class="btn primary" id="pd-step">check next term</button>
+    <button type="button" class="btn" id="pd-p3">mid = F("mid2") AND gpa &gt; 35</button>
+  </div>
+  <div class="qj-controls" role="group" aria-label="Step through the predicate code">
+    <button type="button" class="btn primary" id="pd-step">Step code</button>
+    <button type="button" class="btn" id="pd-finish">Finish row</button>
+    <button type="button" class="btn" id="pd-next" disabled>Next row</button>
     <button type="button" class="btn" id="pd-reset">Reset</button>
   </div>
-  <div class="pd-terms" id="pd-terms"></div>
+  <div class="pd-terms" id="pd-terms" role="group" aria-label="Terms joined by AND"></div>
   <div class="pd-grid">
     <div>
-      <div class="odo-title">current row <span id="pd-rowno"></span></div>
-      <div class="pd-row" id="pd-row"></div>
-      <div class="pd-eval" id="pd-eval">Press check next term.</div>
+      <div class="odo-title">provided Predicate method <span id="pd-code-status">· not started</span></div>
+      <div class="code-annotated pd-code" data-lang="python">
+        <div class="code-step" data-step="pd-call" data-step-name="Check one row" data-explain="The scan already has a current row. This method reads its fields; it never calls next() to move the scan.">def is_satisfied(self, scan):</div>
+        <div class="code-step" data-pd-line="term" data-step="pd-term" data-step-name="Unpack a term" data-explain="Take the next triple from self.terms. Assign its three parts to field, op, and rhs.">    for field, op, rhs in self.terms:</div>
+        <div class="code-step" data-pd-line="lhs" data-step="pd-lhs" data-step-name="Read the left value" data-explain="field is a name, such as 'mid'. Ask the scan for that field's value in the current row and store it in lhs_val.">        lhs_val = scan.get_val(field)</div>
+        <div class="code-step" data-pd-line="rhs" data-step="pd-rhs" data-step-name="Resolve the right value" data-explain="If rhs is an F wrapper, read the field named by rhs.name from the same row. Otherwise, rhs is a literal; use it directly.">        rhs_val = scan.get_val(rhs.name) if isinstance(rhs, F) else rhs</div>
+        <div class="code-step" data-pd-line="compare" data-step="pd-compare" data-step-name="Apply the comparison" data-explain="OPS maps an operator string to a function: '=' selects equality, for example. Compare lhs_val and rhs_val. If the comparison is False, the if not condition is True and execution enters the return False branch.">        if not self.OPS[op](lhs_val, rhs_val):</div>
+        <div class="code-step" data-pd-line="reject" data-step="pd-reject" data-step-name="Reject immediately" data-explain="Return False to the caller now. The remaining terms are skipped, including their field lookups.">            return False</div>
+        <div class="code-step" data-pd-line="accept" data-step="pd-accept" data-step-name="Every term passed" data-explain="The loop finished without finding a false term. Return True so SelectScan can keep this row.">    return True</div>
+        <div class="code-explain-panel">Hover or focus a line for its explanation. Step code shows the values used on that line.</div>
+      </div>
     </div>
     <div>
-      <div class="odo-title">rows checked <span id="pd-count"></span></div>
-      <div class="pd-log" id="pd-log"></div>
+      <div class="odo-title">current row <span id="pd-rowno"></span></div>
+      <p class="pd-source" id="pd-source"></p>
+      <div class="pd-row" id="pd-row"></div>
+      <div class="pd-unpack" id="pd-unpack">No term unpacked yet.</div>
+      <div class="pd-operands">
+        <div class="pd-operand pd-left" id="pd-left">
+          <span class="pd-label">left value · lhs_val</span>
+          <code id="pd-lhs-source">waiting for a field</code>
+          <strong class="pd-value" id="pd-lhs-value">—</strong>
+        </div>
+        <div class="pd-operator" id="pd-operator" aria-label="comparison operator">?</div>
+        <div class="pd-operand pd-right" id="pd-right">
+          <span class="pd-label">right value · rhs_val</span>
+          <code id="pd-rhs-source">waiting for rhs</code>
+          <strong class="pd-value" id="pd-rhs-value">—</strong>
+        </div>
+      </div>
+      <p class="pd-branch" id="pd-branch">The right side may be a literal or an F wrapper.</p>
+      <div class="pd-comparison" id="pd-comparison">Values flow into OPS[op](lhs_val, rhs_val).</div>
     </div>
   </div>
-  <p class="viz-caption">In the join predicate, the product provides fields from both input rows, so the condition can compare <code>mid</code> with <code>mid2</code>. The AND predicate also stops at the first false term. Checking a cheap or selective term earlier can reduce predicate-evaluation work.</p>
+  <div class="pd-eval" id="pd-eval" role="status" aria-live="polite" aria-atomic="true">Press Step code to start.</div>
+  <details class="pd-history">
+    <summary>Rows checked <span id="pd-count">· 0 of 0 passed</span></summary>
+    <div class="pd-log" id="pd-log"></div>
+  </details>
+  <p class="viz-caption">In the join example, <code>ProductScan(students, majors)</code> supplies one
+  combined row, so <code>mid</code> and <code>mid2</code> can be read from the same scan. GPA is
+  stored as an integer: <code>39</code> means 3.9. Try the first two product rows: ada + cs passes;
+  ada + stat fails the join term and never checks GPA. <code>SelectScan</code> uses the returned
+  Boolean to keep or skip the row.</p>
 </div>
 
 <!-- ============================================================ -->
@@ -307,7 +437,7 @@ while plan.next():
 <div class="code-annotated" data-lang="python">
   <div class="code-step" data-step="n1" data-explain="Common case: the right side still has rows for the current left row.">    def next(self):</div>
   <div class="code-step" data-step="n1" data-explain="">        if self.right.next(): return True</div>
-  <div class="code-step" data-step="n2" data-step-name="the odometer" data-explain="Right side exhausted: rewind it, advance the left one row, and take the right's first row again. When the LEFT runs out too, the product is done.">        self.right.before_first()</div>
+  <div class="code-step" data-step="n2" data-step-name="restart the right input" data-explain="The right input has no rows left for the current left row. Reset its position to before its first row. The following line advances the left input and calls right.next() to select the first right row again. This lets each new left row pair with all the right rows. If the left input is exhausted, the product is finished.">        self.right.before_first()</div>
   <div class="code-step" data-step="n2" data-explain="The sketch returns a pair only if both inputs have a current row. The full implementation must also handle empty inputs and remember when the product is exhausted.">        return self.left.next() and self.right.next()</div>
   <div class="code-explain-panel">Hover or tap a line to see how the product advances the right input and restarts it for each left row.</div>
 <p>This is the rollover sketch for nonempty inputs. The complete implementation must remember whether the left scan has a current row, return no pairs if either input is empty, and keep returning <code>False</code> after exhaustion until rewound.</p>
@@ -323,7 +453,7 @@ while plan.next():
 
 <h3 class="new-slide" data-kicker="The nested loop">When the right input ends, advance the left and rewind the right</h3>
 
-<p>Step through the animation to see how each call changes the two cursors. Pay attention to how <code>before_first()</code> initializes the left input.</p>
+<p>Step through the animation to see how each call changes the two cursors. <code>ProductScan.before_first()</code> prepares the first pair by positioning the left input on its first row and the right input before its first row.</p>
 
 <div class="viz" id="viz-odo">
   <div class="viz-title">ProductScan(students, majors) · press next(), watch the cursors</div>
@@ -338,7 +468,7 @@ while plan.next():
     <div class="odo-col"><div class="odo-title">right · majors <span id="odo-rcount"></span></div><div id="odo-right"></div></div>
     <div class="odo-col wide"><div class="odo-title">pairs emitted <span id="odo-pcount"></span></div><div id="odo-pairs"></div></div>
   </div>
-  <p class="viz-caption"><code>before_first()</code> advances the left scan to ada before the first pair is requested. The full implementation must also remember whether that advance succeeded so an empty left input produces no pairs.</p>
+  <p class="viz-caption"><code>ProductScan.before_first()</code> advances the left scan to ada before the first pair is requested. The full implementation must also remember whether that advance succeeded so an empty left input produces no pairs.</p>
 </div>
 
 <h3 class="new-slide" data-kicker="The nested loop">A filter keeps the matching pairs from the product</h3>
@@ -349,7 +479,7 @@ while plan.next():
   <div class="code-step" data-step="j1" data-explain="">        ProductScan(students, majors),</div>
   <div class="code-step" data-step="j1" data-explain="">        Predicate(("mid", "=", F("mid2")), ("gpa", ">", 35))),</div>
   <div class="code-step" data-step="j1" data-explain="">    ["name", "dept"])</div>
-  <div class="code-step" data-step="j2" data-step-name="the result" data-explain="ada→cs, cyd→cs, eli→stat. No special join operator exists yet: product + select IS the join. Better join algorithms (hash, merge, week 9) are optimizations of exactly this.">#  (ada, cs)  (cyd, cs)  (eli, stat)</div>
+  <div class="code-step" data-step="j2" data-step-name="the result" data-explain="With the visual's sample rows: ada→cs, cyd→stat, eli→econ. Product forms the pairs; Select keeps matching IDs with GPA above 3.5; Project returns name and dept. Later join algorithms produce the same result with less work.">#  (ada, cs)  (cyd, stat)  (eli, econ)</div>
   <div class="code-explain-panel">Hover a line: <span class="gloss" data-gloss="cartesian-product">cartesian product</span> plus predicate equals join. Week 9's faster join algorithms produce the same pairs with less work.<sup class="src"><a href="#src-6" title="Database System Concepts, 7th ed., Chapter 16 slides: Query Optimization (Silberschatz, Korth, Sudarshan)">6</a></sup></div>
 </div>
 
@@ -465,7 +595,7 @@ while plan.next():
 
 <ul class="recap-list">
   <li><strong>A common interface lets operators compose.</strong> Each scan provides the same five methods, and the planner connects compatible scans into a tree.</li>
-  <li><strong>Streaming limits intermediate storage.</strong> Scans, filters, projections, and this nested-loop product retain cursor state rather than their full output. Blocking sorts and hash aggregation need more state.</li>
+  <li><strong>Streaming limits intermediate storage.</strong> Scans, filters, projections, and this nested-loop product retain cursor state rather than their full output. Blocking sorts and <span class="gloss" data-gloss="hash-aggregation">hash aggregation</span> need more state.</li>
   <li><strong>Equivalent plans can have different costs.</strong> Filtering both inputs before the product reduces candidate pairs from 900 to 60 without changing the result.</li>
 </ul>
 
@@ -493,7 +623,7 @@ out. Quiz 4 opens class: the iterator model.</p>
 <p class="keep-in-present">Caching the entire right input trades memory for less repeated work. The lab’s product avoids that extra storage and restarts the input instead. If its blocks remain in the buffer pool, repeated scans can reuse them from memory; otherwise they require additional reads. Production planners choose among strategies such as rescanning, materializing, and hash joining according to their costs<sup class="src"><a href="#src-11" title="PostgreSQL documentation: Planner/Optimizer">11</a></sup>.</p>
 
 <h3>Where are ORDER BY and GROUP BY?</h3>
-<p class="keep-in-present">A blocking sort must inspect all its input before emitting sorted output. Hash aggregation also usually waits for all input, while aggregation over input already ordered by the grouping key can emit one completed group at a time. Lecture 9 explains these tradeoffs.</p>
+<p class="keep-in-present">A blocking sort must inspect all its input before emitting sorted output. <span class="gloss" data-gloss="hash-aggregation">Hash aggregation</span> also usually waits for all input, while aggregation over input already ordered by the grouping key can emit one completed group at a time. Lecture 9 explains these tradeoffs.</p>
 
 <h3>What about OR in predicates?</h3>
 <p class="keep-in-present">microdb’s <code>Predicate</code> supports AND conditions. Lab 5 offers OR as an optional parser extension. <code>SelectScan</code> only needs a predicate that returns true or false, so adding OR need not change its iterator interface.</p>
@@ -527,7 +657,11 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
-<script src="viz.js?v=5"></script>
+<script src="../../labs/_shared/query-journey.js?v=1"></script>
+<script src="viz.js?v=8"></script>
+<script src="generator-demo.js?v=1"></script>
+<script src="predicate-model.js?v=1"></script>
+<script src="predicate-demo.js?v=1"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
