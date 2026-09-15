@@ -17,7 +17,7 @@
     },
     'hash-aggregation': {
       title: 'Hash aggregation',
-      body: "<p>A way to compute <code>GROUP BY</code> results using a hash table, much like a Python dictionary. To count students by major, use each major as a key and keep a running count. Reading <code>cs, stat, cs</code> produces <code>cs: 2, stat: 1</code>.</p><p>Any later row could change a group’s count, so final results usually wait until all input has been read. This example stores one counter per group; more groups require more memory.</p>",
+      body: "<p>A way to compute <code>GROUP BY</code> results using a hash table, much like a Python dictionary. To count students by major, use each major as a key and keep a running count. Reading <code>ds, stat, ds</code> produces <code>ds: 2, stat: 1</code>.</p><p>Any later row could change a group’s count, so final results usually wait until all input has been read. This example stores one counter per group; more groups require more memory.</p>",
     },
     'duck-typing': {
       title: 'Duck typing',
@@ -142,7 +142,7 @@
   if (!leftEl) return;
 
   const LEFT = ['ada', 'ben', 'cyd', 'dee', 'eli', 'fay'];
-  const RIGHT = ['cs', 'stat', 'econ'];
+  const RIGHT = ['ds', 'stat', 'econ'];
   let li, ri, pairs, leftDelivered, rightDelivered, done;
 
   const pathEl = document.getElementById('odo-path');
@@ -154,7 +154,7 @@
     li = 0; ri = -1;
     leftDelivered = 1; rightDelivered = 0;
     pairs = []; done = false;
-    pathEl.textContent = 'Setup: left is at ada; right is before its first row, cs.';
+    pathEl.textContent = 'Setup: left is at ada; right is before its first row, ds.';
     render();
   }
 

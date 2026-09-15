@@ -65,7 +65,7 @@
   rows flowing <em>through</em> each stage vs rows delivered at the top.</p>
   <div class="qj-controls">
     <button type="button" class="btn primary" id="st-q1">SELECT name WHERE gpa &gt; 35</button>
-    <button type="button" class="btn primary" id="st-q2">the join (honors × cs)</button>
+    <button type="button" class="btn primary" id="st-q2">the join (honors × majors)</button>
     <button type="button" class="btn" id="st-q3">bare product</button>
     <button type="button" class="btn" id="st-reset">Reset</button>
   </div>
@@ -156,7 +156,7 @@ predicate <em>is</em> the join.</p>
 
 <h3>Run the full tests</h3>
 
-<p>The eleven tests are grouped by operator. The join test runs <code>Project(name, dept) ← Select(mid = mid2 AND gpa &gt; 35) ← Product(students, majors)</code> and expects exactly <code>(ada, cs), (cyd, cs), (eli, stat)</code>. A separate test checks that no frame remains pinned after the join is closed.</p>
+<p>The eleven tests are grouped by operator. The join test runs <code>Project(name, dept) ← Select(mid = mid2 AND gpa &gt; 35) ← Product(students, majors)</code> and expects exactly <code>(ada, ds), (cyd, ds), (eli, stat)</code>. A separate test checks that no frame remains pinned after the join is closed.</p>
 
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_scans.py</span>
 <span class="t-head">SELECT group</span>
@@ -293,6 +293,6 @@ this reason.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../_shared/lab-base.js?v=13"></script>
-<script src="viz.js?v=1"></script>
+<script src="viz.js?v=2"></script>
 </body>
 </html>

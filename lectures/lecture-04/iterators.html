@@ -420,7 +420,7 @@ as text. Only the <code>F</code> wrapper requests a field lookup.</p>
   </details>
   <p class="viz-caption">In the join example, <code>ProductScan(students, majors)</code> supplies one
   combined row, so <code>mid</code> and <code>mid2</code> can be read from the same scan. GPA is
-  stored as an integer: <code>39</code> means 3.9. Try the first two product rows: ada + cs passes;
+  stored as an integer: <code>39</code> means 3.9. Try the first two product rows: ada + ds passes;
   ada + stat fails the join term and never checks GPA. <code>SelectScan</code> uses the returned
   Boolean to keep or skip the row.</p>
 </div>
@@ -447,7 +447,7 @@ as text. Only the <code>F</code> wrapper requests a field lookup.</p>
   <thead><tr><th>Pair #</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>…</th><th>18</th></tr></thead>
   <tbody>
     <tr><td>left (student)</td><td>ada</td><td>ada</td><td>ada</td><td>ben</td><td>ben</td><td>…</td><td>fay</td></tr>
-    <tr><td>right (major)</td><td>cs</td><td>stat</td><td>econ</td><td>cs</td><td>stat</td><td>…</td><td>econ</td></tr>
+    <tr><td>right (major)</td><td>ds</td><td>stat</td><td>econ</td><td>ds</td><td>stat</td><td>…</td><td>econ</td></tr>
   </tbody>
 </table>
 
@@ -479,7 +479,7 @@ as text. Only the <code>F</code> wrapper requests a field lookup.</p>
   <div class="code-step" data-step="j1" data-explain="">        ProductScan(students, majors),</div>
   <div class="code-step" data-step="j1" data-explain="">        Predicate(("mid", "=", F("mid2")), ("gpa", ">", 35))),</div>
   <div class="code-step" data-step="j1" data-explain="">    ["name", "dept"])</div>
-  <div class="code-step" data-step="j2" data-step-name="the result" data-explain="With the visual's sample rows: ada→cs, cyd→stat, eli→econ. Product forms the pairs; Select keeps matching IDs with GPA above 3.5; Project returns name and dept. Later join algorithms produce the same result with less work.">#  (ada, cs)  (cyd, stat)  (eli, econ)</div>
+  <div class="code-step" data-step="j2" data-step-name="the result" data-explain="With the visual's sample rows: ada→ds, cyd→stat, eli→econ. Product forms the pairs; Select keeps matching IDs with GPA above 3.5; Project returns name and dept. Later join algorithms produce the same result with less work.">#  (ada, ds)  (cyd, stat)  (eli, econ)</div>
   <div class="code-explain-panel">Hover a line: <span class="gloss" data-gloss="cartesian-product">cartesian product</span> plus predicate equals join. Week 9's faster join algorithms produce the same pairs with less work.<sup class="src"><a href="#src-6" title="Database System Concepts, 7th ed., Chapter 16 slides: Query Optimization (Silberschatz, Korth, Sudarshan)">6</a></sup></div>
 </div>
 
@@ -658,9 +658,9 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
 <script src="../../labs/_shared/query-journey.js?v=1"></script>
-<script src="viz.js?v=8"></script>
+<script src="viz.js?v=9"></script>
 <script src="generator-demo.js?v=1"></script>
-<script src="predicate-model.js?v=1"></script>
+<script src="predicate-model.js?v=2"></script>
 <script src="predicate-demo.js?v=1"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"

@@ -40,7 +40,7 @@
     { sid: 3, name: 'cyd', gpa: 37, mid: 1 }, { sid: 4, name: 'dee', gpa: 28, mid: 3 },
     { sid: 5, name: 'eli', gpa: 36, mid: 2 }, { sid: 6, name: 'fay', gpa: 34, mid: 1 },
   ];
-  const MAJORS = [{ mid2: 1, dept: 'cs' }, { mid2: 2, dept: 'stat' }, { mid2: 3, dept: 'econ' }];
+  const MAJORS = [{ mid2: 1, dept: 'ds' }, { mid2: 2, dept: 'stat' }, { mid2: 3, dept: 'econ' }];
 
   function node(name, sub, traffic) {
     return `<div class="pl-node lit">${name}<span>${sub}</span>` +

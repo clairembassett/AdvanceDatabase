@@ -7,7 +7,7 @@
     { name: 'cyd', gpa: 37, mid: 2 }, { name: 'dee', gpa: 28, mid: 1 },
     { name: 'eli', gpa: 36, mid: 3 }, { name: 'fay', gpa: 34, mid: 2 },
   ];
-  const MAJORS = [{ mid2: 1, dept: 'cs' }, { mid2: 2, dept: 'stat' }, { mid2: 3, dept: 'econ' }];
+  const MAJORS = [{ mid2: 1, dept: 'ds' }, { mid2: 2, dept: 'stat' }, { mid2: 3, dept: 'econ' }];
   const PRODUCT = STUDENTS.flatMap(student => MAJORS.map(major => ({ ...student, ...major })));
   const OPS = { '>': (lhs, rhs) => lhs > rhs, '=': (lhs, rhs) => lhs === rhs };
   const PRESETS = {

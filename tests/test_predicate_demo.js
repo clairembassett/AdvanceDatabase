@@ -69,7 +69,7 @@ assert.equal(state.stage, 'rhs');
 assert.equal(state.rhsVal, 35, 'An unwrapped numeric RHS remains its literal value');
 state = finishRow(joined);
 assert.equal(state.stage, 'accept');
-assert.deepEqual(state.log, [{ label: '(ada, cs)', passed: true, failedTerm: null, skipped: 0 }]);
+assert.deepEqual(state.log, [{ label: '(ada, ds)', passed: true, failedTerm: null, skipped: 0 }]);
 state = joined.nextRow();
 assert.equal(state.rowIndex, 1);
 assert.deepEqual([state.row.mid, state.row.mid2], [1, 2]);
@@ -82,7 +82,7 @@ assert.deepEqual(state.log.at(-1), { label: '(ada, stat)', passed: false, failed
 for (const [key, rowCount, expectedLabels] of [
   ['p1', 6, ['ada', 'cyd', 'eli']],
   ['p2', 6, ['cyd']],
-  ['p3', 18, ['(ada, cs)', '(cyd, stat)', '(eli, econ)']],
+  ['p3', 18, ['(ada, ds)', '(cyd, stat)', '(eli, econ)']],
 ]) {
   const demo = createDemo(key);
   for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {

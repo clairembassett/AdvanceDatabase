@@ -79,8 +79,8 @@ panel.textContent = decode(widget.match(/<div class="code-explain-panel">([\s\S]
 const defaultPanel = panel.textContent;
 root.querySelectorAll = selector => { assert.equal(selector, '.pd-code .code-step'); return lines; };
 root.querySelector = selector => { assert.equal(selector, '.pd-code .code-explain-panel'); return panel; };
-for (const asset of ['predicate-model.js', 'predicate-demo.js']) {
-  assert.equal((html.match(new RegExp(`<script src="${asset.replace('.', '\\.')}\\?v=1"></script>`, 'g')) || []).length, 1);
+for (const [asset, version] of [['predicate-model.js', 2], ['predicate-demo.js', 1]]) {
+  assert.equal((html.match(new RegExp(`<script src="${asset.replace('.', '\\.')}\\?v=${version}"></script>`, 'g')) || []).length, 1);
 }
 assert(html.indexOf('src="predicate-model.js') < html.indexOf('src="predicate-demo.js'), 'Model loads before controller');
 const context = vm.createContext({ window: {}, document: { getElementById: get, createElement: tag => new Element(tag) } });
@@ -109,7 +109,7 @@ const view = () => ['rowno', 'row', 'lhs-value', 'rhs-value', 'comparison', 'eva
 assert.equal(pd('p3').getAttribute('aria-pressed'), 'true');
 assert.equal(pd('p1').getAttribute('aria-pressed'), 'false');
 assert.equal(text('rowno'), '· 1 of 18');
-assert.match(text('source'), /students\(ada\).*majors\(cs\)/);
+assert.match(text('source'), /students\(ada\).*majors\(ds\)/);
 assert.equal(text('count'), '· 0 of 0 passed');
 assert.equal(text('lhs-value'), '—');
 assert.equal(text('rhs-value'), '—');
@@ -165,7 +165,7 @@ click('finish');
 assert.equal(activeLine(), 'accept');
 assert.equal(text('rowno'), '· 1 of 18');
 assert.equal(text('count'), '· 1 of 1 passed');
-assert.match(text('log'), /ada, cs.*keep row/);
+assert.match(text('log'), /ada, ds.*keep row/);
 controls(true, false);
 const accepted = view();
 click('step'); click('finish');

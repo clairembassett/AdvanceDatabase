@@ -35,7 +35,7 @@ STUDENTS = [  # (sid, name, gpa, mid)
     (1, "ada", 39, 1), (2, "ben", 31, 2), (3, "cyd", 37, 1),
     (4, "dee", 28, 3), (5, "eli", 36, 2), (6, "fay", 34, 1),
 ]
-MAJORS = [(1, "cs"), (2, "stat"), (3, "econ")]  # (mid, dept)
+MAJORS = [(1, "ds"), (2, "stat"), (3, "econ")]  # (mid, dept)
 
 
 def check(group, name, fn):
@@ -222,7 +222,7 @@ def test_join_query():
         while plan.next():
             rows.append((plan.get_val("name"), plan.get_val("dept")))
         plan.close()
-        expect(rows == [("ada", "cs"), ("cyd", "cs"), ("eli", "stat")],
+        expect(rows == [("ada", "ds"), ("cyd", "ds"), ("eli", "stat")],
                f"the join should match each honors student to their dept — got {rows}")
     finally:
         cleanup(d, fm)

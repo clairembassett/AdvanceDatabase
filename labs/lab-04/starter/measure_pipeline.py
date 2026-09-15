@@ -2,7 +2,7 @@
 
 Same query, two plan shapes, and a counter on every edge of the tree:
 
-    Query: names of cs students with gpa > 35, from students x majors.
+    Query: names of ds students with gpa > 35, from students x majors.
 
     Plan A (filter LATE):  Project <- Select(join AND gpa AND dept) <- Product
     Plan B (filter EARLY): Project <- Select(join) <- Product(Select(gpa) x Select(dept))
@@ -22,7 +22,7 @@ from query_engine import Predicate, F, SelectScan, ProjectScan, ProductScan, Cou
 BLOCK_SIZE = 4096
 N_STUDENTS = 300                  # 100 per major
 N_MAJORS = 3
-DEPTS = ["cs", "stat", "econ"]
+DEPTS = ["ds", "stat", "econ"]
 
 
 def build(d):
@@ -64,7 +64,7 @@ def main():
                         TableScan(bm, fm, "majors", m_lay)))
         plan_a = ProjectScan(
             SelectScan(pairs_a, Predicate(("mid", "=", F("mid2")),
-                                          ("gpa", ">", 35), ("dept", "=", "cs"))),
+                                          ("gpa", ">", 35), ("dept", "=", "ds"))),
             ["name"])
         out_a = run(plan_a)
         plan_a.close()
@@ -75,7 +75,7 @@ def main():
                        Predicate(("gpa", ">", 35))))
         kept_m = CountingScan(
             SelectScan(TableScan(bm, fm, "majors", m_lay),
-                       Predicate(("dept", "=", "cs"))))
+                       Predicate(("dept", "=", "ds"))))
         pairs_b = CountingScan(ProductScan(kept_s, kept_m))
         plan_b = ProjectScan(
             SelectScan(pairs_b, Predicate(("mid", "=", F("mid2")))),
