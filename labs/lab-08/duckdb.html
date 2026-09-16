@@ -342,6 +342,14 @@ see locally is the grade.</p>
 <!-- ============================================================ -->
 <h2 id="going-further">Going further <span class="part-time">optional</span></h2>
 
+<p class="keep-in-present"><strong>Train and apply a model in SQL.</strong> Run Lecture 10’s
+<a href="../../lectures/lecture-10/analytics.html#in-database-ml">in-database machine learning example</a>
+with the same DuckDB installation. It fits a line on synthetic training rides, stores its coefficients,
+and scores separate test rides. Use <code>--explain</code> with the
+<a href="../../lectures/lecture-10/in_database_ml.py" download>downloadable demo</a>
+to find the scan, filter, aggregate, and cross product in the plans. Change only a test fare:
+which changes, the fitted coefficients or the evaluation error? Explain why. This extension is ungraded.</p>
+
 <p class="keep-in-present">Optional extensions: download one full month from the TLC's
 <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page">trip record page</a>
 (<code>yellow_tripdata_2024-01.parquet</code>, about 50 MB and three million rows) and point

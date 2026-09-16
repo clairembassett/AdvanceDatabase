@@ -309,7 +309,7 @@ while plan.next():
 <h3 class="new-slide" data-kicker="Select and Project">SelectScan skips rejected rows instead of copying keepers</h3>
 
 <div class="code-annotated" data-lang="python">
-  <div class="code-step" data-step="s1" data-explain="Wraps any scan plus a predicate: a conjunction of comparisons like gpa > 35, or sid = F('mid') for joins.">class SelectScan:                       # WHERE</div>
+  <div class="code-step" data-step="s1" data-explain="Wraps any scan plus a predicate: a conjunction of comparisons like gpa > 35, or mid = F('mid2') to match a student's major ID to a major row's ID.">class SelectScan:                       # WHERE</div>
   <div class="code-step" data-step="s2" data-step-name="the loop" data-explain="Advance the input until its current row satisfies the predicate. Return only matching rows to the caller.">    def next(self):</div>
   <div class="code-step" data-step="s2" data-explain="Test each input row against the predicate during this scan pass.">        while self.scan.next():</div>
   <div class="code-step" data-step="s2" data-explain="A matching row is now current. Stop advancing so the caller can read its fields.">            if self.predicate.is_satisfied(self.scan):</div>
@@ -339,14 +339,32 @@ while plan.next():
 
 <h3 class="new-slide" data-kicker="Select and Project">F() turns a filter term into a join condition</h3>
 
+<p>The join uses two fields that both hold <strong>major IDs</strong>:</p>
+
+<table>
+  <thead><tr><th>Field</th><th>Meaning</th><th>Example value</th></tr></thead>
+  <tbody>
+    <tr><td><code>students.mid</code></td><td>The student's major ID: a reference to a row in <code>majors</code>.</td><td>ada has <code>mid = 1</code>.</td></tr>
+    <tr><td><code>majors.mid2</code></td><td>The ID of the major row itself.</td><td>ds has <code>mid2 = 1</code>; stat has <code>mid2 = 2</code>.</td></tr>
+  </tbody>
+</table>
+
+<p><code>ProductScan</code> exposes both fields in one combined row. We name them
+<code>mid</code> and <code>mid2</code> so each has a distinct field name; there is no
+<code>mid1</code> field in this example. The suffix <code>2</code> distinguishes the name
+from <code>mid</code>; it does not mean the value is 2 or that a student has a second major.</p>
+
+<p>For ada + ds, the join checks <code>1 == 1</code> and finds a match. For ada + stat,
+it checks <code>1 == 2</code> and rejects the pair.</p>
+
 <div class="layer-card">
   <div class="lc-row"><span class="lc-k">A predicate</span><span>is a WHERE clause turned into a Python value the engine can walk. <code>WHERE gpa &gt; 35 AND mid = 2</code> becomes a list of two <em>terms</em>, <code>("gpa", "&gt;", 35)</code> and <code>("mid", "=", 2)</code>: each is a triple of the field to look at, the comparison to apply, and the value to compare against.</span></div>
   <div class="lc-row"><span class="lc-k">Joined by AND</span><span>a row passes the predicate only if every term is true for it; the first false term rejects the row.</span></div>
-  <div class="lc-row"><span class="lc-k">The F wrapper</span><span>the right-hand side of a term is normally a literal such as 35. Wrapping it in <code>F</code> marks it as the name of another field instead, so <code>("mid", "=", F("mid2"))</code> means "compare this row&#39;s mid with its mid2", which is exactly a join condition.</span></div>
+  <div class="lc-row"><span class="lc-k">The F wrapper</span><span>the right-hand side of a term is normally a literal such as 35. Wrapping it in <code>F</code> marks it as the name of another field instead, so <code>("mid", "=", F("mid2"))</code> compares the student&#39;s major ID with the major row&#39;s ID, which is the join condition.</span></div>
 </div>
 
 <div class="code-annotated" data-lang="python">
-  <div class="code-step" data-step="f-class" data-step-name="Mark a field reference" data-explain="F is a small wrapper. F('mid2') tells the predicate to read a field named mid2 when it checks a row.">class F:</div>
+  <div class="code-step" data-step="f-class" data-step-name="Mark a field reference" data-explain="F is a small wrapper. F('mid2') tells the predicate to read mid2, the major row's ID, when it checks the combined row.">class F:</div>
   <div class="code-step" data-step="f-init" data-step-name="Receive the field name" data-explain="Constructing F('mid2') passes the string 'mid2' as name. It does not read a row yet.">    def __init__(self, name):</div>
   <div class="code-step" data-step="f-name" data-step-name="Save the name" data-explain="Store the field name for later. During is_satisfied(), scan.get_val(rhs.name) will read that field from the current row.">        self.name = name</div>
   <div class="code-explain-panel">Hover a line to see what the wrapper stores. The visual below shows when that name is used.</div>
@@ -383,8 +401,8 @@ as text. Only the <code>F</code> wrapper requests a field lookup.</p>
       <div class="code-annotated pd-code" data-lang="python">
         <div class="code-step" data-step="pd-call" data-step-name="Check one row" data-explain="The scan already has a current row. This method reads its fields; it never calls next() to move the scan.">def is_satisfied(self, scan):</div>
         <div class="code-step" data-pd-line="term" data-step="pd-term" data-step-name="Unpack a term" data-explain="Take the next triple from self.terms. Assign its three parts to field, op, and rhs.">    for field, op, rhs in self.terms:</div>
-        <div class="code-step" data-pd-line="lhs" data-step="pd-lhs" data-step-name="Read the left value" data-explain="field is a name, such as 'mid'. Ask the scan for that field's value in the current row and store it in lhs_val.">        lhs_val = scan.get_val(field)</div>
-        <div class="code-step" data-pd-line="rhs" data-step="pd-rhs" data-step-name="Resolve the right value" data-explain="If rhs is an F wrapper, read the field named by rhs.name from the same row. Otherwise, rhs is a literal; use it directly.">        rhs_val = scan.get_val(rhs.name) if isinstance(rhs, F) else rhs</div>
+        <div class="code-step" data-pd-line="lhs" data-step="pd-lhs" data-step-name="Read the left value" data-explain="field is a name, such as 'mid'. For this join, mid is the student's major ID. Ask the scan for that field's value and store it in lhs_val.">        lhs_val = scan.get_val(field)</div>
+        <div class="code-step" data-pd-line="rhs" data-step="pd-rhs" data-step-name="Resolve the right value" data-explain="If rhs is F('mid2'), read the major row's ID from mid2 in the same combined row. Other F wrappers likewise name a field to read. A literal is used directly.">        rhs_val = scan.get_val(rhs.name) if isinstance(rhs, F) else rhs</div>
         <div class="code-step" data-pd-line="compare" data-step="pd-compare" data-step-name="Apply the comparison" data-explain="OPS maps an operator string to a function: '=' selects equality, for example. Compare lhs_val and rhs_val. If the comparison is False, the if not condition is True and execution enters the return False branch.">        if not self.OPS[op](lhs_val, rhs_val):</div>
         <div class="code-step" data-pd-line="reject" data-step="pd-reject" data-step-name="Reject immediately" data-explain="Return False to the caller now. The remaining terms are skipped, including their field lookups.">            return False</div>
         <div class="code-step" data-pd-line="accept" data-step="pd-accept" data-step-name="Every term passed" data-explain="The loop finished without finding a false term. Return True so SelectScan can keep this row.">    return True</div>
@@ -420,8 +438,8 @@ as text. Only the <code>F</code> wrapper requests a field lookup.</p>
   </details>
   <p class="viz-caption">In the join example, <code>ProductScan(students, majors)</code> supplies one
   combined row, so <code>mid</code> and <code>mid2</code> can be read from the same scan. GPA is
-  stored as an integer: <code>39</code> means 3.9. Try the first two product rows: ada + ds passes;
-  ada + stat fails the join term and never checks GPA. <code>SelectScan</code> uses the returned
+  stored as an integer: <code>39</code> means 3.9. For ada + ds, the IDs match (<code>1 == 1</code>).
+  For ada + stat, they differ (<code>1 == 2</code>), so the predicate never checks GPA. <code>SelectScan</code> uses the returned
   Boolean to keep or skip the row.</p>
 </div>
 
@@ -475,7 +493,7 @@ as text. Only the <code>F</code> wrapper requests a field lookup.</p>
 
 <div class="code-annotated" data-lang="python">
   <div class="code-step" data-step="j1" data-explain="The course's first join, as a plan you can type: pair everything, keep pairs where the ids agree and the gpa qualifies, show two columns.">plan = ProjectScan(</div>
-  <div class="code-step" data-step="j1" data-explain="The join CONDITION is just a predicate term whose right side is a field (F('mid2')) instead of a literal.">    SelectScan(</div>
+  <div class="code-step" data-step="j1" data-explain="The join condition compares mid, the student's major ID, with mid2, the major row's ID. F('mid2') requests that field's value from the combined row.">    SelectScan(</div>
   <div class="code-step" data-step="j1" data-explain="">        ProductScan(students, majors),</div>
   <div class="code-step" data-step="j1" data-explain="">        Predicate(("mid", "=", F("mid2")), ("gpa", ">", 35))),</div>
   <div class="code-step" data-step="j1" data-explain="">    ["name", "dept"])</div>

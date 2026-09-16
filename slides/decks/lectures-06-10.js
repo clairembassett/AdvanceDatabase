@@ -96,7 +96,7 @@ const draws={
 (d,s)=>{const names=['files','buffers','records','iterators','SQL','indexes','WAL','isolation'];names.forEach((v,i)=>{const x=120+(i%4)*290,y=145+Math.floor(i/4)*285;d.box('layer'+i,x,y,240,140,v,i%3===s?P.greenLight:P.white,P.line,28);if(i<3||i>3&&i<7)line(d,'edge'+i,x+245,y+70,x+280,y+70);});}
 ],
 10:[
-(d,s)=>title(d,['The analytics stack'],()=>{for(let r=0;r<5;r++)for(let c=0;c<9;c++){d.rect('cell'+r+c,200+c*98,300+r*53,83,40,s===0?(r===2?P.orangeLight:P.white):(c===4?P.greenLight:P.white),P.line,5);}}),
+(d,s)=>title(d,['The analytics stack','In-database machine learning'],()=>{for(let r=0;r<5;r++)for(let c=0;c<9;c++){d.rect('cell'+r+c,200+c*98,300+r*53,83,40,s===0?(r===2?P.orangeLight:P.white):(c===4?P.greenLight:P.white),P.line,5);}}),
 (d,s)=>{for(let r=0;r<7;r++)for(let c=0;c<12;c++){const x=s===2?170+r*140:125+c*86,y=s===2?165+c*36:185+r*60;d.rect('cell'+r+c,x,y,s===2?120:70,s===2?26:45,s===0?(r===3?P.orangeLight:P.white):(c===5?P.greenLight:P.white),P.line,4);}if(s===2)tx(d,'rotate',1060,625,'90°',38,P.green);},
 (d,s)=>{dotgrid(d,'events',140,265,100,10,s?100:0,29,8);line(d,'agg',550,420,790,420);[3,6,4,8].forEach((n,i)=>d.rect('group'+i,840+i*85,550-n*30,60,s?n*30:5,P.green,'none',6));if(s===2)tx(d,'avg',990,625,'AVG',38);},
 (d,s)=>{const values=[[1,3,12.4,0],[2,3,8.1,1],[3,4,22,0],[4,4,9.7,0],[5,5,15.2,1],[6,5,31.9,0]];values.forEach((row,r)=>row.forEach((v,c)=>{chip(d,'c'+r+c,235+c*210,125+r*76,v,s===0?P.white:c===2?P.greenLight:P.orangeLight,175,60);}));if(s===2)tx(d,'used',640,635,'24 → 6',45);},
@@ -112,6 +112,23 @@ const draws={
 (d,s)=>{d.rect('process',340,150,740,440,P.white,P.blue,22,4);tx(d,'python',720,205,'Python',35);d.box('duck',525,295,370,150,'DuckDB',P.greenLight,P.green,46);['CSV','Parquet','dataframe'].forEach((v,i)=>d.box('src'+i,105,190+i*145,205,85,v,P.white,P.line,27));line(d,'in',325,375,505,375);if(s>0)d.circle('data',s===1?450:935,375,17,P.orange);if(s===2)d.box('df',915,485,250,95,'dataframe',P.blueLight,P.blue,30);},
 (d,s)=>{d.rect('storage',120,475,1040,150,P.greenLight,P.green,16);tx(d,'storelabel',640,565,'object storage',36);for(let i=0;i<(s===0?1:s===1?3:2);i++){d.rect('compute'+i,170+i*340,140,260,185,P.blueLight,P.blue,12);dotgrid(d,'cpu'+i,220+i*340,185,6,3,6,31,9);line(d,'reads'+i,300+i*340,345,300+i*340,455,P.blue);}tx(d,'compute-label',640,100,'compute',32);},
 (d,s)=>{const files=['a','b','c','d'];files.forEach((v,i)=>chip(d,'file'+i,135+i*275,460,v,i<2?P.blueLight:P.greenLight,160,100));d.box('manifestA',145,275,320,95,'A: a, b',P.blueLight,P.blue,34);if(s>0)d.box('manifestB',815,275,320,95,'B: a, c, d',P.greenLight,P.green,34);line(d,'old',305,385,305,445,P.blue);if(s>0){line(d,'new',970,385,805,445);line(d,'new2',970,385,1090,445);}d.circle('head',s<2?305:975,200,27,P.orange);if(s===2)d.circle('reader',305,620,24,P.blue);},
+(d,s)=>{
+  tx(d,'heading',640,100,'Fit inside the query engine',42);
+  tx(d,'train-label',285,195,'training rows',29,P.green);
+  d.table('train',110,230,[170,180],[['distance','fare'],[1,6],[2,6],[3,8],[4,12]],{rowHeight:56,fontSize:28});
+  tx(d,'heldout',285,570,'test rows stay out',26,P.orange);
+  if(s>=1){line(d,'fit-arrow',480,360,550,360);d.box('fit',575,280,270,160,'Aggregate',P.greenLight,P.green,35);tx(d,'func1',710,475,'regr_intercept',25);tx(d,'func2',710,518,'regr_slope',25);}
+  if(s>=2){line(d,'model-arrow',860,360,915,360);d.table('model',935,280,[125,125],[['b','w'],[3,2]],{rowHeight:80,fontSize:34});tx(d,'model-label',1060,475,'model table',28,P.green);}
+  if(s>=3)tx(d,'equation',640,635,'predicted fare = 3 + 2 × distance',38,P.green);
+},
+(d,s)=>{
+  tx(d,'heading',640,90,'Apply the saved model',42);
+  d.table('test',110,175,[175,175,185],[['distance','actual','predicted'],[2.5,9,s>=1?8:'?'],[4.5,11,s>=1?12:'?']],{rowHeight:66,fontSize:29});
+  d.box('model',795,175,365,115,'b = 3     w = 2',P.greenLight,P.green,34);
+  if(s>=1){line(d,'score',775,275,665,275);tx(d,'apply',980,360,'b + w × distance',31);}
+  if(s>=2){d.box('mae',150,445,450,90,'Held-out MAE = $1',P.orangeLight,P.orange,32);d.box('new',720,445,450,90,'3.5 miles → $10',P.blueLight,P.blue,32);}
+  if(s>=3){tx(d,'cloud',640,600,'BigQuery ML: CREATE MODEL → ML.PREDICT',29,P.blue);tx(d,'split',640,653,'ML.EVALUATE uses separate test rows',26,P.muted);}
+},
 (d,s)=>{const ww=[760,230,60];tx(d,'scan-label',220,150,'bytes',35);d.rect('scan',170,210,ww[s],110,P.greenLight,P.green,10);for(let i=0;i<Math.max(1,6-s*2);i++)d.circle('coin'+i,1050,520-i*45,39,P.orangeLight,P.orange,3);clock(d,'compute',315,505,s*1.3);tx(d,'clocklabel',315,610,'compute time',30);tx(d,'coinlabel',1045,610,'scanned bytes',30);},
 (d,s)=>{for(let r=0;r<6;r++)for(let c=0;c<12;c++){const active=s===0?r===2:s===1?c===5:c===5&&r===5;d.rect('cell'+r+c,140+c*85,170+r*67,70,50,active?P.greenLight:P.white,active?P.green:P.line,5);}tx(d,'q',640,625,['ride #4','AVG(fare)','month = 12'][s],40);}
 ]
@@ -1298,15 +1315,15 @@ const plans = [
   },
   {
     "id": 10,
-    "title": "The Analytics Stack",
+    "title": "The Analytics Stack & In-Database ML",
     "source": "lectures/lecture-10/analytics.html",
     "date": "2026-10-27",
     "scenes": [
       {
-        "title": "The Analytics Stack",
+        "title": "The Analytics Stack & In-Database ML",
         "minutes": 2,
         "kind": "title",
-        "notes": "Open on a matrix representing the same rides in both workloads. First highlight a complete row, then a numeric column across every row. Ask what changed: the question, not the underlying information. Expected: physical layout should follow the access pattern. This lecture connects bytes moved, compression, execution batches and file metadata to analytical systems. The scheduled ten-minute Quiz 7 is separate from this sixty-minute teaching deck.",
+        "notes": "Open on a matrix representing the same rides in both workloads. First highlight a complete row, then a numeric column across every row. Ask what changed: the question, not the underlying information. Expected: physical layout should follow the access pattern. This lecture connects bytes moved, compression, execution batches and file metadata to analytical systems. The scheduled ten-minute Quiz 7 is separate from this sixty-minute teaching deck. Extend the same operators to machine learning: fit coefficients with an aggregate, save a model table, and score rows with a query. Reserve ten teaching minutes for the two ML scenes.",
         "id": "the-analytics-stack",
         "steps": 2,
         "states": [
@@ -1319,7 +1336,7 @@ const plans = [
       },
       {
         "title": "The workload rotates",
-        "minutes": 3,
+        "minutes": 2,
         "kind": "visual",
         "notes": "Ask students to describe the two access patterns without using OLTP or OLAP first. Expected: one complete record versus a small number of attributes across many records. The same dataset can support both, but the physical layout changes which bytes move. Avoid saying one layout is universally wrong; the choice follows workload and engine features.",
         "id": "the-workload-rotates",
@@ -1353,7 +1370,7 @@ const plans = [
       },
       {
         "title": "Read a row layout",
-        "minutes": 5,
+        "minutes": 3,
         "kind": "activity",
         "notes": "Ask how many of the 24 toy values contribute to avg(fare). Expected: six; the other eighteen move because they share the row-oriented storage. Explain that the widget is a cell-level illustration, not literal disk page boundaries. Real reads operate in pages or ranges, so the visual demonstrates projection waste rather than an exact measured I/O count. Reuse lecture-10/styles.css and viz.js. The slide recreates the mechanism as editable SVG. The optional source-demo link provides the original widget; its full-page explanatory prose is not projected in this deck.",
         "id": "read-a-row-layout",
@@ -1422,7 +1439,7 @@ const plans = [
       },
       {
         "title": "Runs",
-        "minutes": 5,
+        "minutes": 3,
         "kind": "activity",
         "notes": "Before the reveal ask how to represent eight 1s, eight 2s and eight 3s. Expected: three runs. In the widget the teaching byte model changes 96 bytes into 24, a factor of four. Ask what happens if the same months alternate randomly. Expected: runs become short and the benefit can collapse. Sorting can improve compression but has a write and ordering cost. The slide recreates the mechanism as editable SVG. The optional source-demo link provides the original widget; its full-page explanatory prose is not projected in this deck.",
         "id": "runs",
@@ -1504,7 +1521,7 @@ const plans = [
       },
       {
         "title": "Predict the byte ratio",
-        "minutes": 5,
+        "minutes": 3,
         "kind": "activity",
         "notes": "Give pairs one minute with the assumptions: 60,000 rows, 12 columns, eight bytes per value, twelve equal partitions, reading only fare. The row-to-projected-partition ratio is 144. This estimates payload bytes before metadata, encodings and compression; it is not a wall-clock speedup guarantee. A month filter supplied by the directory need not read a separate month data column. Ask what changes if December contains half the rows.",
         "id": "predict-the-byte-ratio",
@@ -1569,8 +1586,42 @@ const plans = [
         "term": "Lakehouse"
       },
       {
-        "title": "Performance becomes cost",
+        "title": "Train a model inside the query engine",
         "minutes": 5,
+        "kind": "activity",
+        "notes": "Define in-database machine learning as training or applying a model using database execution over stored data. Separate feature preparation, which only produces inputs, from learning parameters. Use the runnable Lecture 10 demo: ml_rides stores four training rows with distance/fare pairs (1,6), (2,6), (3,8), (4,12), and two held-out rows. Ask which operators fit a one-feature line. Expected: scan ml_rides, filter split = train, aggregate regr_intercept(fare, distance) and regr_slope(fare, distance), then store b = 3 and w = 2 in one model row. Emphasize argument order: target first, feature second. These coefficients are estimated from the training rows; SQL is doing the training, not merely fetching data for Python. Show the SQL in the companion reading and run in_database_ml.py; Python dispatches statements and prints results. Ask why test rows must stay outside the aggregate. Expected: evaluating on rows that influenced the fit would contaminate the held-out check. This tiny synthetic example explains execution, not real taxi-fare accuracy.",
+        "id": "train-inside-the-query-engine",
+        "steps": 4,
+        "states": [
+          "Separate training rows",
+          "Aggregate target and feature",
+          "Store learned coefficients",
+          "A fitted prediction expression"
+        ],
+        "sources": [
+          "lectures/lecture-10/analytics.html#in-database-ml"
+        ]
+      },
+      {
+        "title": "Evaluate and apply the saved model",
+        "minutes": 5,
+        "kind": "activity",
+        "notes": "Have pairs predict fares for the held-out distances 2.5 and 4.5 using b + w * distance. Expected: 8 and 12 dollars; actual fares are 9 and 11, so MAE and RMSE are both one dollar. The two synthetic test rows do not establish real-world generalization. Trace the scoring plan: scan the test rows, cross join the one-row model table, project the prediction, then aggregate errors for evaluation. Keeping more than one model row would multiply results, so a production query selects a specific model version. A new unlabeled 3.5-mile ride scores at ten dollars without retraining. Ask which data crosses into Python: only the requested result, not a training matrix. Finally show the managed BigQuery ML example in the reading: CREATE MODEL with linear_reg learns a model, ML.EVALUATE receives explicit test data, and ML.PREDICT scores new inputs. Its setup requires a cloud dataset and permissions and may incur charges; the local DuckDB demo needs no cloud account. An SQL interface alone does not guarantee that every vendor model executes in the database process; remote models can invoke external services. Discuss saved-model versioning, feature consistency, and the cost of sharing compute with other queries.",
+        "id": "evaluate-and-apply-the-model",
+        "steps": 4,
+        "states": [
+          "Keep evaluation rows separate",
+          "Apply the learned expression",
+          "Measure error and score a new row",
+          "Map to managed ML statements"
+        ],
+        "sources": [
+          "lectures/lecture-10/analytics.html#in-database-ml"
+        ]
+      },
+      {
+        "title": "Performance becomes cost",
+        "minutes": 2,
         "kind": "activity",
         "notes": "Ask which changes can lower bytes-scanned billing and which may lower compute duration. BigQuery on-demand commonly prices scanned data; Snowflake-style compute billing is different, so avoid one pricing rule for every warehouse. No actual price quote is needed. In Lab 8 students compare CSV/Parquet, projection and pruning; actual timings depend on machine, caching and data, so the deck must not promise the source’s universal 100× result.",
         "id": "performance-becomes-cost",
@@ -1588,7 +1639,7 @@ const plans = [
         "title": "Choose the shape",
         "minutes": 2,
         "kind": "recap",
-        "notes": "Have students choose the access shape and narrate the savings: fewer unrelated columns, encodings, batches and skipping. Lab 8 uses eight SQL queries and deterministic generated ride data; project proposals are due Thursday October 29. Direct setup details to notes or the lab link. Next lecture asks what happens when the column stores an embedding and the query asks for similarity. The scheduled quiz is separate from this 60-minute teaching deck.",
+        "notes": "Have students choose the access shape and narrate the savings: fewer unrelated columns, encodings, batches and skipping. Lab 8 uses eight SQL queries and deterministic generated ride data; project proposals are due Thursday October 29. Direct setup details to notes or the lab link. Next lecture asks what happens when the column stores an embedding and the query asks for similarity. The scheduled quiz is separate from this 60-minute teaching deck. Add one final retrieval question: which stage learns coefficients and which reuses them? Expected: training aggregates learn them; inference applies the saved model without fitting again.",
         "id": "choose-the-shape",
         "steps": 3,
         "states": [

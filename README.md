@@ -8,6 +8,12 @@ per week: file manager, buffer pool, record pages and catalog, iterator-model
 operators, SQL front end, B+ tree, transactions and recovery. Act II moves to the
 analytics stack, vector search, RAG, distributed compute, LSM engines and graphs.
 
+Lecture 10 also introduces **in-database machine learning**: a local DuckDB
+example learns a linear model, evaluates held-out rows, and makes predictions
+using SQL, alongside a managed BigQuery ML example. Lab 4 walks from `CREATE`,
+`INSERT`, and `DELETE` to the catalog and record slots, then from `SELECT` and
+`JOIN` to executable scan plans.
+
 Every page is plain HTML, CSS and JavaScript. There is no build step: open any
 `.html` file in a browser and it works. Press `P` on a lecture page for
 presentation mode. For the dedicated animation-based decks, open

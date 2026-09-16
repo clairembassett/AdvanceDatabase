@@ -399,17 +399,32 @@
     if(s>=2){d.arrow('get',640,505,640,420,P.green,5);text(d,'name',640,570,'get_val(name)',35,P.green);}
     if(s>=3){d.arrow('bad',950,505,950,420,P.red,5);text(d,'error',945,590,'ValueError',32,P.red);}
   });
-  add(4,7,['A two-term predicate','First term fails','Skip the second','A field reference'],(d,s)=>{
-    row(d,'tuple',130,170,['gpa:31','mid:2','mid2:1'],-1,325);
-    box(d,'term1',195,355,350,100,s>=3?'mid = mid2':'gpa > 35',s===1||s===2?P.redLight:P.white,s===1||s===2?P.red:P.green,36);
-    box(d,'term2',750,355,350,100,s>=3?'gpa > 35':'mid = 2',s===2?P.bg:P.white,P.line,36);d.arrow('and',575,405,720,405,s===2?P.line:P.green,4);
-    if(s===2)d.path('skip','M755,350 L1100,460','none',P.line,6);
-    if(s>=3){d.arrow('fref',965,240,475,335,P.orange,4);text(d,'f',640,580,'F(mid2)',38,P.orange);}
+  add(4,7,['One combined row, two source tables','First term fails','Skip the second','Look up the major ID in the same row'],(d,s)=>{
+    text(d,'rowhead',640,85,'One combined ProductScan row',34);
+    d.rect('student-source',110,135,630,180,P.greenLight,P.green,10,2);
+    d.rect('major-source',770,135,400,180,P.orangeLight,P.orange,10,2);
+    text(d,'student-name',425,165,'students: ben',30,P.green);
+    text(d,'major-name',970,165,'majors: ds',30,P.orange);
+    box(d,'gpa',140,200,200,58,'gpa = 31',P.white,P.green,28);
+    box(d,'mid',400,200,310,58,'mid = 2',P.white,P.green,30);
+    box(d,'mid2',800,200,340,58,'mid2 = 1',P.white,P.orange,30);
+    text(d,'mid-meaning',555,287,'student’s major ID',25,P.green);
+    text(d,'mid2-meaning',970,287,'major’s own ID',25,P.orange);
+    box(d,'term1',195,390,350,90,s>=3?'mid = mid2':'gpa > 35',s>=1?P.redLight:P.white,s>=1?P.red:P.green,36);
+    box(d,'term2',750,390,350,90,s>=3?'gpa > 35':'mid = 2',s>=2?P.bg:P.white,P.line,36);
+    text(d,'and',647,435,'AND',28,s>=2?P.muted:P.green);
+    if(s>=2){d.path('skip','M755,390 L1100,480','none',P.line,6);text(d,'skipped',925,515,'not checked',26,P.muted);}
+    if(s>=3){
+      d.arrow('left-value',555,325,350,380,P.green,4);
+      d.arrow('right-value',970,325,485,380,P.orange,4);
+      text(d,'result',640,555,'2 ≠ 1 → reject this pair',36,P.red);
+      text(d,'f',640,610,'F("mid2") → read majors.mid2 → 1',30,P.orange);
+    } else text(d,'result',640,580,['AND: both terms must be True','31 > 35 → False','return False · second term skipped'][s],34,s?P.red:P.ink);
   });
-  add(4,8,['Initialize the left','ada × cs','ada × stat','ada × econ','Carry to ben'],(d,s)=>{
+  add(4,8,['Initialize the left','ada × ds','ada × stat','ada × econ','Carry to ben'],(d,s)=>{
     ['ada','ben','cyd'].forEach((v,i)=>box(d,'left'+i,210,195+i*125,240,85,v,(s===4?i===1:i===0)?P.greenLight:P.white,P.green,36));
-    ['cs','stat','econ'].forEach((v,i)=>box(d,'right'+i,830,195+i*125,240,85,v,s>0&&i===(s===4?0:s-1)?P.orangeLight:P.white,P.orange,36));
-    if(s>=1){d.line('link1',460,s===4?360:235,650,360,P.green,4);d.line('link2',820,235+(s===4?0:s-1)*125,650,360,P.orange,4);box(d,'pair',500,565,330,75,s===4?'(ben, cs)':'(ada, '+['','cs','stat','econ'][s]+')',P.greenLight,P.green,33);}
+    ['ds','stat','econ'].forEach((v,i)=>box(d,'right'+i,830,195+i*125,240,85,v,s>0&&i===(s===4?0:s-1)?P.orangeLight:P.white,P.orange,36));
+    if(s>=1){d.line('link1',460,s===4?360:235,650,360,P.green,4);d.line('link2',820,235+(s===4?0:s-1)*125,650,360,P.orange,4);box(d,'pair',500,565,330,75,s===4?'(ben, ds)':'(ada, '+['','ds','stat','econ'][s]+')',P.greenLight,P.green,33);}
     if(s===4)d.path('carry','M1120,505 C1210,505 1210,235 1120,235','none',P.orange,5);
   });
   add(4,9,['Predict four counts','Enumerate all pairs','Keep matches','Match nothing'],(d,s)=>{
@@ -421,7 +436,7 @@
   add(4,10,['An empty left','An empty right','Both populated','Exhausted stays exhausted'],(d,s)=>{
     d.rect('left',200,180,290,340,P.white,P.green,12,3);d.rect('right',795,180,290,340,P.white,P.orange,12,3);
     if(s!==0)['ada','ben'].forEach((v,i)=>box(d,'l'+i,235,230+i*125,220,85,v,P.greenLight,P.green,35));
-    if(s!==1)['cs','stat'].forEach((v,i)=>box(d,'r'+i,830,230+i*125,220,85,v,P.orangeLight,P.orange,35));
+    if(s!==1)['ds','stat'].forEach((v,i)=>box(d,'r'+i,830,230+i*125,220,85,v,P.orangeLight,P.orange,35));
     text(d,'times',640,360,'×',60);text(d,'result',640,600,s<2?'0 pairs':s===2?'4 pairs':'False → False',46,s===2?P.green:P.muted);
     if(s===3){d.arrow('rewind',1180,565,1180,200,P.blue,4);text(d,'rewindlabel',1050,120,'before_first()',30,P.blue);}
   });
@@ -446,11 +461,35 @@
     if(s>=2){[0,1,2].forEach(i=>box(d,'g'+i,925+i*70,510,60,60,[4,7,3][i],P.blueLight,P.blue,27));}
     if(s>=3){d.arrow('groupout',640,455,640,610,P.green,5);text(d,'completed',420,620,'Σ A',40,P.green);}
   });
-  add(4,14,['Two table scans','Add Product','Add the predicate','Keep name and dept'],(d,s)=>{
-    node(d,'s',190,535,'students');node(d,'m',860,535,'majors');
-    if(s>=1){node(d,'p',525,400,'Product');d.arrow('sl',300,525,570,475,P.green,4);d.arrow('ml',970,525,700,475,P.green,4);}
-    if(s>=2){node(d,'filter',525,250,'mid = mid2');d.arrow('f',635,390,635,330,P.green,4);}
-    if(s>=3){node(d,'proj',525,100,'name, dept');d.arrow('pr',635,240,635,180,P.green,4);}
+  add(4,14,['Identify each table’s major ID','Product puts both fields in one row','Match the two ID values','Return the student and their department'],(d,s)=>{
+    box(d,'s',120,465,340,65,'Scan students',P.greenLight,P.green,30);
+    box(d,'m',820,465,340,65,'Scan majors',P.orangeLight,P.orange,30);
+    box(d,'student-row',120,545,340,55,'ada · mid = 1',P.white,P.green,30);
+    box(d,'major-row',820,545,340,55,'mid2 = 1 · ds',P.white,P.orange,30);
+    text(d,'mid-meaning',290,630,'mid: student’s major ID',26,P.green);
+    text(d,'mid2-meaning',990,630,'mid2: major’s own ID',26,P.orange);
+    if(s<2){
+      text(d,'field-names',640,170,'mid and mid2 are field names',34);
+      text(d,'suffix',640,220,'The suffix 2 keeps the names distinct.',28,P.muted);
+    }
+    if(s>=1){
+      box(d,'p',500,360,280,65,'Product',P.greenLight,P.green,30);
+      d.arrow('sl',290,455,550,435,P.green,4);
+      d.arrow('ml',990,455,730,435,P.orange,4);
+    }
+    if(s>=2){
+      d.rect('filter',425,205,430,100,P.greenLight,P.green,8,2);
+      text(d,'filter-label',640,235,'Select: mid = mid2',32);
+      text(d,'match',640,278,'1 = 1 → keep this pair',28,P.green);
+      d.arrow('f',640,350,640,315,P.green,4);
+      text(d,'suffix',980,360,'The 2 is part of the name',26,P.muted);
+    }
+    if(s>=3){
+      box(d,'proj',450,75,380,70,'Project: name, dept',P.greenLight,P.green,30);
+      d.arrow('pr',640,195,640,155,P.green,4);
+      box(d,'answer',910,75,260,70,'(ada, ds)',P.white,P.green,32);
+      d.arrow('out',840,110,900,110,P.green,4);
+    }
   });
   add(4,15,['One interface','Two directions','Different amounts of work'],(d,s)=>{
     stack(d,'tree',465,175,['Project','Select','Product'],s===0?-1:1,350,95);
@@ -1179,7 +1218,7 @@
         "title": "A predicate is a decision chain",
         "minutes": 4,
         "kind": "visual",
-        "notes": "The first predicate term is gpa > 35. With gpa 31 it fails, so the second AND term need not be evaluated. Ask what information must be available for mid = mid2. Both fields must be in the combined product row. Reveal the F(mid2) reference resolving by a field lookup; literal 35 instead resolves directly to itself. Cheap rejection can save work, but predicate ordering also depends on evaluation cost and permitted semantics, not selectivity alone.",
+        "notes": "This toy product row combines student ben (gpa 31, mid 2) with the ds major (mid2 1). Define the names before checking a term: mid is the major ID stored in a student row, while mid2 is the ID of the major row. Both are major IDs; neither is the student ID. The actual field names are mid and mid2, not mid1. The suffix 2 distinguishes the two fields in ProductScan; it does not require a value of 2. First check gpa > 35: 31 fails, so skip the second AND term. In the last build, switch to the join predicate. F(\"mid2\") requests the majors field from this same combined row; it reads 1. Comparing the student’s 2 with the major’s 1 rejects this pair and skips the GPA term. Ask which major would match ben: stat, whose mid2 is 2. A plain literal 35 needs no lookup. Predicate ordering can save work, subject to evaluation cost and permitted semantics.",
         "id": "lecture-04-scene-08",
         "demo": "viz-pred",
         "sources": [
@@ -1190,7 +1229,7 @@
         "title": "The odometer",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Point to the initial cursors: left is already on ada and right is before cs. Build the first three pairs, then pause before the rollover and ask which cursor moves. Right rewinds, left advances to ben, and right advances to cs. The left input must actually have a current row. The short lecture code is only the nonempty rollover sketch; a complete ProductScan must handle empty input and remember exhaustion. Next count every visit, not only matching results.",
+        "notes": "Point to the initial cursors: left is already on ada and right is before ds. Build the first three pairs, then pause before the rollover and ask which cursor moves. Right rewinds, left advances to ben, and right advances to ds. The left input must actually have a current row. The short lecture code is only the nonempty rollover sketch; a complete ProductScan must handle empty input and remember exhaustion. Next count every visit, not only matching results.",
         "id": "lecture-04-scene-09",
         "demo": "viz-odo",
         "sources": [
@@ -1252,7 +1291,7 @@
         "title": "Build one tower",
         "minutes": 3,
         "kind": "activity",
-        "notes": "Have students assemble the tree from the bottom: two TableScans, Product, a predicate comparing the two major IDs, then a projection of name and dept. Ask where a gpa predicate could move, and why a projection must not hide fields needed above it. A valid shared interface permits composition, but arbitrary reordering is not automatically semantics-preserving. Translate this picture to the three Lab4 classes orally; keep the runnable code in the source material.",
+        "notes": "Start with the two toy input rows. mid means major ID: students.mid stores the ID of the student’s chosen major, a reference to a row in majors. majors.mid2 identifies that major row. They are both major IDs, not student IDs. The code calls the fields mid and mid2; there is no mid1 field. The suffix 2 gives the major-table field a distinct name, so ProductScan.get_val can choose the correct input; it does not mean the second major or the number 2. Here ada has mid 1 and ds has mid2 1. Product puts those two fields in one combined row; Select checks 1 = 1 and keeps the pair; Project returns (ada, ds). Ask what happens if the right row is stat with mid2 2: 1 differs from 2, so reject that pair. Build the plan from the bottom, then ask where a GPA filter could move. It refers only to students; the ID comparison requires both inputs. Projection must preserve fields needed above it. Keep the runnable implementation in the source reading.",
         "id": "lecture-04-scene-15",
         "sources": [
           "lectures/lecture-04/iterators.html"

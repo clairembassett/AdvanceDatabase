@@ -35,8 +35,8 @@ from __future__ import annotations
 class F:
     """Marks a predicate's right-hand side as a FIELD, not a literal.
 
-        ("gpa", ">", 35)          gpa greater than the number 35
-        ("sid", "=", F("mid"))    field sid equals field mid  (a join!)
+        ("gpa", ">", 35)           gpa greater than the number 35
+        ("mid", "=", F("mid2"))    student's major ID equals major row's ID
     """
 
     def __init__(self, name: str):
@@ -48,7 +48,7 @@ class Predicate:
 
         Predicate(("gpa", ">", 35))
         Predicate(("gpa", ">", 30), ("name", "=", "ada"))
-        Predicate(("sid", "=", F("mid")))          # join condition
+        Predicate(("mid", "=", F("mid2")))        # match student to major
     """
 
     OPS = {

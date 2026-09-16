@@ -21,6 +21,7 @@
     <li><a href="#columnar">Column storage supports three related optimizations</a></li>
     <li><a href="#duckdb">Use DuckDB to query Parquet directly</a></li>
     <li><a href="#warehouse">The cloud separates where data rests from where queries run</a></li>
+    <li><a href="#in-database-ml">Train and score a model inside the database</a></li>
     <li><a href="#thursday">Thursday: query a real engine and measure performance</a></li>
     <li><a href="#recap">Recap &amp; next time</a></li>
     <li><a href="#faq">FAQ</a></li>
@@ -39,11 +40,11 @@
 <header class="hero">
   <div class="eyebrow">DS 6XXX · Lecture 10 · Tuesday October 27, 2026 · Act II begins</div>
   <h1>The Analytics Stack</h1>
-  <div class="subtitle">Analytical queries often read a few columns across many rows. How does storing values by column reduce the work?</div>
+  <div class="subtitle">Column storage supports analytical scans. Those same scans can prepare features, fit a model, and score new rows inside the database.</div>
   <div class="byline">Daniel G. Graham · UVA School of Data Science</div>
 </header>
 
-<p class="lede">microdb stores the fields of each row together. That layout suits small record lookups and updates. Many analytical queries instead read a few columns across a large number of rows. Column storage lets them skip unused columns, compress similar values, and process batches efficiently. Today we will connect those choices to <span class="gloss" data-gloss="vectorized">vectorized execution</span>, DuckDB, Parquet, and cloud <span class="gloss" data-gloss="warehouse">warehouses</span>. Thursday’s lab measures the effects of file format, column selection, and partition pruning.</p>
+<p class="lede">microdb stores the fields of each row together. That layout suits small record lookups and updates. Many analytical queries instead read a few columns across a large number of rows. Column storage lets them skip unused columns, compress similar values, and process batches efficiently. Today we will connect those choices to <span class="gloss" data-gloss="vectorized">vectorized execution</span>, DuckDB, Parquet, and cloud <span class="gloss" data-gloss="warehouse">warehouses</span>, then use SQL to train and evaluate a small machine-learning model without exporting its training rows. Thursday’s lab measures the effects of file format, column selection, and partition pruning.</p>
 
 <div class="cite">
   Companion reading: Abadi et&nbsp;al., <a href="https://www.nowpublishers.com/article/Details/DBS-024"><em>The Design and Implementation of Modern Column-Oriented Database Systems<sup class="src"><a href="#src-1" title="The Design and Implementation of Modern Column-Oriented Database Systems (Foundations and Trends in Databases)">1</a></sup></em></a> ·
@@ -63,13 +64,12 @@ hover or tap for a plain-language explainer that opens right below the sentence 
 <!-- ============================================================ -->
 <h2 id="plan">Today's plan</h2>
 
-<p class="keep-in-present"><strong>Quiz 7</strong> first (transactions &amp; MVCC, revisiting the material after the midterm). Then the analytics side of the course: a new workload, and the storage layout that fits it.</p>
+<p class="keep-in-present"><strong>Quiz 7</strong> first (transactions &amp; MVCC, revisiting the material after the midterm). Then the analytics side of the course: a new workload, the storage layout that fits it, and an in-database machine-learning example.</p>
 
 <p class="keep-in-present">A query for average fare needs the fare values from every matching ride. With a row layout, those values share pages with fields the query does not use. A column layout can read the fare column separately.</p>
 
 
-<p class="keep-in-present">Today's claim: <strong>layout follows workload</strong>, and
-analytics is a different workload.</p>
+<p class="keep-in-present">Today's claim: <strong>layout follows workload</strong>. Analytics and model training both benefit from scanning selected columns near where the data lives.</p>
 
 <!-- ============================================================ -->
 <h2 id="flip">Analytics often reads many rows and a few columns</h2>
@@ -238,6 +238,145 @@ a budgeting skill; Thursday's measurement is your first invoice audit.</code></p
 <p class="key-fact keep-in-present"><strong>$ ∝ bytes scanned</strong> in BigQuery-style billing: every column or partition a query skips is money not spent</p>
 
 <!-- ============================================================ -->
+<h2 id="in-database-ml">Train and score a model inside the database</h2>
+
+<p class="keep-in-present"><strong>In-database machine learning</strong> puts model fitting or prediction in the database's execution environment. A query that prepares features for an external Python model is useful, but feature preparation alone does not train an in-database model. Here we will fit a line, store its learned coefficients in a table, and use another query to make predictions.</p>
+
+<table>
+  <thead><tr><th>Stage</th><th>Question</th><th>Database work in this example</th></tr></thead>
+  <tbody>
+    <tr><td>Feature preparation</td><td>Which inputs and known outcomes describe each example?</td><td>Filter rows; select <code>distance</code> as the feature and <code>fare</code> as the label.</td></tr>
+    <tr><td>Training</td><td>Which coefficients fit the training rows?</td><td>Aggregate training rows into one model row: intercept and slope.</td></tr>
+    <tr><td>Evaluation</td><td>How far are predictions from outcomes on rows held out of training?</td><td>Score held-out rows, then aggregate their errors.</td></tr>
+    <tr><td>Inference</td><td>What fare does the saved model predict for a new distance?</td><td>Combine new rows with the model row and compute a predicted value.</td></tr>
+  </tbody>
+</table>
+
+<p>We use six <strong>hand-chosen synthetic rides</strong> so every result can be checked by hand. Distance is in miles; fare is in dollars. The four training rows determine the model. The two test rows remain outside that calculation. This is an execution example, not evidence that distance alone predicts real taxi fares accurately.</p>
+
+<p><strong>Run locally:</strong> download <a href="in_database_ml.py" download><code>in_database_ml.py</code></a>, install DuckDB with <code>python3 -m pip install duckdb</code>, then run <code>python3 in_database_ml.py</code>. Add <code>--explain</code> to inspect the training and scoring plans. Python submits SQL and displays results; DuckDB performs the calculations. The script uses an in-memory database and needs no cloud account or dataset download.</p>
+
+<h3 class="new-slide" data-kicker="In-database ML · prepare">1. Prepare the feature and label, with the split already assigned</h3>
+
+<pre><code class="language-sql">CREATE TABLE ml_rides (
+    ride_id INTEGER, distance DOUBLE, fare DOUBLE, split VARCHAR
+);
+INSERT INTO ml_rides VALUES
+    (1, 1.0,  6.0, 'train'),
+    (2, 2.0,  6.0, 'train'),
+    (3, 3.0,  8.0, 'train'),
+    (4, 4.0, 12.0, 'train'),
+    (5, 2.5,  9.0, 'test'),
+    (6, 4.5, 11.0, 'test');
+
+CREATE VIEW fare_features AS
+SELECT ride_id, distance, fare, split
+FROM ml_rides
+WHERE distance &gt; 0 AND fare &gt;= 0;</code></pre>
+
+<p>The filter is a fixed validity rule; comparisons also exclude null distances and fares. The <code>split</code> field controls which rows reach training. Neither it nor <code>ride_id</code> is a predictive feature. In a real forecasting task, choose a split that respects time; if preprocessing learns a mean, scale, or category mapping, fit that preprocessing on training data too. Otherwise information from the held-out data can leak into training.</p>
+
+<h3 class="new-slide" data-kicker="In-database ML · train">2. Training can be an aggregate query</h3>
+
+<pre><code class="language-sql">CREATE TABLE fare_model AS
+SELECT regr_intercept(fare, distance) AS intercept,
+       regr_slope(fare, distance) AS slope,
+       count(*) AS training_rows
+FROM fare_features
+WHERE split = 'train';
+
+SELECT * FROM fare_model;
+-- intercept | slope | training_rows
+--       3.0 |   2.0 |             4</code></pre>
+
+<p class="keep-in-present">DuckDB's regression aggregates take <code>(y, x)</code>: the label first, the feature second. They compute the ordinary least-squares line with one input feature.<sup class="src"><a href="#src-17" title="DuckDB Aggregate Functions: regression aggregates">17</a></sup> The model is now data in a one-row table: <strong>predicted fare = 3 + 2 × distance</strong>. The coefficients are learned from the training rows, rather than supplied as constants in the prediction query.</p>
+
+<pre class="equation"><code>Training:  scan feature columns → filter split = 'train' → aggregate → model row
+Scoring:   scan new distances   → combine with model row → project predictions</code></pre>
+
+<p>This connects to your scan operators: fitting this model is a scan and aggregation; scoring is a scan, a cross product with one row, and arithmetic. The <code>--explain</code> output shows DuckDB's actual plan, including pushed-down filters. More complex models may require iterative training or specialized operators. These regression aggregates are a small complete example, not a general ML framework.</p>
+
+<h3 class="new-slide" data-kicker="In-database ML · evaluate">3. Evaluate using rows that did not fit the model</h3>
+
+<pre><code class="language-sql">CREATE VIEW held_out_predictions AS
+SELECT r.ride_id, r.distance, r.fare,
+       m.intercept + m.slope * r.distance AS predicted_fare
+FROM fare_features AS r
+CROSS JOIN fare_model AS m
+WHERE r.split = 'test';
+
+SELECT * FROM held_out_predictions ORDER BY ride_id;
+-- ride_id | distance | fare | predicted_fare
+--       5 |      2.5 |  9.0 |            8.0
+--       6 |      4.5 | 11.0 |           12.0
+
+SELECT count(*) AS test_rows,
+       avg(abs(fare - predicted_fare)) AS mae,
+       sqrt(avg(pow(fare - predicted_fare, 2))) AS rmse
+FROM held_out_predictions;
+-- test_rows | mae | rmse
+--         2 | 1.0 |  1.0</code></pre>
+
+<p><strong>MAE</strong> is the mean absolute error: both predictions miss by $1, so MAE is $1. <strong>RMSE</strong> is the square root of mean squared error; it is also $1 here. Evaluating the training rows would measure fit on data the model already used. Two synthetic test rows demonstrate the separation but cannot establish useful predictive accuracy; a real project needs representative held-out data and a baseline to compare against.</p>
+
+<h3 class="new-slide" data-kicker="In-database ML · infer">4. Inference uses the saved coefficients and needs no label</h3>
+
+<pre><code class="language-sql">SELECT r.ride_id, r.distance,
+       m.intercept + m.slope * r.distance AS predicted_fare
+FROM (VALUES (7, 3.5)) AS r(ride_id, distance)
+CROSS JOIN fare_model AS m;
+-- ride_id | distance | predicted_fare
+--       7 |      3.5 |           10.0</code></pre>
+
+<p class="keep-in-present">The new ride has a distance but no observed fare. The query uses the existing model; it does not retrain it. The model table contains exactly one row, so each input ride produces exactly one prediction. A system that stores many model versions must select one version before this join.</p>
+
+<h3 class="new-slide" data-kicker="In-database ML · managed systems">A warehouse can expose training as CREATE MODEL</h3>
+
+<p class="keep-in-present">BigQuery ML offers the same train → evaluate → predict workflow through model objects and SQL functions. For linear regression, <code>CREATE MODEL</code> fits the model, <code>ML.EVALUATE</code> measures its errors, and <code>ML.PREDICT</code> returns predictions.<sup class="src"><a href="#src-18" title="BigQuery CREATE MODEL for generalized linear models">18</a></sup><sup class="src"><a href="#src-19" title="BigQuery ML.EVALUATE">19</a></sup><sup class="src"><a href="#src-20" title="BigQuery ML.PREDICT">20</a></sup></p>
+
+<details>
+  <summary>Optional BigQuery SQL: the same stages with a managed model</summary>
+  <p><strong>Cloud setup:</strong> this example requires a Google Cloud project with billing enabled, the BigQuery API, a dataset named <code>demo</code>, and permission to run jobs and create/read models. Replace <code>YOUR_PROJECT</code> with your project ID and load the six rows above into <code>demo.ml_rides</code> with BigQuery types <code>INT64, FLOAT64, FLOAT64, STRING</code>. Training, storage, evaluation, and prediction may incur charges; this is an optional illustration, not required lab setup.<sup class="src"><a href="#src-21" title="BigQuery ML linear regression tutorial: setup and permissions">21</a></sup><sup class="src"><a href="#src-22" title="BigQuery ML pricing">22</a></sup></p>
+  <pre><code class="language-sql">-- BigQuery GoogleSQL; these statements do not run in DuckDB.
+CREATE MODEL `YOUR_PROJECT.demo.fare_model`
+OPTIONS (
+    model_type = 'linear_reg',
+    input_label_cols = ['fare'],
+    data_split_method = 'NO_SPLIT',
+    optimize_strategy = 'NORMAL_EQUATION',
+    l2_reg = 0.0
+) AS
+SELECT distance, fare
+FROM `YOUR_PROJECT.demo.ml_rides`
+WHERE split = 'train' AND distance &gt; 0 AND fare &gt;= 0;
+
+SELECT mean_absolute_error, mean_squared_error
+FROM ML.EVALUATE(
+    MODEL `YOUR_PROJECT.demo.fare_model`,
+    (SELECT distance, fare
+     FROM `YOUR_PROJECT.demo.ml_rides`
+     WHERE split = 'test' AND distance &gt; 0 AND fare &gt;= 0)
+);
+
+SELECT ride_id, distance, predicted_fare
+FROM ML.PREDICT(
+    MODEL `YOUR_PROJECT.demo.fare_model`,
+    (SELECT 7 AS ride_id, 3.5 AS distance)
+);</code></pre>
+  <p><code>NO_SPLIT</code> tells BigQuery to use all rows supplied to <code>CREATE MODEL</code> for training; our query has already restricted those rows to <code>split = 'train'</code>. We supply the test query explicitly to <code>ML.EVALUATE</code>. Omitting it would not measure our held-out rows. The normal-equation strategy and zero L2 regularization make this a comparable least-squares fit; actual cloud results are not required for the local exercise. <code>ride_id</code> is passed through prediction output, not learned as a feature.</p>
+</details>
+
+<p><strong>Why keep the work in the database?</strong> A training query can filter, join, and aggregate where the data already lives, avoiding an application-side export of all training rows. Predictions can feed another SQL query. This uses database compute, and the choice of available models depends on the engine. SQL syntax alone does not tell you where a model runs: a remote-model call can invoke an external service. Decide based on the model, data movement, resources, and evaluation needs.</p>
+
+<div class="exercise">
+  <span class="ex-label">Check yourself · find the training boundary</span>
+  <p>If we accidentally remove <code>WHERE split = 'train'</code> from the fit query, do the two reported test errors still measure held-out performance? Does the inference query need the new ride's observed fare?</p>
+  <details><summary>Show answer</summary>
+    <p>No: the supposed test labels would have participated in fitting, so those rows would no longer be held out. Inference needs the feature and saved coefficients; an observed fare is needed later to evaluate a prediction, not to produce it.</p>
+  </details>
+</div>
+
+<!-- ============================================================ -->
 <h2 id="thursday">Thursday: query a real engine and measure performance</h2>
 
 <div class="layer-card">
@@ -267,6 +406,7 @@ a budgeting skill; Thursday's measurement is your first invoice audit.</code></p
   <li><strong>Column storage supports several optimizations</strong> (compression, vectorized execution,
   chunk-level skipping using per-chunk min/max stats) whose combined effect you will measure in the lab.</li>
   <li><strong>Cloud analytics uses related storage ideas:</strong> Parquet stores column chunks, lakehouse metadata tracks committed file sets, and scan-based billing makes unnecessary reads an additional cost.</li>
+  <li><strong>In-database ML is a concrete query workload:</strong> prepare features, train on a chosen split, evaluate on held-out rows, and score new rows using a saved model. Our local example fits and uses a regression model entirely in DuckDB.</li>
 </ul>
 
 <p class="key-fact keep-in-present"><strong>Compare CSV and Parquet</strong> using the same query and dataset</p>
@@ -281,6 +421,7 @@ analytics stack.</p>
 <ul>
   <li><strong>Read</strong> the <a href="https://duckdb.org/why_duckdb">Why DuckDB</a> page and skim Parquet's <a href="https://parquet.apache.org/docs/file-format/">file-format docs</a>, both linked above.</li>
   <li><strong>Run</strong> <code>pip install duckdb</code>, verify with <code>python3 -c "import duckdb"</code>, then download the Lab 8 starter and run <code>python3 gen_data.py</code>; the harness should print <strong>0/8</strong>.</li>
+  <li><strong>Optional replay:</strong> run <a href="in_database_ml.py" download><code>in_database_ml.py --explain</code></a> and identify the filter that keeps test rows out of training. It uses the same DuckDB installation as Lab 8.</li>
   <li><strong>Bring</strong> your one-page project proposal (due Thursday, per the <a href="../../project.html">project spec</a>) and your predicted (a)-to-(c) ratio from the exercise above.</li>
 </ul>
 
@@ -295,6 +436,9 @@ analytics stack.</p>
 
 <h3 class="keep-in-present">Is DuckDB replacing Postgres?</h3>
 <p class="keep-in-present">DuckDB supports transactions, WAL, and concurrent writers within one process. Its embedded concurrency model and analytical execution differ from PostgreSQL’s server model. Choose based on the workload and deployment requirements. <a href="https://duckdb.org/docs/stable/connect/concurrency">DuckDB’s concurrency guide</a> explains the boundary.</p>
+
+<h3 class="keep-in-present">Does querying features in SQL make a Python model “in-database ML”?</h3>
+<p class="keep-in-present">It makes feature preparation a database operation. If you export those features and fit an external model, training happens outside the database. In our example DuckDB computes the coefficients and predictions. Python only submits the SQL and displays results. A production workflow can mix these approaches deliberately.</p>
 
 <h3 class="keep-in-present">What does “time travel” mean for a lakehouse table?</h3>
 <p class="keep-in-present">A table can retain metadata for earlier committed versions. To query an earlier version, the engine uses that version’s metadata to find the required data files. This resembles MVCC’s use of old row versions, but the unit being tracked is a file set. Time travel is available only while the needed metadata and data files are retained.<sup class="src"><a href="#src-16" title="Delta Lake Utility Operations: Vacuum">16</a></sup></p>
@@ -324,6 +468,12 @@ document that supports the claim it is attached to.</p>
   <li id="src-14"><a href="https://duckdb.org/docs/current/guides/python/export_pandas.html">DuckDB Guide: Export to Pandas</a></li>
   <li id="src-15"><a href="https://duckdb.org/docs/current/connect/concurrency.html">DuckDB Concurrency</a> <span class="src-note">DuckDB allows only one process to write (multiple processes may read), but within that process it does support concurrent writing threads under MVCC and it does keep a write-ahead log, so the limitation is cross-process concurrency rather than absence of a WAL.</span></li>
   <li id="src-16"><a href="https://docs.delta.io/latest/delta-utility.html">Delta Lake Utility Operations: Vacuum</a></li>
+  <li id="src-17"><a href="https://duckdb.org/docs/stable/sql/functions/aggregates">DuckDB Aggregate Functions</a> <span class="src-note"><code>regr_intercept(y, x)</code> and <code>regr_slope(y, x)</code> fit a univariate linear regression line; the label is the first argument.</span></li>
+  <li id="src-18"><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm">BigQuery CREATE MODEL for generalized linear models</a> <span class="src-note">Documents <code>LINEAR_REG</code>, <code>INPUT_LABEL_COLS</code>, <code>NO_SPLIT</code>, <code>NORMAL_EQUATION</code>, and regularization options.</span></li>
+  <li id="src-19"><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate">BigQuery ML.EVALUATE</a></li>
+  <li id="src-20"><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict">BigQuery ML.PREDICT</a></li>
+  <li id="src-21"><a href="https://docs.cloud.google.com/bigquery/docs/linear-regression-tutorial">BigQuery ML linear regression tutorial</a> <span class="src-note">Cloud setup, permissions, and billable components.</span></li>
+  <li id="src-22"><a href="https://cloud.google.com/bigquery/pricing#bqml">BigQuery ML pricing</a></li>
 </ol>
 
 </main>

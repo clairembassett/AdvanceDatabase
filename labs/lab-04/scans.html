@@ -14,6 +14,7 @@
   <div class="toc-title">Lab 4 · microdb 4</div>
   <ul>
     <li><a href="#try-it">Combining scan operators</a></li>
+    <li><a href="#sql-walkthrough">SQL → storage → scans</a></li>
     <li><a href="#big-idea">How operators share rows</a></li>
     <li><a href="#the-api">Operator control flow</a></li>
     <li><a href="#build">Part 1 · Build</a></li>
@@ -81,12 +82,194 @@
     <a class="chat-dl-btn" href="starter/catalog.py" download>catalog.py (ref)</a>
     <a class="chat-dl-btn" href="starter/test_scans.py" download>test_scans.py</a>
     <a class="chat-dl-btn" href="starter/measure_pipeline.py" download>measure_pipeline.py</a>
+    <a class="chat-dl-btn" href="starter/sql_walkthrough.py" download>sql_walkthrough.py (demo)</a>
   </div>
   <p class="viz-caption clone-label">Open a terminal in the top-level <code>AdvanceDatabase</code> folder you cloned in Lab 1. Pull the latest files, then open this lab’s starter folder:</p>
 <pre class="clone-cmd"><span class="cl-line">git pull</span>
 <span class="cl-line">cd labs/lab-04/starter</span></pre>
   <p class="viz-caption">The join preset constructs 18 pairs and returns three matching rows. Query optimization aims to reduce unnecessary work while preserving the result.</p>
 </div>
+
+<!-- ============================================================ -->
+<h2 id="sql-walkthrough">From a SQL statement to the code that does the work</h2>
+
+<p class="keep-in-present">Follow one small database through <strong>CREATE → INSERT → DELETE → SELECT → JOIN</strong>. The SQL states the request; the Python beneath it carries out that request using the actual Lab 4 APIs. <strong>We translate by hand here.</strong> The SQL front end begins in Lab 5; this lab does not accept SQL strings.</p>
+
+<p>Read the snippets in order: they share the setup below. The complete <a href="starter/sql_walkthrough.py" download>sql_walkthrough.py</a> includes these operations, result checks, and cleanup in <code>finally</code> blocks. Run its storage examples immediately, then add <code>--queries</code> after implementing your scan operators.</p>
+
+<pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 sql_walkthrough.py</span>
+<span class="t-prompt">$</span> <span class="t-cmd">python3 sql_walkthrough.py --queries</span>  <span class="t-mute"># after completing query_engine.py</span></code></pre>
+
+<details>
+  <summary>Shared Python setup for the snippets</summary>
+<pre><code class="language-python">from tempfile import TemporaryDirectory
+from file_manager import FileManager
+from buffer_manager import BufferManager
+from record_manager import Schema, TableScan
+from catalog import Catalog
+from query_engine import F, Predicate, SelectScan, ProjectScan, ProductScan
+
+db = TemporaryDirectory(prefix="microdb-sql-")
+fm = FileManager(db.name, block_size=128)
+bm = BufferManager(fm, num_buffers=8)
+catalog = Catalog(bm, fm)</code></pre>
+</details>
+
+<h3 class="new-slide" data-kicker="SQL → storage → scans">1 · CREATE records a schema and its layout</h3>
+
+<pre><code class="language-sql">CREATE TABLE students (sid INT, name VARCHAR(8), gpa INT, mid INT);
+CREATE TABLE majors (mid2 INT, dept VARCHAR(8));</code></pre>
+
+<pre><code class="language-python">schema = (Schema().add_int_field("sid")
+                  .add_string_field("name", 8)
+                  .add_int_field("gpa")
+                  .add_int_field("mid"))
+catalog.create_table("students", schema)
+students_layout = catalog.get_layout("students")
+
+schema = Schema().add_int_field("mid2").add_string_field("dept", 8)
+catalog.create_table("majors", schema)
+majors_layout = catalog.get_layout("majors")</code></pre>
+
+<p class="keep-in-present"><code>Schema</code> describes the fields. <code>Catalog.create_table()</code> computes a <code>Layout</code> and inserts ordinary records into <code>table_catalog</code> and <code>field_catalog</code>. <code>get_layout()</code> scans those records to reconstruct the offsets and slot size. The first <code>TableScan</code> on <code>students</code> creates its data file and first block.</p>
+
+<h3 class="new-slide" data-kicker="CREATE · physical representation">Where do the student fields live?</h3>
+
+<table>
+  <thead><tr><th>Contents</th><th>Offset in slot</th><th>Bytes reserved</th></tr></thead>
+  <tbody>
+    <tr><td>In-use flag (storage metadata)</td><td>0</td><td>4</td></tr>
+    <tr><td><code>sid</code></td><td>4</td><td>4</td></tr>
+    <tr><td><code>name</code></td><td>8</td><td>4-byte length + 8 UTF-8 payload bytes</td></tr>
+    <tr><td><code>gpa</code></td><td>20</td><td>4</td></tr>
+    <tr><td><code>mid</code></td><td>24</td><td>4</td></tr>
+  </tbody>
+</table>
+
+<p class="keep-in-present"><code>students_layout.slot_size == 28</code>. A 128-byte block holds four student slots, with 16 bytes left over. Field <code>f</code> in slot <code>k</code> starts at byte <code>k * 28 + students_layout.offset(f)</code> within its block.</p>
+
+<p>The corresponding catalog records are <code>("students", 28)</code> in <code>table_catalog</code> and <code>("students", "sid", "int", 0, 4)</code>, <code>("students", "name", "varchar", 8, 8)</code>, <code>("students", "gpa", "int", 0, 20)</code>, and <code>("students", "mid", "int", 0, 24)</code> in <code>field_catalog</code>. Its columns are <code>(tblname, fldname, fldtype, length, offset)</code>.</p>
+
+<p class="keep-in-present">In this storage API, the string capacity is <strong>UTF-8 bytes</strong>; eight non-ASCII characters may need more than eight bytes. Our names use ASCII. GPAs are stored in tenths: <code>39</code> represents <code>3.9</code>. These examples do not add SQL constraints or transaction handling.</p>
+
+<h3 class="new-slide" data-kicker="SQL → storage → scans">2 · INSERT reserves a slot, then writes its fields</h3>
+
+<pre><code class="language-sql">INSERT INTO students (sid, name, gpa, mid) VALUES
+  (1, 'ada', 39, 1), (2, 'ben', 31, 2), (3, 'cyd', 37, 1),
+  (4, 'dee', 28, 3), (5, 'eli', 36, 2), (6, 'fay', 34, 1),
+  (7, 'temp', 40, 1);</code></pre>
+
+<pre><code class="language-python">rows = [(1, "ada", 39, 1), (2, "ben", 31, 2), (3, "cyd", 37, 1),
+        (4, "dee", 28, 3), (5, "eli", 36, 2), (6, "fay", 34, 1),
+        (7, "temp", 40, 1)]
+students = TableScan(bm, fm, "students", students_layout)
+try:
+    for sid, name, gpa, mid in rows:
+        students.insert()                 # mark a free slot USED; position on it
+        students.set_int("sid", sid)       # write within that slot
+        students.set_string("name", name)
+        students.set_int("gpa", gpa)
+        students.set_int("mid", mid)
+        print(name, students.rid())        # (block number, slot number)
+finally:
+    students.close()</code></pre>
+
+<p class="keep-in-present">Ada occupies <code>(0, 0)</code>, Ben <code>(0, 1)</code>, Cyd <code>(0, 2)</code>, Dee <code>(0, 3)</code>, Eli <code>(1, 0)</code>, Fay <code>(1, 1)</code>, and Temp <code>(1, 2)</code>. <code>insert()</code> searches for an empty slot after the cursor, moving to or appending another block when necessary. Setters use the layout to write the current slot and mark its buffered page dirty.</p>
+
+<details>
+  <summary>Load the three majors for the join, using the same API</summary>
+<pre><code class="language-sql">INSERT INTO majors (mid2, dept) VALUES (1, 'ds'), (2, 'stat'), (3, 'econ');</code></pre>
+<pre><code class="language-python">majors = TableScan(bm, fm, "majors", majors_layout)
+try:
+    for mid2, dept in [(1, "ds"), (2, "stat"), (3, "econ")]:
+        majors.insert()
+        majors.set_int("mid2", mid2)
+        majors.set_string("dept", dept)
+finally:
+    majors.close()</code></pre>
+</details>
+
+<h3 class="new-slide" data-kicker="SQL → storage → scans">3 · DELETE finds a row and clears its slot flag</h3>
+
+<pre><code class="language-sql">DELETE FROM students WHERE sid = 7;</code></pre>
+
+<pre><code class="language-python">students = TableScan(bm, fm, "students", students_layout)
+try:
+    students.before_first()
+    while students.next():
+        if students.get_int("sid") == 7:
+            print("deleting", students.rid())  # (1, 2)
+            students.delete()                # current slot's flag becomes EMPTY
+finally:
+    students.close()</code></pre>
+
+<p class="keep-in-present"><code>TableScan.delete()</code> calls <code>RecordPage.delete(current_slot)</code>. It changes the flag from <code>1</code> to <code>0</code>; it does not shift other rows or erase the old field bytes. Future scans skip that slot. An insertion can reuse it when its free-slot search reaches it.</p>
+
+<p class="keep-in-present">The six original students remain. The loop checks every live row because this schema declares no uniqueness constraint on <code>sid</code>. This update uses the writable <code>TableScan</code> directly; the new query wrappers expose the read-only scan interface.</p>
+
+<h3 class="new-slide" data-kicker="SQL → storage → scans">4 · SELECT constructs a plan, then pulls rows</h3>
+
+<pre><code class="language-sql">SELECT name FROM students WHERE gpa &gt; 35;</code></pre>
+
+<pre><code class="language-python">source = TableScan(bm, fm, "students", students_layout)
+selected = SelectScan(source, Predicate(("gpa", "&gt;", 35)))
+plan = ProjectScan(selected, ["name"])
+try:
+    plan.before_first()
+    while plan.next():
+        print(plan.get_val("name"))
+finally:
+    plan.close()  # delegates down to source.close()</code></pre>
+
+<p class="keep-in-present"><strong>Plan:</strong> <code>Project(name) ← Select(gpa &gt; 35) ← TableScan(students)</code>. Calls travel from the root to its inputs; accepted rows are exposed back up the tree. The first root <code>next()</code> finds Ada. The second skips Ben and finds Cyd; later calls find Eli, skip Fay and the deleted slot, then report exhaustion.</p>
+
+<p class="keep-in-present"><strong>Output:</strong> <code>ada</code>, <code>cyd</code>, <code>eli</code>. The projection belongs above selection because the filter needs <code>gpa</code>, while the output exposes only <code>name</code>. These snippets run once you implement the operators below. The shown order follows this scan; SQL without <code>ORDER BY</code> does not promise an order.</p>
+
+<h3 class="new-slide" data-kicker="SQL → storage → scans">5 · JOIN combines a product, a predicate, and a projection</h3>
+
+<pre><code class="language-sql">SELECT name, dept
+FROM students JOIN majors ON mid = mid2
+WHERE gpa &gt; 35;</code></pre>
+
+<pre><code class="language-python">students = TableScan(bm, fm, "students", students_layout)
+majors = TableScan(bm, fm, "majors", majors_layout)
+pairs = ProductScan(students, majors)
+matched = SelectScan(pairs, Predicate(("mid", "=", F("mid2")),
+                                      ("gpa", "&gt;", 35)))
+plan = ProjectScan(matched, ["name", "dept"])
+try:
+    plan.before_first()  # initialize both product cursors
+    while plan.next():
+        print(plan.get_val("name"), plan.get_val("dept"))
+finally:
+    plan.close()         # recursively closes both table scans</code></pre>
+
+<p class="keep-in-present"><strong>Output:</strong> <code>(ada, ds)</code>, <code>(cyd, ds)</code>, <code>(eli, stat)</code>. <code>F("mid2")</code> reads the right row’s field; plain <code>"mid2"</code> would compare <code>mid</code> with a string literal. The distinct names <code>mid</code> and <code>mid2</code> let the product route each field correctly; this API has no SQL table aliases or qualified-name resolution.</p>
+
+<h3 class="new-slide" data-kicker="JOIN · follow the pull">One plan, two inputs, three matching rows</h3>
+
+<pre><code>Project(name, dept)
+        ↑
+Select(mid = mid2 AND gpa &gt; 35)
+        ↑
+ProductScan
+    ↑                    ↑
+TableScan(students)   TableScan(majors)</code></pre>
+
+<p class="keep-in-present">Each request at the root makes the product enumerate pairs until the selection accepts one. Ada is paired with DS, Stat, and Econ before the left cursor advances to Ben. Six students × three majors produces <strong>18 candidate pairs</strong>; the predicate keeps <strong>three</strong>. The product holds the current pair instead of constructing an 18-row intermediate table. The measurement later moves the GPA filter below the product to reduce this work.</p>
+
+<details>
+  <summary>Finish the shared snippet session and inspect the complete demo</summary>
+<pre><code class="language-python"># After the scans above have all been closed:
+assert not any(buffer.is_pinned() for buffer in bm.pool)
+bm.flush_all()  # write dirty pages; closing a scan only releases its pins
+fm.close()
+db.cleanup()   # remove this example's temporary database</code></pre>
+<p>The standalone demo performs cleanup even if an operator is unfinished. With <code>--queries</code>, its final output includes:</p>
+<pre class="terminal"><code>SELECT: ['ada', 'cyd', 'eli']
+JOIN: [('ada', 'ds'), ('cyd', 'ds'), ('eli', 'stat')]
+All scans closed; no buffer pins remain.</code></pre>
+</details>
 
 <!-- ============================================================ -->
 <h2 id="big-idea">How each operator uses its input scans</h2>
@@ -127,7 +310,7 @@ predicate <em>is</em> the join.</p>
 
 <p>After each function, use the <a href="#function-tests">function-level checks</a> to test it before completing the rest of the lab.</p>
 
-<p>Work in <code>labs/lab-04/starter/</code> after pulling the latest files, or download the seven starter files into <code>microdb-lab4/</code>. Four files provide reference implementations of the lower layers. Read the two new methods at the bottom of the reference <code>TableScan</code>, then implement the operators in test order:</p>
+<p>Work in <code>labs/lab-04/starter/</code> after pulling the latest files, or download the starter files into <code>microdb-lab4/</code>. Four files provide reference implementations of the lower layers; <code>sql_walkthrough.py</code> is an optional runnable companion. Read the two new methods at the bottom of the reference <code>TableScan</code>, then implement the operators in test order:</p>
 
 <ol>
   <li><strong>Read <code>query_engine.py</code> top to bottom</strong> (5 min); the module
@@ -250,6 +433,7 @@ score you see locally is the grade.</p>
     <tr><td><code>query_engine.py</code></td><td>F, Predicate, CountingScan, all <span class="gloss" data-gloss="delegation">delegation</span> stubs</td><td>SelectScan.next · ProjectScan's column check · ProductScan's four methods</td></tr>
     <tr><td>reference layers ×4</td><td>Labs 1–3 (+ TableScan's get_val/has_field), do not edit</td><td>&nbsp;</td></tr>
     <tr><td>harness + measure</td><td>complete, do not edit</td><td>run, record</td></tr>
+    <tr><td><code>sql_walkthrough.py</code></td><td>SQL-to-API examples with a temporary database</td><td>optional: run storage now, <code>--queries</code> after Build</td></tr>
   </tbody>
 </table>
 
@@ -292,6 +476,7 @@ this reason.</p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
 <script src="../_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=2"></script>
 </body>
