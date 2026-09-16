@@ -93,6 +93,13 @@ that each function can pass independently and that test helpers cannot mask an
 unfinished or incorrect implementation. Install `duckdb` to include the SQL
 execution regressions; those checks are skipped when it is unavailable.
 
+Lab 4’s statement diagrams replay snapshots recorded from its supplied Python
+storage layers and public reference scan fixtures. After changing those layers,
+run `python3 scripts/generate_lab4_statement_traces.py` to regenerate the browser
+data, or add `--check` to verify it is current. Run
+`node tests/test_statement_traces.js` and
+`node tests/test_statement_walkthrough_ui.js` to check the trace and controls.
+
 ## Note
 
 Instructor autograders and quiz and exam generators are kept in a separate

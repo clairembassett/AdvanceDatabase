@@ -69,7 +69,7 @@
       node('Product', 'students × majors', `${pairs.length} pairs built`) +
       `<div class="pl-pair">` +
       `<div class="pl-node">Scan<span>students</span><span class="traffic">6 rows, read once</span></div>` +
-      `<div class="pl-node">Scan<span>majors</span><span class="traffic">3 rows × 6 rewinds = 18</span></div>` +
+      `<div class="pl-node">Scan<span>majors</span><span class="traffic">3 rows × 6 passes = 18</span></div>` +
       `</div>`;
     msg.innerHTML = 'The selection keeps matching pairs from the product. The majors scan restarts for each student.';
     stats.textContent = 'pairs built: 18    rows delivered: 3';
@@ -80,7 +80,7 @@
       node('Product', 'students × majors', '18 pairs, unfiltered') +
       `<div class="pl-pair">` +
       `<div class="pl-node">Scan<span>students</span><span class="traffic">6 rows</span></div>` +
-      `<div class="pl-node">Scan<span>majors</span><span class="traffic">3 rows × 6 rewinds</span></div>` +
+      `<div class="pl-node">Scan<span>majors</span><span class="traffic">3 rows × 6 passes</span></div>` +
       `</div>`;
     msg.innerHTML = 'The <strong>Cartesian product</strong> pairs every student with every major, without applying a join condition.';
     stats.textContent = 'pairs built: 18    rows delivered: 18';

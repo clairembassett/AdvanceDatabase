@@ -6,7 +6,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="statement-walkthrough.css?v=1">
 </head>
 <body>
 
@@ -15,6 +16,8 @@
   <ul>
     <li><a href="#try-it">Combining scan operators</a></li>
     <li><a href="#sql-walkthrough">SQL → storage → scans</a></li>
+    <li><a href="#statement-walkthrough">Execute statements line by line</a></li>
+    <li><a href="#join-walkthrough">Follow a join down to slots</a></li>
     <li><a href="#big-idea">How operators share rows</a></li>
     <li><a href="#the-api">Operator control flow</a></li>
     <li><a href="#build">Part 1 · Build</a></li>
@@ -133,6 +136,8 @@ majors_layout = catalog.get_layout("majors")</code></pre>
 
 <p class="keep-in-present"><code>Schema</code> describes the fields. <code>Catalog.create_table()</code> computes a <code>Layout</code> and inserts ordinary records into <code>table_catalog</code> and <code>field_catalog</code>. <code>get_layout()</code> scans those records to reconstruct the offsets and slot size. The first <code>TableScan</code> on <code>students</code> creates its data file and first block.</p>
 
+<p class="keep-in-present"><a href="#statement-walkthrough" data-statement-stage="create">▶ Execute CREATE line by line: schema → catalog slots → files</a></p>
+
 <h3 class="new-slide" data-kicker="CREATE · physical representation">Where do the student fields live?</h3>
 
 <table>
@@ -176,6 +181,8 @@ finally:
 
 <p class="keep-in-present">Ada occupies <code>(0, 0)</code>, Ben <code>(0, 1)</code>, Cyd <code>(0, 2)</code>, Dee <code>(0, 3)</code>, Eli <code>(1, 0)</code>, Fay <code>(1, 1)</code>, and Temp <code>(1, 2)</code>. <code>insert()</code> searches for an empty slot after the cursor, moving to or appending another block when necessary. Setters use the layout to write the current slot and mark its buffered page dirty.</p>
 
+<p class="keep-in-present"><a href="#statement-walkthrough" data-statement-stage="insert">▶ Execute INSERT line by line: reserve a slot → write each field → flush</a></p>
+
 <details>
   <summary>Load the three majors for the join, using the same API</summary>
 <pre><code class="language-sql">INSERT INTO majors (mid2, dept) VALUES (1, 'ds'), (2, 'stat'), (3, 'econ');</code></pre>
@@ -207,6 +214,8 @@ finally:
 
 <p class="keep-in-present">The six original students remain. The loop checks every live row because this schema declares no uniqueness constraint on <code>sid</code>. This update uses the writable <code>TableScan</code> directly; the new query wrappers expose the read-only scan interface.</p>
 
+<p class="keep-in-present"><a href="#statement-walkthrough" data-statement-stage="delete">▶ Execute DELETE line by line: find Temp → clear its flag → compare RAM and file</a></p>
+
 <h3 class="new-slide" data-kicker="SQL → storage → scans">4 · SELECT constructs a plan, then pulls rows</h3>
 
 <pre><code class="language-sql">SELECT name FROM students WHERE gpa &gt; 35;</code></pre>
@@ -224,6 +233,76 @@ finally:
 <p class="keep-in-present"><strong>Plan:</strong> <code>Project(name) ← Select(gpa &gt; 35) ← TableScan(students)</code>. Calls travel from the root to its inputs; accepted rows are exposed back up the tree. The first root <code>next()</code> finds Ada. The second skips Ben and finds Cyd; later calls find Eli, skip Fay and the deleted slot, then report exhaustion.</p>
 
 <p class="keep-in-present"><strong>Output:</strong> <code>ada</code>, <code>cyd</code>, <code>eli</code>. The projection belongs above selection because the filter needs <code>gpa</code>, while the output exposes only <code>name</code>. These snippets run once you implement the operators below. The shown order follows this scan; SQL without <code>ORDER BY</code> does not promise an order.</p>
+
+<p class="keep-in-present"><a href="#statement-walkthrough" data-statement-stage="select">▶ Execute SELECT line by line: pull → test → read the projected field</a></p>
+
+<h3 id="statement-walkthrough" class="new-slide" data-kicker="SQL · code · memory · files">Watch each statement change the database</h3>
+
+<div class="viz sw" id="viz-statements" role="region" aria-label="Line-by-line database statements">
+  <div class="viz-title">One database, four statements, every storage change</div>
+  <p class="viz-description">Choose a statement. <strong>Step</strong> enters its storage calls; <strong>Next line</strong> finishes the next Python line. The highlighted line and its explanation distinguish work inside a call from a completed line.</p>
+  <div class="sw-stages" role="group" aria-label="Choose a statement">
+    <button type="button" class="btn" data-stage="create" aria-pressed="true">1 · CREATE</button>
+    <button type="button" class="btn" data-stage="insert" aria-pressed="false">2 · INSERT</button>
+    <button type="button" class="btn" data-stage="delete" aria-pressed="false">3 · DELETE</button>
+    <button type="button" class="btn" data-stage="select" aria-pressed="false">4 · SELECT</button>
+  </div>
+  <p class="sw-context" id="sw-context"></p>
+  <details class="sw-sql"><summary>SQL request represented by this code</summary><pre><code id="sw-sql"></code></pre></details>
+  <div class="sw-controls" role="group" aria-label="Statement execution controls">
+    <button type="button" class="btn" id="sw-back">← Back</button>
+    <button type="button" class="btn primary" id="sw-step">Step →</button>
+    <button type="button" class="btn" id="sw-line">Next line</button>
+    <button type="button" class="btn" id="sw-change">Next storage change</button>
+    <button type="button" class="btn" id="sw-play" aria-pressed="false">Play</button>
+    <button type="button" class="btn" id="sw-finish">Finish</button>
+    <button type="button" class="btn" id="sw-reset">Reset statement</button>
+    <button type="button" class="btn" id="sw-expand">Full screen</button>
+  </div>
+  <div class="sw-message" role="status" aria-live="polite" aria-atomic="true">
+    <div class="sw-message-head"><strong id="sw-phase"></strong><span id="sw-progress"></span></div>
+    <span id="sw-message">Loading the recorded execution…</span>
+  </div>
+  <div class="sw-workspace">
+    <section class="sw-code-panel" aria-label="Executing Python code">
+      <div class="sw-panel-title">Python · highlighted line is active</div>
+      <ol class="sw-code" id="sw-code" aria-label="Statement source lines"></ol>
+      <details class="sw-helper"><summary id="sw-helper-title">Inside this call</summary><pre><code id="sw-helper-code"></code></pre></details>
+      <div class="sw-locals" id="sw-locals" aria-label="Current Python values"></div>
+      <div class="sw-result"><div class="sw-panel-title">Caller output</div><div id="sw-output"></div></div>
+    </section>
+    <section class="sw-state-panel" aria-label="Buffer pool and database files">
+      <div class="sw-panel-title">RAM · 8 buffer frames</div>
+      <div class="sw-buffers" id="sw-buffers"></div>
+      <p class="sw-state-note">A pin protects a frame from replacement. <strong>Dirty</strong> means its page needs writing. Unpinning leaves the page resident.</p>
+      <div class="sw-transfer" id="sw-transfer">Files → pin reads a block · flush writes a dirty page → files</div>
+      <div class="sw-panel-title">Database files · current file contents</div>
+      <div class="sw-files" id="sw-files"></div>
+      <div class="sw-counts" id="sw-counts"></div>
+    </section>
+  </div>
+  <section class="sw-inspector" aria-labelledby="sw-block-title">
+    <div class="sw-inspector-head"><strong id="sw-block-title">Block inspector</strong><button type="button" class="btn" id="sw-follow">Follow execution</button></div>
+    <p id="sw-inspector-note"></p>
+    <div class="sw-cursors" id="sw-cursors" aria-label="Open scan cursors"></div>
+    <div class="sw-copies">
+      <div><div class="sw-panel-title">Buffered copy · current reads and writes</div><div id="sw-ram-slots"></div></div>
+      <div><div class="sw-panel-title">File copy · last written contents</div><div id="sw-file-slots"></div></div>
+    </div>
+    <div class="sw-slot-detail">
+      <div class="sw-panel-title" id="sw-slot-title">Slot fields</div>
+      <div class="sw-table-scroll"><table class="sw-fields"><thead><tr><th>Field</th><th>Slot offset</th><th>Size</th><th>RAM</th><th>File</th></tr></thead><tbody id="sw-fields"></tbody></table></div>
+      <p class="sw-address" id="sw-address"></p>
+      <details class="sw-bytes-detail"><summary>Compare every byte in this slot</summary>
+        <p>Each cell shows a block-relative offset and the RAM / file bytes in hexadecimal. Highlighted differences have not yet reached the file.</p>
+        <div class="sw-bytes" id="sw-bytes"></div>
+      </details>
+    </div>
+  </section>
+  <details class="sw-layout-detail"><summary id="sw-layout-title">Layout computed by the catalog</summary><div class="sw-layout" id="sw-layout"></div></details>
+  <p class="viz-caption">The stages continue from the previous stage’s final state. Reset rewinds only this demonstration. Snapshots are recorded from the lab’s Python storage code and completed reference scan operators; the browser replays them. Explicit <code>bm.flush_all()</code> checkpoints after CREATE, INSERT, and DELETE make file writes visible. A flush is not a transaction commit. With a diagram button focused, use ← / → to step, Home to reset, and End to finish.</p>
+  <noscript><p>Enable JavaScript to inspect the execution. The examples above show the same schemas, rows, deletion, and selection.</p></noscript>
+</div>
 
 <h3 class="new-slide" data-kicker="SQL → storage → scans">5 · JOIN combines a product, a predicate, and a projection</h3>
 
@@ -246,15 +325,96 @@ finally:
 
 <p class="keep-in-present"><strong>Output:</strong> <code>(ada, ds)</code>, <code>(cyd, ds)</code>, <code>(eli, stat)</code>. <code>F("mid2")</code> reads the right row’s field; plain <code>"mid2"</code> would compare <code>mid</code> with a string literal. The distinct names <code>mid</code> and <code>mid2</code> let the product route each field correctly; this API has no SQL table aliases or qualified-name resolution.</p>
 
-<h3 class="new-slide" data-kicker="JOIN · follow the pull">One plan, two inputs, three matching rows</h3>
+<h3 id="join-walkthrough" class="new-slide" data-kicker="JOIN · follow the pull">Follow the plan all the way to a slot</h3>
 
-<pre><code>Project(name, dept)
-        ↑
-Select(mid = mid2 AND gpa &gt; 35)
-        ↑
-ProductScan
-    ↑                    ↑
-TableScan(students)   TableScan(majors)</code></pre>
+<div class="viz jw" id="viz-join-slots" role="region" aria-label="Interactive join execution and record slots">
+  <div class="viz-title">One root call, two cursors, actual record layouts</div>
+  <p class="viz-description">Step through the same Python plan above. Requests travel down; matching rows return up. Click a slot to inspect its fields and bytes, or an operator to see its job.</p>
+  <noscript><p>Enable JavaScript to step through Project → Select → ProductScan → the two TableScans and their record slots. The Python above executes the same plan.</p></noscript>
+  <div class="jw-controls" role="group" aria-label="Execution controls">
+    <button type="button" class="btn" id="jw-back">← Back</button>
+    <button type="button" class="btn primary" id="jw-step">Step →</button>
+    <button type="button" class="btn" id="jw-pair">Next pair</button>
+    <button type="button" class="btn" id="jw-result">Next result</button>
+    <button type="button" class="btn" id="jw-play" aria-pressed="false">Play</button>
+    <button type="button" class="btn" id="jw-reset">Reset</button>
+  </div>
+  <div class="jw-jump-row">
+    <label for="jw-jump">Jump to</label>
+    <select id="jw-jump">
+      <option value="start">Initialization</option>
+      <option value="first-result">First result: Ada + DS</option>
+      <option value="join-reject">A major ID mismatch</option>
+      <option value="gpa-reject">A GPA rejection</option>
+      <option value="block-change">Cross into students block 1</option>
+      <option value="deleted">Skip the deleted slot</option>
+      <option value="end">Exhaustion and close</option>
+    </select>
+    <span id="jw-progress"></span>
+  </div>
+  <div class="jw-message" role="status" aria-live="polite" aria-atomic="true">
+    <span id="jw-direction" class="jw-direction"></span>
+    <span id="jw-message">Loading the execution trace…</span>
+  </div>
+  <div class="jw-counts" id="jw-counts" aria-label="Execution counters"></div>
+  <div class="jw-plan" aria-label="Query plan connected to physical table blocks">
+    <button type="button" class="jw-node jw-root-node" id="jw-project" data-operator="project" aria-controls="jw-operator-detail">
+      <strong>Project</strong><span>name, dept</span><small id="jw-project-state">Output fields only</small>
+    </button>
+    <div class="jw-link" id="jw-link-project" aria-hidden="true"><span>↓ demand · row ↑</span></div>
+    <button type="button" class="jw-node jw-root-node" id="jw-select" data-operator="select" aria-controls="jw-operator-detail">
+      <strong>Select</strong><span>mid = mid2 AND gpa &gt; 35</span>
+      <small id="jw-predicate">The predicate has not read a pair yet.</small>
+    </button>
+    <div class="jw-link" id="jw-link-select" aria-hidden="true"><span>↓ demand · row ↑</span></div>
+    <button type="button" class="jw-node jw-root-node" id="jw-product" data-operator="product" aria-controls="jw-operator-detail">
+      <strong>ProductScan</strong><span>students × majors</span><small id="jw-pair-state">No current pair</small>
+    </button>
+    <div class="jw-branches">
+      <section class="jw-table-branch" aria-label="Students scan and blocks">
+        <div class="jw-link" id="jw-link-students" aria-hidden="true"><span>↓ next / rewind · row ↑</span></div>
+        <button type="button" class="jw-node" id="jw-students" data-operator="students" aria-controls="jw-operator-detail">
+          <strong>TableScan(students)</strong><small id="jw-students-cursor"></small>
+        </button>
+        <div class="jw-storage-link">↕ RecordPage · slot flags and field bytes</div>
+        <div id="jw-students-blocks"></div>
+      </section>
+      <section class="jw-table-branch" aria-label="Majors scan and blocks">
+        <div class="jw-link" id="jw-link-majors" aria-hidden="true"><span>↓ next / rewind · row ↑</span></div>
+        <button type="button" class="jw-node" id="jw-majors" data-operator="majors" aria-controls="jw-operator-detail">
+          <strong>TableScan(majors)</strong><small id="jw-majors-cursor"></small>
+        </button>
+        <div class="jw-storage-link">↕ RecordPage · slot flags and field bytes</div>
+        <div id="jw-majors-blocks"></div>
+        <div class="jw-output">
+          <div class="jw-label">Rows delivered to the caller</div>
+          <div id="jw-output" aria-live="off">No rows yet.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="jw-legend"><span>▶ current cursor</span><span>● pinned block</span><span>Amber: flag or field read</span><span>Blue: inspected slot</span><span>EMPTY: skipped</span></div>
+  <details class="jw-operator" id="jw-operator-detail">
+    <summary id="jw-operator-title">Operator details and the current call stack</summary>
+    <p id="jw-operator-description"></p>
+    <pre><code id="jw-stack"></code></pre>
+  </details>
+  <section class="jw-inspector" aria-labelledby="jw-inspector-title">
+    <div class="jw-inspector-head">
+      <strong id="jw-inspector-title">Slot inspector</strong>
+      <button type="button" class="btn" id="jw-follow">Follow execution</button>
+    </div>
+    <p id="jw-inspector-status"></p>
+    <div class="jw-layout" id="jw-layout" aria-label="Field regions within the inspected slot"></div>
+    <p class="jw-address" id="jw-address"></p>
+    <details class="jw-bytes-detail">
+      <summary>Show every byte in this slot</summary>
+      <p>Offsets are relative to the start of the block. Integers and string lengths use four bytes in little-endian order; strings use UTF-8. Unused string capacity stays zero in this fresh example.</p>
+      <div class="jw-bytes" id="jw-bytes" aria-label="Slot bytes with block-relative offsets"></div>
+    </details>
+  </section>
+  <p class="viz-caption">128-byte blocks: four 28-byte student slots or six 20-byte major slots. Field offsets come from each table’s catalog layout. This teaching trace shows the completed operators over the data created above. It tracks buffer pins, not cache misses or disk reads. Displaying the three returned rows is a caller action; the product streams one pair at a time. With a diagram button focused, use ← / → to step, Home to reset, or End to finish.</p>
+</div>
 
 <p class="keep-in-present">Each request at the root makes the product enumerate pairs until the selection accepts one. Ada is paired with DS, Stat, and Econ before the left cursor advances to Ben. Six students × three majors produces <strong>18 candidate pairs</strong>; the predicate keeps <strong>three</strong>. The product holds the current pair instead of constructing an 18-row intermediate table. The measurement later moves the GPA filter below the product to reduce this work.</p>
 
@@ -478,6 +638,10 @@ this reason.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
 <script src="../_shared/lab-base.js?v=13"></script>
-<script src="viz.js?v=2"></script>
+<script src="viz.js?v=3"></script>
+<script src="join-walkthrough-model.js?v=1"></script>
+<script src="join-walkthrough.js?v=1"></script>
+<script src="statement-traces.js?v=1"></script>
+<script src="statement-walkthrough.js?v=1"></script>
 </body>
 </html>
