@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -17,6 +18,7 @@
     <li><a href="#try-it">Trace how keys select a partition</a></li>
     <li><a href="#big-idea">Separate computation from scheduling and data transfer</a></li>
     <li><a href="#the-api">One file is graded; two more you run and read</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#build">Part 1 · micro-mapreduce</a></li>
     <li><a href="#spark">Part 2 · Spark</a></li>
     <li><a href="#ray">Part 3 · Ray</a></li>
@@ -124,6 +126,16 @@ Parts 1 and 2 compute the same word counts. Part 3 searches the corpus’s vecto
 </div>
 
 <!-- ============================================================ -->
+<h2 id="worked-example">Trace map output into independent partition dictionaries</h2>
+
+<p>Follow two tiny records before processing the corpus. The displayed bucket numbers are a fixed teaching choice. Your required implementation uses Python’s <code>hash(key) % n_partitions</code> within one process.</p>
+<div data-teaching-trace="shuffle">
+  <p><strong>Worked result:</strong> The map emits four pairs. Shuffle groups three values under wal and one under page. Reduction gives <code>{"wal": 3, "page": 1}</code>, independent of bucket numbering.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Implementation checkpoints:</strong> create each partition dictionary separately. Preserve all duplicate occurrences in <code>map_words</code> and <code>shuffle</code>. Test with more than one partition; one bucket hides routing errors. The graded implementation runs sequentially, while optional Spark and Ray exercises add actual scheduling.</p>
+
+<!-- ============================================================ -->
 <h2 id="build">Part 1 · micro-mapreduce <span class="part-time">~35 min in class · graded</span></h2>
 
 <p>After each function, use the <a href="#function-tests">function-level checks</a> to test it before completing the rest of the lab.</p>
@@ -201,6 +213,8 @@ it at 1000 and start Ray with <code>ray.init(num_cpus=2, ...)</code>. Report the
 <p>Unit results are practice feedback. Run <code>python3 test_sparkray.py</code> without flags to check the complete pipelines. Only the OFFLINE group determines your grade. The optional Spark and Ray unit checks use small local stand-ins for those APIs; run the real SPARK and RAY groups before measuring performance.</p>
 
 <h3>Run the full tests</h3>
+
+<p>The passing output below is the target after completing the required methods or queries. On a fresh starter, failures marked <code>not implemented yet</code> or missing-query failures are expected. A unit check can pass while the remaining integration tests still fail.</p>
 
 <p>The OFFLINE tests check the graded Part 1 implementation. The optional SPARK and RAY groups run when their dependencies are available and otherwise report a skip. The combined local score counts whichever tests ran; Gradescope uses the seven OFFLINE tests only.</p>
 
@@ -294,5 +308,7 @@ OFFLINE group, and that is the whole grade; Parts 2 and 3 are for class discussi
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../_shared/teaching-traces.js?v=1"></script>
+<script src="../_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

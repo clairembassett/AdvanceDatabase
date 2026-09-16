@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -19,6 +20,7 @@
     <li><a href="#problem">A full scan checks every row</a></li>
     <li><a href="#try-it">The tree grows by splitting, and every leaf stays level</a></li>
     <li><a href="#anatomy">Leaves hold entries; internal nodes route searches</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#split">Splits preserve equal leaf depth</a></li>
     <li><a href="#fanout">Fan-out 200 makes a billion rows a four-level tree</a></li>
     <li><a href="#costs">Indexes add write and storage costs</a></li>
@@ -122,7 +124,7 @@ scripted insertion of the six example gpa values first, then try your own keys.<
   <div class="qj-msg" id="bt-msg">Insert keys until the root splits. Compare the tree’s height before and after the split.</div>
   <div class="bt-canvas" id="bt-canvas"></div>
   <div class="bs-stats" id="bt-stats"></div>
-  <p class="viz-caption">Search highlights the nodes it visits: one node at each level. This count measures index traversal; fetching heap rows and reading uncached pages add work.</p>
+  <p class="viz-caption">Search highlights the nodes it visits: one node at each level. This count measures index traversal; fetching heap rows and reading uncached pages add work. Reset or a manual insert/search stops any running insertion sequence.</p>
 </div>
 
 <h3 class="new-slide" data-kicker="The live tree">Splits maintain equal leaf depth</h3>
@@ -167,6 +169,16 @@ search(37):                            [28 31 34] → [36 37 39]        ← leav
   one descent + a walk.  Without a leaf chain, an ordered tree can still traverse successors using a stack or parent links; the chain makes the scan simpler.</code></pre>
 
 <p class="keep-in-present">The sorted leaf chain can serve <code>BETWEEN</code>, <code>ORDER BY</code>, and date-range queries without scanning unrelated index entries. Whether an index is faster than a heap scan depends on how many rows match and how they are stored. A hash index does not provide this ordered traversal.</p>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">Trace the key, the RID, and the row</h2>
+
+<p>A <strong>key</strong> is the indexed value. A <strong>separator</strong> routes a search between children. A <strong>RID</strong> identifies a heap block and slot. Use the examples below to distinguish those values, then predict the next step before advancing. The duplicate key 31 has two RIDs in this teaching fixture.</p>
+<div data-teaching-trace="btree-search btree-split btree-range">
+  <p><strong>Worked result:</strong> <code>search(36)</code> goes right at separator 36 and returns <code>[(0, 4)]</code>. A scan then fetches that heap row. Splitting <code>[1,2,3,4,5]</code> produces leaves <code>[1,2]</code> and <code>[3,4,5]</code> with root <code>[3]</code>. The inclusive range <code>[31,37]</code> finds four keys and five rows in the duplicate-key fixture.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Lab connection:</strong> <a href="../../labs/lab-06/btree.html#worked-example">Lab 6 uses these same examples</a> before the independent function checks. The browser shows expected behavior; your Python methods still implement it.</p>
 
 <!-- ============================================================ -->
 <h2 id="split">Splits preserve equal leaf depth</h2>
@@ -229,21 +241,23 @@ insert 8, 9:           [5 6 7] fills... root [3 5 7] → root gains its fourth k
 <!-- ============================================================ -->
 <h2 id="fanout">Fan-out 200 makes a billion rows a four-level tree</h2>
 
-<p class="key-fact keep-in-present"><strong>4 levels</strong> hold a billion rows when every node has 200 children, so a lookup reads four nodes</p>
+<p class="key-fact keep-in-present"><strong>4 levels</strong> can hold a billion distinct keys in an ideal model with 200 entries per leaf and up to 200 children per internal node.</p>
 
-<h3 class="new-slide" data-kicker="Fan-out and height">Height is a logarithm with base 200</h3>
+<h3 class="new-slide" data-kicker="Fan-out and height">Count leaf capacity as well as child pointers</h3>
 
 <div class="math">
-\[ \text{height} \;\approx\; \log_{\text{fan-out}} n \]
+\[ \text{maximum entries at height } h = L \times F^{h-1} \]
+<p><em>L</em> is entries per leaf, <em>F</em> is children per internal node, and height counts levels including the root and leaves. For this table, assume <em>L</em> = <em>F</em> = 200 and choose the smallest height with enough capacity. This is an ideal capacity estimate, not a promise about occupancy after arbitrary inserts.</p>
 <table>
-  <thead><tr><th>rows</th><th>ORDER 4 (max keys; up to 5 children)</th><th>fan-out 200 (a real page)</th></tr></thead>
+  <thead><tr><th>Distinct keys</th><th>Index levels</th><th>Capacity at that height</th></tr></thead>
   <tbody>
-    <tr><td>100</td><td>4</td><td>2</td></tr>
-    <tr><td>100,000</td><td>11 (you will measure it)</td><td>3</td></tr>
-    <tr><td>100,000,000</td><td>about 14</td><td>4</td></tr>
+    <tr><td>100</td><td>1</td><td>200 entries in one root leaf</td></tr>
+    <tr><td>100,000</td><td>3</td><td>200 × 200² = 8,000,000</td></tr>
+    <tr><td>100,000,000</td><td>4</td><td>200 × 200³ = 1,600,000,000</td></tr>
+    <tr><td>1,000,000,000</td><td>4</td><td>1,600,000,000</td></tr>
   </tbody>
 </table>
-<p>In this simplified full-node model, a billion keys need four index levels. Fetching one heap row adds a page access, and cached pages may avoid disk I/O.</p>
+<p>Lab 6 uses four keys per node and up to five children, with splits leaving partially filled nodes. Its reference insertion of 100,000 ordered keys produces height 11. Do not substitute <code>ORDER</code> for the observed average fan-out. Fetching a heap row adds work beyond the index traversal, and cached pages may avoid physical reads.</p>
 </div>
 
 <p class="keep-in-present">Large fan-out keeps the height small. Page-sized nodes hold many keys and child pointers, so each page read narrows the search substantially. The exact fan-out depends on page size, entry size, and occupancy.<sup class="src"><a href="#src-4" title="PostgreSQL Documentation: 66.6. Database Page Layout">4</a></sup></p>
@@ -254,7 +268,7 @@ insert 8, 9:           [5 6 7] fills... root [3 5 7] → root gains its fourth k
   <div class="viz-title">fan-out vs height · compare the number of levels</div>
   <p class="viz-description">Pick a table size, then drag the fan-out from binary-tree
   territory (2) to page-sized nodes (~200). Each bar is a tree level, labeled with its node
-  count; the height is how many bars you must descend.</p>
+  count; the height is how many bars you must descend. This widget uses the same chosen number for leaf capacity and internal fan-out, assumes maximum packing, and counts one entry per row.</p>
   <div class="qj-controls">
     <button type="button" class="btn" data-n="100000" id="fo-100k">100 thousand rows (the lab)</button>
     <button type="button" class="btn primary" data-n="100000000" id="fo-100m">100 million rows</button>
@@ -262,7 +276,7 @@ insert 8, 9:           [5 6 7] fills... root [3 5 7] → root gains its fourth k
   </div>
   <div class="fo-controls">
     <label>fan-out: <span id="fo-val">200</span></label>
-    <input type="range" id="fo-slider" min="1" max="100" step="1" value="100">
+    <input type="range" id="fo-slider" min="1" max="100" step="1" value="87">
   </div>
   <div id="fo-stage"></div>
   <p class="viz-caption">With 100 million rows, fan-out 2 gives about 27 levels in this model. Increasing fan-out to about 200 reduces that to four. Each level is an index-page access; only uncached accesses require a disk read.</p>
@@ -357,7 +371,7 @@ insert 8, 9:           [5 6 7] fills... root [3 5 7] → root gains its fourth k
 
 <p class="key-fact keep-in-present"><strong>294 blocks</strong> per scan lookup today · <strong>4 levels</strong> for a billion rows with fan-out 200</p>
 
-<p class="keep-in-present"><strong>Thursday:</strong> build it, then measure how much faster an index lookup is than a scan (the example result is about 4,000×; your timing may differ).
+<p class="keep-in-present"><strong>Thursday:</strong> build it, then compare a complete index lookup with a scan. Record the node and row counts as well as your measured time; the timing ratio depends on your run.
 <strong>Next class is Thursday Oct 8</strong> (Tuesday falls during Reading Days): transactions and
 the write-ahead log: what COMMIT actually promises. Quiz 6 lands Tue Oct 13.</p>
 
@@ -417,5 +431,7 @@ document that supports the claim it is attached to.</p>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -20,6 +21,7 @@
     <li><a href="#try-it">Inspect the evidence supplied to the model</a></li>
     <li><a href="#pipeline">The five stages of this RAG pipeline</a></li>
     <li><a href="#chunking">Choose chunks that preserve useful context</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#eval">Retrieval quality is measurable: two numbers, twelve questions</a></li>
     <li><a href="#failures">Diagnose retrieval and generation failures</a></li>
     <li><a href="#production">Improve retrieval with additional search stages</a></li>
@@ -173,15 +175,24 @@ question ──embed──▶ query vector ──────retrieve (top-k)─
 
 <div class="viz" id="viz-chunk">
   <div class="viz-title">chunk size vs retrieval quality · measured on the reference solution, eval set attached</div>
-  <p class="viz-description">Drag the maximum chunk size and watch the eval scores move;
-  every number here is a real measurement of Thursday's exact code, not an illustration.</p>
+  <p class="viz-description">Drag the target chunk size and compare measurements from the supplied Python chunker, embedder, and exact index on the same twelve questions. The target is soft: a sentence longer than the target stays intact.</p>
   <div class="ck-controls">
-    <label>max words per chunk: <span id="ck-val">60</span></label>
+    <label>target words per chunk: <span id="ck-val">60</span></label>
     <input type="range" id="ck-slider" min="0" max="5" step="1" value="4">
   </div>
   <div id="ck-readout"></div>
-  <p class="viz-caption">The shortest chunks contain too few words to match these questions reliably. Whole documents work well in this experiment because each source document is already a short, single-topic paragraph. Longer documents may cover several topics and need different boundaries. Use this result to choose an experiment for your own corpus, rather than assuming one chunk size will work everywhere.</p>
+  <p class="viz-caption">The 60- and 90-word targets tie on this small evaluation set. Smaller targets produce more chunks and lower hit@3 here. Each source is already short, so this result does not establish a best chunk size for longer documents. The reading, lab, and slide deck share measurements regenerated from the supplied code.</p>
 </div>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">Track source identity through retrieval</h2>
+
+<p>The index returns vector positions. The retriever maps those positions back to chunks, and the prompt cites the original source IDs. Keep those three identities aligned. The fixed scores below let you inspect the plumbing without depending on an embedding model.</p>
+<div data-teaching-trace="rag">
+  <p><strong>Worked result:</strong> Hit <code>(0.9, 2)</code> selects chunk 2, whose source ID is <code>wal</code>. Copy that chunk, attach the score, and cite <code>[wal]</code>. Source IDs <code>[wal, blocks, wal]</code> contribute one hit and reciprocal rank 1 for a question labeled relevant to wal.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Lab connection:</strong> <a href="../../labs/lab-10/microrag.html#worked-example">Lab 10 uses the same chunk-to-source mapping</a>. A correct retrieval pipeline can still select weak evidence; evaluation checks a separate property from interface correctness.</p>
 
 <!-- ============================================================ -->
 <h2 id="eval">Retrieval quality is measurable: two numbers, twelve questions</h2>
@@ -193,28 +204,27 @@ question ──embed──▶ query vector ──────retrieve (top-k)─
 come out of it: <span class="gloss" data-gloss="hit-at-k">hit@k</span> and <span class="gloss" data-gloss="mrr">MRR</span>, the mean reciprocal rank<sup class="src"><a href="#src-8" title="Building a Question Answering Test Collection (Voorhees and Tice, SIGIR 2000)">8</a></sup>:</p>
 \[ \text{hit@}k \;=\; \frac{\#\{\text{questions with a relevant doc in the top } k\}}{\#\text{questions}} \qquad \text{(did it come back?)} \]
 \[ \text{MRR} \;=\; \frac{1}{|Q|} \sum_{q \in Q} \frac{1}{\text{rank}_q} \qquad \text{(how high?)} \]
-<p>where rank<sub><em>q</em></sub> is the position of the first relevant doc: rank 1 scores 1.0, rank 2 scores
-0.5, rank 3 scores 0.33, and a doc that never appears scores 0.</p>
+<p>where rank<sub><em>q</em></sub> is the position of the first relevant source among the returned chunks: rank 1 scores 1.0, rank 2 scores 0.5, and rank 3 scores about 0.33. The lab retrieves only three chunks, so it measures <strong>MRR@3</strong>: a relevant source outside those three scores 0. Average over all questions, including misses. Multiple chunks from the same source do not give one question multiple hits.</p>
 </div>
 
-<h3 class="new-slide" data-kicker="Retrieval is measurable">Embedding width changed hit@3 from 0.42 to 0.92</h3>
+<h3 class="new-slide" data-kicker="Retrieval is measurable">Embedding width changed hit@3 from 0.50 to 0.92</h3>
 
 <p class="keep-in-present">Thursday’s hashed bag-of-words embedder maps each word to one of <code>DIM</code> vector positions and increments that position. With fewer positions, unrelated words collide more often, making unrelated texts appear similar. The <span class="gloss" data-gloss="eval-set">evaluation set</span> measures how these collisions affect retrieval:<sup class="src"><a href="#src-9" title="scikit-learn: HashingVectorizer">9</a></sup></p>
 
 <table>
-  <thead><tr><th>Embedding width (DIM)</th><th>hit@3</th><th>MRR</th></tr></thead>
+  <thead><tr><th>Embedding width (DIM)</th><th>hit@3</th><th>MRR@3</th></tr></thead>
   <tbody>
-    <tr><td>64</td><td>0.42</td><td>0.21</td></tr>
-    <tr><td>256</td><td>0.83</td><td>0.58</td></tr>
-    <tr><td><strong>2048</strong> (the lab's setting)</td><td><strong>0.92</strong></td><td><strong>0.86</strong></td></tr>
+    <tr><td>64</td><td>0.50</td><td>0.26</td></tr>
+    <tr><td>256</td><td>0.67</td><td>0.47</td></tr>
+    <tr><td><strong>2048</strong> (the lab's setting)</td><td><strong>0.92</strong></td><td><strong>0.78</strong></td></tr>
   </tbody>
 </table>
 
-<p class="key-fact keep-in-present"><strong>0.42 → 0.92</strong> hit@3 from one config line (DIM 64 to 2048), caught by a 12-question eval set in milliseconds</p>
+<p class="key-fact keep-in-present"><strong>0.50 → 0.92</strong> hit@3 when changing DIM from 64 to 2048 on the same 12 labeled questions</p>
 
 <h3 class="new-slide" data-kicker="Retrieval is measurable">A small evaluation set makes configurations comparable</h3>
 
-<p class="keep-in-present">Changing <code>DIM</code> improved hit@3 from 0.42 to 0.92 on these 12 questions. That is evidence about this corpus and question set, not a guarantee for new questions. Your project needs its own labeled set so you can compare configurations and inspect the remaining failures.</p>
+<p class="keep-in-present">Changing <code>DIM</code> improved hit@3 from 0.50 to 0.92 on these 12 questions. That is evidence about this corpus and question set, not a guarantee for new questions. Your project needs its own labeled set so you can compare configurations and inspect the remaining failures.</p>
 
 <!-- ============================================================ -->
 <h2 id="failures">Diagnose retrieval and generation failures</h2>
@@ -304,7 +314,7 @@ the embedder, and the LLM call are provided in the starter files; you write the 
   <li>Vocabulary mismatch, poor ranking, stale records, and incompatible embeddings cause different failures. Diagnose the cause before trying hybrid search, reranking, filtering, or an index rebuild.</li>
 </ul>
 
-<p class="key-fact keep-in-present"><strong>Evaluate each change:</strong> the 12-question set measured hit@3 rising from 0.42 to 0.92 when DIM changed from 64 to 2048.</p>
+<p class="key-fact keep-in-present"><strong>Evaluate each change:</strong> the 12-question set measured hit@3 rising from 0.50 to 0.92 when DIM changed from 64 to 2048.</p>
 
 <p class="keep-in-present"><strong>Thursday:</strong> build micro-rag. <strong>Next
 Tuesday:</strong> the data outgrows one machine: partitioning, MapReduce, Spark, and Ray.
@@ -363,9 +373,12 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
-<script src="viz.js?v=4"></script>
+<script src="../../labs/_shared/rag-measurements.js?v=1"></script>
+<script src="viz.js?v=2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -17,6 +18,7 @@
     <li><a href="#try-it">Compare recall with the number of vectors searched</a></li>
     <li><a href="#big-idea">Partition the space so a query skips most of it</a></li>
     <li><a href="#the-api">Implement three methods and count their comparisons</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#build">Part 1 · Build</a></li>
     <li><a href="#verify">Part 2 · Verify</a></li>
     <li><a href="#measure">Part 3 · Measure</a></li>
@@ -84,7 +86,7 @@ hover or tap for a plain-language explainer that opens right below the sentence 
   <p class="viz-caption">Compare each increase in recall with the extra comparisons it requires. Early increases in probe may recover many neighbors; later increases may add substantial work to recover the few still missing. The shape depends on the dataset and index settings.</p>
 </div>
 
-<p class="key-fact keep-in-present"><strong>0.917 recall for 4.3× fewer comparisons</strong> at probe 4: nine of ten true neighbors found while scoring 924 vectors instead of 4,000</p>
+<p class="key-fact keep-in-present"><strong>About 0.917 mean recall for 4.3× fewer comparisons</strong> at probe 4: about 9.17 of the ten exact neighbors per query on average, with 924 comparisons including centroids, versus 4,000 for exact search.</p>
 
 <p>The <code>git pull</code> command above updates the entire <code>starter/</code> directory, including <code>data/</code>. If you download files individually, include <code>data/</code>; the Python links do not include the corpus and vector files.</p>
 
@@ -134,6 +136,16 @@ fast enough to run in a loop. The full 384-dimensional vectors ship too
 </div>
 
 <!-- ============================================================ -->
+<h2 id="worked-example">Trace candidate IDs and every counted dot product</h2>
+
+<p>Use this tiny example to check the search contract before running on thousands of vectors. The fixed lists are intentionally uneven, so the actual number of candidates differs from the equal-list-size approximation.</p>
+<div data-teaching-trace="ivf">
+  <p><strong>Worked result:</strong> At probe 1, return only <code>[(0.8,0)]</code>, count three comparisons, and obtain recall@2 = 0.5. At probe 2, return <code>[(0.96,1),(0.8,0)]</code>, count six comparisons, and obtain recall@2 = 1.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Implementation checkpoints:</strong> the measurement script sets <code>comparisons = 0</code> before each measured search. Do the same when measuring repeated searches by hand. Return fewer than k results if fewer than k candidates exist. Break equal scores by ascending ID for both exact and approximate search. Keep the ground-truth vectors and similarity metric identical when computing recall.</p>
+
+<!-- ============================================================ -->
 <h2 id="build">Part 1 · Build <span class="part-time">~30 min in class</span></h2>
 
 <p>After each function, use the <a href="#function-tests">function-level checks</a> to test it before completing the rest of the lab.</p>
@@ -149,7 +161,7 @@ fast enough to run in a loop. The full 384-dimensional vectors ship too
 
 <div class="callout note">
   <span class="label">Implementation details to check</span>
-  <p>Sort by <code>(-similarity, id)</code> so tied scores have a deterministic order. Count centroid dot products as well as candidate-vector dot products. Reset the comparison counter for each search. Stored vectors already arrive normalized; do not repeatedly normalize them during queries.</p>
+  <p>Sort by <code>(-similarity, id)</code> so tied scores have a deterministic order. Count centroid dot products as well as candidate-vector dot products. Start each measured search with the counter at zero, as <code>measure_recall.py</code> does. Stored vectors already arrive normalized; do not repeatedly normalize them during queries.</p>
 </div>
 
 <!-- ============================================================ -->
@@ -163,6 +175,8 @@ fast enough to run in a loop. The full 384-dimensional vectors ship too
 <p>Unit results are practice feedback. Run <code>python3 test_vector.py</code> without flags to check that your functions work together. The integration tests below determine your grade.</p>
 
 <h3>Run the full tests</h3>
+
+<p>The passing output below is the target after completing the required methods or queries. On a fresh starter, failures marked <code>not implemented yet</code> or missing-query failures are expected. A unit check can pass while the remaining integration tests still fail.</p>
 
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_vector.py</span>
 <span class="t-head">EXACT group</span>
@@ -282,5 +296,7 @@ fast enough to run in a loop. The full 384-dimensional vectors ship too
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../_shared/teaching-traces.js?v=1"></script>
+<script src="../_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

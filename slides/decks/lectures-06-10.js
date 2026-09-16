@@ -367,7 +367,7 @@ const plans = [
         "title": "Index pages and heap pages",
         "minutes": 3,
         "kind": "visual",
-        "notes": "Use 100 million or one billion keys as a rounded fan-out example, not an exact universal height theorem. Distinguish four index-node visits from potentially another heap read. Cache residency and page occupancy affect I/O. A covering index contains the needed columns, but PostgreSQL index-only scans may still fetch the heap for visibility checks. Ask which lecture made the upper levels cheap: the buffer pool.",
+        "notes": "Use the explicit capacity model L × F^(h−1), with 200 entries per leaf and up to 200 children per internal node. Four levels can hold 1.6 billion distinct entries under maximum packing. This is an ideal capacity estimate, not a measured occupancy guarantee. Distinguish four index-node visits from potentially another heap read. Cache residency and page occupancy affect I/O. A covering index contains the needed columns, but PostgreSQL index-only scans may still fetch the heap for visibility checks. Ask which lecture made the upper levels cheap: the buffer pool.",
         "id": "index-pages-and-heap-pages",
         "steps": 3,
         "states": [
@@ -1639,7 +1639,7 @@ const plans = [
         "title": "Choose the shape",
         "minutes": 2,
         "kind": "recap",
-        "notes": "Have students choose the access shape and narrate the savings: fewer unrelated columns, encodings, batches and skipping. Lab 8 uses eight SQL queries and deterministic generated ride data; project proposals are due Thursday October 29. Direct setup details to notes or the lab link. Next lecture asks what happens when the column stores an embedding and the query asks for similarity. The scheduled quiz is separate from this 60-minute teaching deck. Add one final retrieval question: which stage learns coefficients and which reuses them? Expected: training aggregates learn them; inference applies the saved model without fitting again.",
+        "notes": "Have students choose the access shape and narrate the savings: fewer unrelated columns, encodings, batches and skipping. Lab 8 uses eight SQL queries and a fixed sample of real 2024 NYC taxi trips; project proposals are due Thursday October 29. Direct setup details to notes or the lab link. Next lecture asks what happens when the column stores an embedding and the query asks for similarity. The scheduled quiz is separate from this 60-minute teaching deck. Add one final retrieval question: which stage learns coefficients and which reuses them? Expected: training aggregates learn them; inference applies the saved model without fitting again.",
         "id": "choose-the-shape",
         "steps": 3,
         "states": [
@@ -1656,6 +1656,7 @@ const plans = [
 ];
 for (const deck of plans) {
  deck.scenes.forEach((scene, i) => { scene.draw = draws[deck.id][i]; });
+ window.CourseTraceSlides.apply(deck);
  window.COURSE_DECKS = window.COURSE_DECKS || {};
  window.COURSE_DECKS[deck.id] = deck;
 }

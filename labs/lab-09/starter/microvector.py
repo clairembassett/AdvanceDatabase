@@ -13,12 +13,13 @@ only the clusters nearest the query:
     search: find the P nearest cluster centroids ("probe" P lists),
             then brute-force only inside those lists
 
-    exact recall costs n comparisons; IVF costs ~ C + P*(n/C)
+    exact search costs n comparisons; IVF costs ~ C + P*(n/C)
     - and pays for it in RECALL: the true neighbor might live in a
     list you didn't probe. recall@k measures how often it doesn't.
 
-Everything here scales to the real thing: FAISS's IndexIVFFlat and
-pgvector's ivfflat are this file with SIMD and better k-means.
+This demonstrates the coarse-list search pattern used by IVFFlat indexes.
+Production implementations add optimized storage and computation, and may
+use different training, filtering, and update policies.
 
 Run the tests any time:   python3 test_vector.py
 Run the measurement:      python3 measure_recall.py    (after tests pass)
@@ -35,7 +36,8 @@ import random
 
 def dot(a: list[float], b: list[float]) -> float:
     """Similarity. Our vectors are unit-normalized, so the dot product IS
-    cosine similarity: 1.0 = identical direction, 0 = unrelated. Provided."""
+    cosine similarity: 1.0 = identical direction, 0 = orthogonal.
+    A geometric score alone does not establish document relevance. Provided."""
     return sum(x * y for x, y in zip(a, b))
 
 

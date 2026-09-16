@@ -32,3 +32,19 @@ its overview, and step through every changed animation. Check the actual
 rendered labels, numerical relationships, and classroom pacing. Toy examples
 must be identified as such in the notes. Recompute examples described as
 measurements when their data or implementation changes.
+
+## Shared worked examples
+
+Lectures 6–15 load `labs/_shared/teaching-traces.js` and
+`_shared/trace-scenes.js`. The latter maps selected stable scene IDs to worked
+examples that also appear in the readings and labs. Edit the example's code,
+states, explanations, and check question in the shared data file. The adapter
+updates the projected states and presenter notes while retaining the scene ID
+and minutes. The original scene is registered first, then the adapter supplies
+the worked content. Inspect the rendered deck after changing either file.
+
+Lecture 12's chunking measurements come from
+`labs/_shared/rag-measurements.js`, also used by the reading and Lab 10.
+Regenerate that file with `python3 scripts/generate_rag_measurements.py`.
+Use `--check` to verify it matches the Python inputs. If a measured result changes,
+update any prose and static example output quoting it as well.

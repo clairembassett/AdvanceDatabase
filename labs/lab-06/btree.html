@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -16,6 +17,7 @@
     <li><a href="#try-it">Split by hand</a></li>
     <li><a href="#big-idea">Values → RIDs</a></li>
     <li><a href="#the-api">Implementation requirements</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#build">Part 1 · Build</a></li>
     <li><a href="#verify">Part 2 · Verify</a></li>
     <li><a href="#measure">Part 3 · Measure</a></li>
@@ -107,15 +109,24 @@
 </div>
 
 <!-- ============================================================ -->
+<h2 id="worked-example">Trace the supplied helpers before writing the methods</h2>
+
+<p>Read the short example first, then choose the split and range cases from the menu. Positions inside a node are zero-based. A leaf stores one RID list per distinct key; an internal node stores one more child than separator.</p>
+<div data-teaching-trace="btree-search btree-split btree-range">
+  <p><strong>Worked result:</strong> <code>search(36)</code> returns <code>[(0,4)]</code>. <code>search(35)</code> returns <code>[]</code>. <code>range(31,37)</code> returns five RIDs because key 31 has two rows.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Implementation checkpoints:</strong> <code>keys[i]</code> and <code>rids[i]</code> must describe the same leaf entry. In an internal split, <code>keys[:mid]</code> pairs with <code>children[:mid+1]</code>. Preserve the old leaf successor before assigning <code>node.next</code>. A missing key returns an empty list, not an exception.</p>
+
+<!-- ============================================================ -->
 <h2 id="build">Part 1 · Build <span class="part-time">~35 min in class</span></h2>
 
 <p>After each function, use the <a href="#function-tests">function-level checks</a> to test it before completing the rest of the lab.</p>
 
 <ol>
   <li>Read <code>Node</code> and <code>_descend</code> (5 min). The docstring illustrates leaf and internal-node layouts. Check how the provided <code>child_index_for</code> chooses a child when the search key equals a separator.</li>
-  <li><code>search</code>: descend to the leaf and look up the key. Implement it now, then test it once insertion and splitting can construct a tree.</li>
-  <li><strong><code>insert</code> without splits</strong>: bisect into the leaf, duplicates
-  share a slot. The first TREE test passes.</li>
+  <li><code>search</code>: descend to the leaf and look up the key. Run <code>python3 test_btree.py --unit BPlusTree.search</code> immediately; the fixture supplies the tree while insertion and splitting remain unfinished.</li>
+  <li><strong><code>insert</code> without splits</strong>: insert the key and its RID list at matching positions. Duplicate keys share a slot. Check a tree with at most four distinct keys first; the full TREE group also requires splits.</li>
   <li><code>_split</code>: implement leaf splits, internal-node splits, and creation of a new root. Then add the bottom-up split loop in <code>insert</code>. Run the TREE and SEARCH tests.</li>
   <li><code>range</code>: descend to <code>lo</code>, then follow the leaf chain through the requested range. Run all nine tests and revisit the widget if a split rule is still unclear.</li>
 </ol>
@@ -136,6 +147,8 @@
 <p>Unit results are practice feedback. Run <code>python3 test_btree.py</code> without flags to check that your functions work together. The integration tests below determine your grade.</p>
 
 <h3>Run the full tests</h3>
+
+<p>The passing output below is the target after completing the required methods or queries. On a fresh starter, failures marked <code>not implemented yet</code> or missing-query failures are expected. A unit check can pass while the remaining integration tests still fail.</p>
 
 <p>The nine tests cover tree structure, lookup results, and integration with a table. TREE checks splits and invariants during sequences of inserts, including a height limit of six for 500 keys. SEARCH checks missing keys, duplicate keys, and ranges across leaf boundaries. INDEX compares <code>IndexSelectScan</code> with <code>SelectScan</code> and checks that a lookup visits one node per tree level.</p>
 
@@ -164,27 +177,27 @@
 <!-- ============================================================ -->
 <h2 id="measure">Part 3 · Measure <span class="part-time">~25 min · finish as homework</span></h2>
 
-<p>Reference run (counts deterministic; milliseconds representative of an Apple-silicon laptop):</p>
+<p>The output below shows the shape of a completed run. For the supplied 100,000 distinct keys, the scan visits 294 blocks and the reference tree has height 11. Values marked <code>&lt;measured&gt;</code> come from your machine. The index timer includes both tree descent and heap lookup; index construction is timed separately.</p>
 
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 measure_index.py</span>
 loading 100,000 rows...
 
-scan:   found 1 row · touched 100,000 rows across 294 blocks · 128 ms
+scan:   found 1 row · touched 100,000 rows across 294 blocks · &lt;measured&gt; ms
 building the index (one scan, paid once)...
-index:  found 1 row · touched 11 tree nodes (height 11) + 1 heap block · 0.03 ms
-        (index build took 0.5s, the once-per-table price)
+index:  found 1 row · touched 11 tree nodes (height 11) + 1 distinct matching heap block · &lt;measured&gt; ms
+        (index build took &lt;measured&gt;s, separate from lookup)
+        (tree nodes are in memory; heap block count is not physical I/O)
 
-lookup speedup: 4,091x</code></pre>
+lookup speedup: &lt;measured&gt;x</code></pre>
 
-<p class="key-fact keep-in-present"><strong>4,091×</strong> one lookup by index over a full scan: 11 tree nodes instead of 100,000 rows</p>
+<p class="key-fact keep-in-present"><strong>Compare work counts and timing separately:</strong> 11 in-memory tree-node visits plus one matching heap block, versus examining 100,000 rows.</p>
 
 <p><strong>Now change something.</strong> <code>N_ROWS</code> in
 <code>measure_index.py</code> is <code>100_000</code>. Set it to <code>1_000_000</code> (the load
 takes longer) and report scan ms, index ms, tree height, and the speedup. Before you look, compute
-the height <code>ORDER = 4</code> predicts for a million keys, then say whether the speedup grew
-with the row count and why the height barely moved.</p>
+an estimated height under an explicit occupancy assumption. <code>ORDER = 4</code> means four keys and up to five children per internal node; leaf capacity is four distinct keys. Exact height also depends on insertion order and occupancy. Compare your estimate with the measured height, and explain how lookup work changed with the row count.</p>
 
-<p class="keep-in-present">The sample run shows about a 4,000-fold timing difference for this lookup. Your timings will vary. The tree uses a deliberately small node capacity; a disk index with a larger <span class="gloss" data-gloss="fanout">fan-out</span> could store these keys in fewer levels. Buffering reduces the cost of repeated block reads, while indexing can reduce how many blocks a query needs to request.</p>
+<p class="keep-in-present">Your timing ratio depends on the machine, caching, and measurement overhead, especially for a very short lookup. The tree uses a deliberately small node capacity; a disk index with a larger <span class="gloss" data-gloss="fanout">fan-out</span> could store these keys in fewer levels. The matching-heap-block count describes row locations, not physical reads or all setup work performed by <code>TableScan</code>. Buffering and indexing reduce different kinds of work.</p>
 
 <h3 class="new-slide" data-kicker="Part 3 · Measure">When a B-tree index can help a query</h3>
 
@@ -277,5 +290,7 @@ and 500 keys stay ≤ 6, you're correct; note your height honestly for the discu
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=1"></script>
+<script src="../_shared/teaching-traces.js?v=1"></script>
+<script src="../_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

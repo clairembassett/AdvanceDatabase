@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -20,6 +21,7 @@
     <li><a href="#try-it">EXPLAIN ANALYZE compares estimates with measurements</a></li>
     <li><a href="#stats">Row-count estimates drive cost estimates</a></li>
     <li><a href="#cost">Estimate a plan’s block accesses before execution</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#joins">Choose both the join algorithm and the join order</a></li>
     <li><a href="#review">Midterm review: explain each measurement</a></li>
     <li><a href="#recap">Recap &amp; next steps</a></li>
@@ -173,7 +175,7 @@ each side once, plus memory for the hash table. Pick the plan with the smallest 
 from statistics, before running anything.</p>
 </div>
 
-<p class="keep-in-present">These formulas estimate the block accesses that you measured with CountingScan in Lab 4. They let the optimizer compare candidate plans before executing the query.<sup class="src"><a href="#src-2" title="PostgreSQL Documentation: 14.1. Using EXPLAIN">2</a></sup></p>
+<p class="keep-in-present">These formulas estimate page-access work before execution. Lab 4’s <code>CountingScan.rows</code> instead counts rows yielded by a scan. Row counts help explain work, but they are not measurements of block reads.<sup class="src"><a href="#src-2" title="PostgreSQL Documentation: 14.1. Using EXPLAIN">2</a></sup></p>
 
 <h3 class="new-slide" data-kicker="Costing in blocks">In this cost model, the crossover is about 1% selectivity</h3>
 
@@ -198,6 +200,16 @@ from statistics, before running anything.</p>
 </div>
 
 <p class="key-fact keep-in-present"><strong>~1%</strong> selectivity is the crossover in this example’s simplified cost model</p>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">Calculate the access-path choice with units</h2>
+
+<p>Keep four quantities separate: input rows, matching rows, page accesses, and elapsed time. An optimizer converts estimates into comparable cost units. The following model deliberately leaves out cache hits, row clustering, and CPU work so each arithmetic step is visible.</p>
+<div data-teaching-trace="optimizer">
+  <p><strong>Worked result:</strong> With 100,000 rows, 1,000 pages, and height 3, 0.1% selectivity gives 100 matches and an index estimate of 103 page accesses. At 2%, the estimate is 2,003, above the scan’s 1,000. Equality occurs at 997 matches, or 0.997%.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Check the measurement:</strong> <code>CountingScan.rows</code> in Lab 4 counts rows yielded by its wrapped scan. It does not count physical disk reads. Use the row count to explain an execution plan, and name the counter or measurement behind every performance claim.</p>
 
 <!-- ============================================================ -->
 <h2 id="joins">Choose both the join algorithm and the join order</h2>
@@ -261,7 +273,7 @@ from statistics, before running anything.</p>
     <tr><td>3 · records</td><td>fixed-size slots give direct access by slot number; deletion changes a flag; a RID remains valid until its slot is deleted or reused</td><td>59 vs 527 blocks for 10k rows</td></tr>
     <tr><td>4 · iterators</td><td>one Scan interface; pull rows one at a time instead of building whole intermediate tables; equivalent plan trees can require different amounts of work</td><td>900 vs 60 pairs</td></tr>
     <tr><td>5 · SQL</td><td>lex → parse → describe → plan; correct first</td><td>the same 900, now automatic</td></tr>
-    <tr><td>6 · B+ trees</td><td>a full node splits and pushes one key up; the tree grows only at the root; a large fan-out keeps the height tiny</td><td>4,091× and height 11</td></tr>
+    <tr><td>6 · B+ trees</td><td>an overfull node splits; a root split adds one level above every leaf; larger fan-out reduces height</td><td>100,000 examined rows versus 11 in-memory node visits and one matching heap block; measure timing separately</td></tr>
     <tr><td>7 · WAL</td><td>sync recovery information before data; commit after the required flushes</td><td>$50 vanished and returned</td></tr>
     <tr><td>8 · concurrency</td><td>compare the guarantees and costs of two-phase locking and MVCC</td><td>110 where 120 belonged</td></tr>
   </tbody>
@@ -278,6 +290,13 @@ from statistics, before running anything.</p>
 </ul>
 
 <!-- ============================================================ -->
+<h3 id="query-contract">Review one query from tokens to rows</h3>
+<p>This is the <a href="../../labs/lab-05/sqlfrontend.html#worked-example">Lab 5 worked query</a>. Name the output of each stage before tracing the plan. Parsing a description and executing a scan do different work.</p>
+<div data-teaching-trace="sql-plan">
+  <p><strong>Worked result:</strong> the query selects name from students where gpa &gt; 35. ProjectScan wraps SelectScan over TableScan; the six toy rows yield ada, cyd, and eli.</p>
+  <p>Enable JavaScript to inspect each intermediate state.</p>
+</div>
+
 <h2 id="recap">Recap &amp; next steps</h2>
 
 <ul class="recap-list">
@@ -349,5 +368,7 @@ document that supports the claim it is attached to.</p>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

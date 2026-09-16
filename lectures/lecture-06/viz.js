@@ -48,11 +48,17 @@
   const $ = id => document.getElementById(id);
   const msg = $('bt-msg'), canvas = $('bt-canvas'), stats = $('bt-stats');
 
-  let root, height, splits, count;
+  let root, height, splits, count, scriptTimer = null;
+
+  function stopScript() {
+    if (scriptTimer !== null) clearInterval(scriptTimer);
+    scriptTimer = null;
+  }
 
   function newNode(leaf) { return { leaf, keys: [], children: [], next: null, id: Math.random() }; }
 
   function reset() {
+    stopScript();
     root = newNode(true); height = 1; splits = 0; count = 0;
     msg.textContent = 'Insert keys until the root splits. Compare the height before and after.';
     render();
@@ -161,10 +167,21 @@
   function runScript(keys, doneMsg) {
     reset();
     let i = 0;
-    const t = setInterval(() => {
-      if (i >= keys.length) { clearInterval(t); if (doneMsg) msg.innerHTML = doneMsg; return; }
+    scriptTimer = setInterval(() => {
+      if (i >= keys.length) { stopScript(); if (doneMsg) msg.innerHTML = doneMsg; return; }
       insert(keys[i++]);
     }, 800);
+  }
+
+  function manual(inputId, operation) {
+    stopScript();
+    const value = $(inputId).value;
+    const key = Number(value);
+    if (!value.trim() || !Number.isSafeInteger(key)) {
+      msg.textContent = 'Enter a whole-number key before continuing.';
+      return;
+    }
+    operation(key);
   }
 
   $('bt-script').addEventListener('click', () =>
@@ -173,8 +190,8 @@
   $('bt-many').addEventListener('click', () =>
     runScript(Array.from({ length: 20 }, (_, k) => k + 1),
       'Sequential inserts split the rightmost leaf as it fills. Root splits increased the height twice; all leaves remain at the same depth.'));
-  $('bt-one').addEventListener('click', () => insert(Number($('bt-key').value)));
-  $('bt-search').addEventListener('click', () => search(Number($('bt-skey').value)));
+  $('bt-one').addEventListener('click', () => manual('bt-key', insert));
+  $('bt-search').addEventListener('click', () => manual('bt-skey', search));
   $('bt-reset').addEventListener('click', reset);
   reset();
 })();

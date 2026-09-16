@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -19,6 +20,7 @@
     <li><a href="#flip">Analytics often reads many rows and a few columns</a></li>
     <li><a href="#try-it">Which bytes move depends on the layout, not just the query</a></li>
     <li><a href="#columnar">Column storage supports three related optimizations</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#duckdb">Use DuckDB to query Parquet directly</a></li>
     <li><a href="#warehouse">The cloud separates where data rests from where queries run</a></li>
     <li><a href="#in-database-ml">Train and score a model inside the database</a></li>
@@ -183,6 +185,16 @@ smaller files = fewer blocks = faster scans: compression IS performance here.</c
   less than (a), before compression shrinks it further. This is a prediction about bytes read, not a guaranteed 144× reduction in elapsed time. Compression, decoding, caching, and query overhead affect the measured runtime.</p>
   </details>
 </div>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">Follow four trips through grouping and a window</h2>
+
+<p>An aggregate changes the <strong>grain</strong>, meaning what one result row represents. A window adds a calculated value while preserving its input rows. Follow the intermediate table, not just the final SQL expression. The CTE names that intermediate result.</p>
+<div data-teaching-trace="analytics">
+  <p><strong>Worked result:</strong> Four toy trips become monthly revenues 20 and 30. The window preserves two monthly rows and adds running totals 20 and 50.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Lab connection:</strong> <a href="../../labs/lab-08/duckdb.html#worked-example">Lab 8</a> uses this pattern for cumulative revenue. The sample is a hand-checkable example, not the reference output for the full taxi dataset.</p>
 
 <!-- ============================================================ -->
 <h2 id="duckdb">Use DuckDB to query Parquet directly</h2>
@@ -485,5 +497,7 @@ document that supports the claim it is attached to.</p>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

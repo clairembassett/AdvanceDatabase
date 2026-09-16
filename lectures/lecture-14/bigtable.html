@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -21,6 +22,7 @@
     <li><a href="#lsm">The LSM write path buffers and flushes updates</a></li>
     <li><a href="#try-it">Run the write path</a></li>
     <li><a href="#reads">Use filters, indexes, and compaction to reduce reads</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#lsm-vs-btree">Compare B+ tree and LSM costs</a></li>
     <li><a href="#cap">During a network partition, consistency and availability conflict</a></li>
     <li><a href="#descendants">Related storage systems</a></li>
@@ -219,6 +221,16 @@ Insert keys, then query keys you never inserted, and keep querying until the fil
 </div>
 
 <!-- ============================================================ -->
+<h2 id="worked-example">Trace a delete through older sorted files</h2>
+
+<p>An immutable file can still contain an obsolete value. A <strong>tombstone</strong> records a deletion so reads can suppress that value. Track the key’s sequence numbers and the read snapshot before deciding which record wins.</p>
+<div data-teaching-trace="lsm">
+  <p><strong>Worked result:</strong> The newest visible record at snapshot 9 is DELETE@9, so return absent even though older files hold values at 8 and 5. A partial compaction must retain the tombstone while an older value can still reappear.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Connection to earlier lectures:</strong> WAL protects updates before flush, sorted files support ordered access, and snapshots can require retaining old versions. Compaction must preserve those contracts while reclaiming storage.</p>
+
+<!-- ============================================================ -->
 <h2 id="lsm-vs-btree">Compare B+ tree and LSM costs</h2>
 
 <p class="key-fact keep-in-present"><strong>Different update paths, different costs:</strong> B+ trees update the page containing a key. LSM trees collect updates in memory, write sorted files, and merge them later.</p>
@@ -351,5 +363,7 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=4"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

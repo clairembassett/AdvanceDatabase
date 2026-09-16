@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -17,6 +18,7 @@
     <li><a href="#big-idea">Connect GROUP BY, windows, and LIMIT to query operators</a></li>
     <li><a href="#the-data">Understand the sample and cleaning rules</a></li>
     <li><a href="#the-api">Write one SQL statement for each of eight questions</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#build">Part 1 · Build</a></li>
     <li><a href="#verify">Part 2 · Verify</a></li>
     <li><a href="#measure">Part 3 · Measure</a></li>
@@ -170,18 +172,27 @@ questions exactly, unordered ones as sets.</p>
 </table>
 
 <!-- ============================================================ -->
+<h2 id="worked-example">Work out the intermediate rows before writing Q6</h2>
+
+<p>Use four toy trips to separate grouped totals from a running window. The example names the grouped result <code>monthly</code>, which makes it clear what one row represents at each stage.</p>
+<div data-teaching-trace="analytics">
+  <p><strong>Worked result:</strong> Monthly rows are <code>(1,20)</code> and <code>(2,30)</code>. Adding the running window yields <code>(1,20,20)</code> and <code>(2,30,50)</code>.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Implementation checkpoints:</strong> Q4 needs its specified tie-breaker, <code>ride_id ASC</code>. Q5 averages a numeric card indicator; it does not divide card fare by total fare. Q6 windows over monthly totals. Q8 joins each ride to one zone, so an accidentally duplicated dimension key would multiply revenue.</p>
+
+<!-- ============================================================ -->
 <h2 id="build">Part 1 · Build <span class="part-time">~30 min in class</span></h2>
 
 <p>After each query, use the <a href="#function-tests">query-level checks</a> to test it before completing the rest of the lab.</p>
 
 <ol>
-  <li><strong><code>pip install duckdb</code></strong>, get the starter folder, run
+  <li><strong><code>python3 -m pip install duckdb</code></strong>, get the starter folder, run
   <code>python3 gen_data.py</code> once. It unpacks the shipped sample into <code>data/</code>:
   the CSV, the same rows as Parquet, twelve partition folders, the zones table, and a nested
   JSON file for Part 4. Everyone gets the identical 60,000 rows.</li>
   <li><strong>Work the queries in order</strong>: each adds a SQL concept. Test the query you just wrote with
-  <code>python3 test_duckdb.py --unit Q1</code> (replace Q1 with its question number), or explore interactively first with
-  <code>python3 -c "import duckdb; duckdb.sql(open('scratch.sql').read()).show()"</code>.</li>
+  <code>python3 test_duckdb.py --unit Q1</code> (replace Q1 with its question number). The harness creates the <code>rides</code> and <code>zones</code> tables for you. For interactive exploration, use the supplied <code>lab08_explore.ipynb</code> notebook and run its setup cells first; a new DuckDB connection does not automatically contain those tables.</li>
   <li><strong>For Q5, average a card-payment indicator</strong>: use <code>AVG(CASE WHEN payment = 'card' THEN
   1.0 ELSE 0.0 END)</code>. The CASE expression assigns 1 to a card payment and 0 otherwise, so the average is the fraction paid by card.</li>
   <li><strong>Q6 stacks a window on a group</strong>: <code>SUM(SUM(fare + tip)) OVER
@@ -210,6 +221,8 @@ questions exactly, unordered ones as sets.</p>
 <p>Each selected query uses the same correctness check as the full test run. Before submitting, run <code>python3 test_duckdb.py</code> without flags to check all eight queries.</p>
 
 <h3>Run the full tests</h3>
+
+<p>The passing output below is the target after completing the required methods or queries. On a fresh starter, failures marked <code>not implemented yet</code> or missing-query failures are expected. A unit check can pass while the remaining integration tests still fail.</p>
 
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py</span>
   <span class="t-pass">[PASS]</span> SQL: Q1 totals
@@ -386,5 +399,7 @@ how useful that partitioning is for these queries (consider the two folder sizes
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
 <script src="../_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=2"></script>
+<script src="../_shared/teaching-traces.js?v=1"></script>
+<script src="../_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

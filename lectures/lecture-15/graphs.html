@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -18,6 +19,7 @@
     <li><a href="#plan">Today's plan</a></li>
     <li><a href="#joins">Compare repeated joins with graph traversal</a></li>
     <li><a href="#try-it">Path enumeration and reachability do different work</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#model">Store nodes, edges, and their properties</a></li>
     <li><a href="#cypher">Express paths with SQL or Cypher</a></li>
     <li><a href="#kuzu">Run graph queries in an embedded Kuzu demo</a></li>
@@ -116,6 +118,16 @@ hover or tap for a plain-language explainer that opens right below the sentence 
   <div class="bs-stats" id="walk-stats"></div>
   <p class="viz-caption">Start at ada and step to depth 3. The reached students match query 3 of the Kuzu demo. The cycle ada → cyd → eli → fay → ada shows why traversal needs a stopping rule. The example queries use a depth bound, and <code>DISTINCT</code> removes duplicate students from their final results.<sup class="src"><a href="#src-2" title="DuckDB documentation: WITH Clause (recursive CTEs)">2</a></sup></p>
 </div>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">Count paths and reachable people separately</h2>
+
+<p>Before comparing query plans, state the result contract: every bounded walk, distinct endpoints, or a shortest route. The same six-person graph can produce different correct counts because those questions ask for different things.</p>
+<div data-teaching-trace="graph">
+  <p><strong>Worked result:</strong> At depth two, the walk endpoints are <code>[dee, ada, dee, eli]</code>. Visited-set reachability adds only <code>[dee, eli]</code>. Through depth three, BFS examines eight outgoing edges and finds five other people; bounded walk enumeration produces eleven rows before exclusions.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Check yourself before benchmarking:</strong> specify edge direction, depth bound, duplicate handling, and whether revisiting a vertex or edge is allowed. Equivalent SQL and graph queries must agree on these rules.</p>
 
 <!-- ============================================================ -->
 <h2 id="model">Store nodes, edges, and their properties</h2>
@@ -336,5 +348,7 @@ document that supports the claim it is attached to.</p>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

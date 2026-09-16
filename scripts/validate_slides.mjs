@@ -6,7 +6,7 @@ const requested=process.argv.slice(2).map(Number);
 const lectureIds=requested.length?requested:Array.from({length:15},(_,i)=>i+1);
 const groups=[...new Set(lectureIds.map(id=>id<=5?'01-05':id<=10?'06-10':'11-15'))];
 const context=vm.createContext({window:{},console});
-for(const p of ['slides/_shared/visuals.js',...groups.map(g=>'slides/decks/lectures-'+g+'.js')])vm.runInContext(fs.readFileSync(p,'utf8'),context,{filename:p});
+for(const p of ['slides/_shared/visuals.js','labs/_shared/rag-measurements.js','labs/_shared/teaching-traces.js','slides/_shared/trace-scenes.js',...groups.map(g=>'slides/decks/lectures-'+g+'.js')])vm.runInContext(fs.readFileSync(p,'utf8'),context,{filename:p});
 const {COURSE_DECKS:decks,DeckViz:V}=context.window;
 let scenes=0,builds=0,animated=0;const warnings=[];
 for(const id of lectureIds){

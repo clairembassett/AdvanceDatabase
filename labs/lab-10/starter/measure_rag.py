@@ -30,7 +30,7 @@ def eval_scores(retriever):
 
 
 print("1. Embedding width vs. retrieval quality (same corpus, same questions)")
-print(f"   {'DIM':>6}  {'hit@3':>6}  {'MRR':>6}")
+print(f"   {'DIM':>6}  {'hit@3':>6}  {'MRR@3':>6}")
 for dim in (64, 256, 2048):
     micro_rag.DIM = dim              # embed() reads the module global
     hit3, mrr = eval_scores(Retriever(CHUNKS))

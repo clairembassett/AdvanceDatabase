@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -20,6 +21,7 @@
     <li><a href="#try-it">See which neighbors IVF misses</a></li>
     <li><a href="#exact">Measure exact search before adding an index</a></li>
     <li><a href="#ann">IVF and HNSW: search work versus recall</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#recall">Measure agreement with exact search using recall@k</a></li>
     <li><a href="#landscape">Where to run a vector index</a></li>
     <li><a href="#thursday">Thursday: build and measure an IVF index</a></li>
@@ -194,6 +196,16 @@ vectors cosine similarity is just the dot product<sup class="src"><a href="#src-
 </div>
 
 <!-- ============================================================ -->
+<h2 id="worked-example">Calculate a missed neighbor by hand</h2>
+
+<p>Use four two-dimensional unit vectors so every dot product fits on paper. Distinguish a vector’s closest <strong>centroid</strong> at build time from its similarity to the <strong>query</strong> at search time. A useful neighbor can cross the list boundary.</p>
+<div data-teaching-trace="ivf">
+  <p><strong>Worked result:</strong> At probe 1, the query searches only vector 0 and misses vector 1, whose score is 0.96. Recall@2 is 0.5. At probe 2 it finds both exact neighbors but pays six dot products, compared with four for exact search.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Lab connection:</strong> <a href="../../labs/lab-09/microvector.html#worked-example">Lab 9 counts both centroid and candidate dot products</a>. The counter measures work, while a timer measures elapsed time. Neither measures whether a retrieved paper answers the user’s question.</p>
+
+<!-- ============================================================ -->
 <h2 id="recall">Measure agreement with exact search using recall@k</h2>
 
 <div class="math">
@@ -339,5 +351,7 @@ document that supports the claim it is attached to.</p>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}], ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']});"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

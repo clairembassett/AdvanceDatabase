@@ -20,6 +20,12 @@ presentation mode. For the dedicated animation-based decks, open
 [`slides/index.html`](slides/index.html). Each lecture includes 60 minutes of
 teaching, presenter notes, and tablet pen/pointer tools.
 
+Lectures 6–15 and Labs 5–11 include **worked examples** with small inputs,
+highlighted operations, intermediate state, and questions with revealable answers.
+Use Previous, Next step, and Reset to trace an operation at your own pace.
+The matching slide scenes use the same example data, including the SQL review,
+index lookups, recovery, windows, IVF, source citations, shuffle, and graph counts.
+
 ## Get the code
 
 ```bash
@@ -99,6 +105,22 @@ run `python3 scripts/generate_lab4_statement_traces.py` to regenerate the browse
 data, or add `--check` to verify it is current. Run
 `node tests/test_statement_traces.js` and
 `node tests/test_statement_walkthrough_ui.js` to check the trace and controls.
+
+The later worked examples live in `labs/_shared/teaching-traces.js`. Their shared
+page controller is `teaching-trace.js`; `slides/_shared/trace-scenes.js` projects
+the same states while preserving the deck's scene IDs and teaching minutes.
+Run `node tests/test_teaching_traces.js`, `node tests/test_teaching_trace_ui.js`,
+and `node tests/test_btree_widget.js` after changing those examples or controls.
+The Python maintainer suite checks the examples against the supplied Python
+helpers and checks that Lab 6 times the index descent as part of its lookup.
+
+RAG browser data and measurement tables are generated from Lab 10's supplied
+corpus, chunker, embedder, exact index, and evaluation questions. Run
+`python3 scripts/generate_rag_measurements.py` after changing those inputs, or
+use `--check` to detect stale data. `node tests/test_rag_teaching_data.js` checks
+that both browser demos reproduce the Python results. The core corpus reports
+MRR@3; the separate real-paper experiment reports MRR@10. Keep those cutoffs
+explicit when comparing outputs.
 
 ## Note
 

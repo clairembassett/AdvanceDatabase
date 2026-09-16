@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -19,6 +20,7 @@
     <li><a href="#partition">Assign records with hash or range partitioning</a></li>
     <li><a href="#mapreduce">MapReduce separates task logic from execution</a></li>
     <li><a href="#try-it">Follow records through map, shuffle, and reduce</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#spark">Spark records a plan before executing it</a></li>
     <li><a href="#ray">Ray runs Python tasks and stateful actors</a></li>
     <li><a href="#thursday">Thursday: implement MapReduce and try Spark and Ray</a></li>
@@ -186,6 +188,16 @@ word count:  map:      "the log the tree" → (the,1)(log,1)(the,1)(tree,1)
   <div id="mr-stage"></div>
   <p class="viz-caption">The map and reduce functions can stay the same when the worker count changes. The framework creates and schedules more tasks, and routes intermediate records to the appropriate reducer partitions. The final counts should be independent of the partition count.<sup class="src"><a href="#src-10" title="MapReduce: Simplified Data Processing on Large Clusters (OSDI 2004 paper PDF)">10</a></sup></p>
 </div>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">Trace two records through the shuffle</h2>
+
+<p>A mapper emits one pair per occurrence. A partition function chooses a bucket. The shuffle groups equal keys inside that bucket, and the reducer receives a complete group. Watch how many pairs exist at each boundary.</p>
+<div data-teaching-trace="shuffle">
+  <p><strong>Worked result:</strong> <code>WAL, wal!</code> and <code>Page wal.</code> emit four pairs. Grouping yields <code>wal: [1,1,1]</code> and <code>page: [1]</code>. Reduction returns counts 3 and 1, regardless of which bucket number owns each word.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Lab connection:</strong> <a href="../../labs/lab-11/sparkray.html#worked-example">Lab 11’s first part runs in one Python process</a>. On a cluster, workers must agree on the partition function and its configuration. Separately launched Python processes do not automatically share a string-hash seed.</p>
 
 <!-- ============================================================ -->
 <h2 id="spark">Spark records a plan before executing it</h2>
@@ -369,5 +381,7 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=4"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

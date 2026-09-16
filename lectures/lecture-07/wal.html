@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -19,6 +20,7 @@
     <li><a href="#try-it">Trace a crash during a transfer</a></li>
     <li><a href="#wal">Log the old value before the page changes</a></li>
     <li><a href="#recovery">Recovery restores values from unfinished transactions</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#policies">Buffer policy decides what recovery must do</a></li>
     <li><a href="#nextweek">Prepare for the transaction and recovery lab</a></li>
     <li><a href="#recap">Recap &amp; next time</a></li>
@@ -164,7 +166,7 @@ the log itself:  an APPEND-ONLY file, structured records appended in order.
   <tbody>
     <tr><td>committed data</td><td>FORCE flushed it before its COMMIT record</td><td>keep it: the COMMIT record in the log says the transaction finished</td></tr>
     <tr><td>uncommitted data</td><td>the buffer pool evicted (stole) a dirty page belonging to a transaction that had not committed</td><td>undo it: the log's SET record holds the old value, so write that value back</td></tr>
-    <tr><td>missing uncommitted data</td><td>the page was still in the buffer pool, and RAM does not survive a power cut</td><td>nothing: the change never reached disk, so the disk already looks as if it never happened</td></tr>
+    <tr><td>uncommitted changes never reached disk</td><td>the dirty page was still in the process’s buffer pool when it exited</td><td>this lab still undoes the unfinished transaction’s SET records: the log does not identify which pages reached disk. A complete backward pass restores the committed value even if disk already held it</td></tr>
   </tbody>
 </table>
 
@@ -183,10 +185,20 @@ the log itself:  an APPEND-ONLY file, structured records appended in order.
 
 <div class="layer-card">
   <div class="lc-row"><span class="lc-k">The threat</span><span>a crash can interrupt recovery itself. Recovery then runs again at the next startup, and the second run must do no new damage.</span></div>
-  <div class="lc-row"><span class="lc-k">Idempotence</span><span>undo-only recovery is naturally <span class="gloss" data-gloss="idempotent">idempotent</span>: restoring an old value twice restores it once, so repeating the pass changes nothing.</span></div>
+  <div class="lc-row"><span class="lc-k">Idempotence</span><span>Repeating the complete backward pass reaches the same final state. Intermediate restores can change a value again when one slot has several SET records. Finish recovery before admitting new transactions, and mark an undo complete only after its restored pages are durable.</span></div>
   <div class="lc-row"><span class="lc-k">Completion records</span><span>after restored pages are durable, the ROLLBACK records mark undo as complete. A later pass skips those transactions. The lab runs <code>recover()</code> twice and checks that the balances remain unchanged.</span></div>
   <div class="lc-row"><span class="lc-k">The rule</span><span>a general rule of systems design: <strong>any repair process must survive being interrupted by the disaster it repairs.</strong></span></div>
 </div>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">Trace recovery when one value changes twice</h2>
+
+<p>A SET record stores the old value <em>for one write</em>. Track the buffer value after each undo and distinguish it from the last durable page value. The example uses the lab’s physical undo policy; PostgreSQL uses a different recovery design.</p>
+<div data-teaching-trace="undo">
+  <p><strong>Worked result:</strong> tx2 changed <code>60 → 40 → 10</code>. Recovery restores <code>40</code>, then <code>60</code>. It skips tx1 after seeing its COMMIT, flushes the restored value, then syncs ROLLBACK for tx2.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Lab connection:</strong> <a href="../../labs/lab-07/transactions.html#worked-example">Lab 7 traces the same log</a>. Explain why each restore happens before writing the recovery loop.</p>
 
 <!-- ============================================================ -->
 <h2 id="policies">Buffer policy decides what recovery must do</h2>
@@ -330,5 +342,7 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=3"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

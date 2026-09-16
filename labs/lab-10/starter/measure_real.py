@@ -12,7 +12,7 @@ papers Lab 9 embedded) and compares two embedders on them:
 
 Three views: what each embedder retrieves for the same question; how much
 the two agree; and a labeled mini-eval, ten questions written to paraphrase
-one specific paper without reusing its title words, scored with hit@3 and MRR.
+one specific paper without reusing its title words, scored with hit@3 and MRR@10.
 """
 
 import gzip
@@ -80,7 +80,7 @@ def main():
         return hit3, mrr
     h3h, mrrh = score([(w, gh) for w, gh, _, _ in rows])
     h3m, mrrm = score([(w, gm) for w, _, gm, _ in rows])
-    print(f"   {'embedder':>8}  {'hit@3':>6}  {'MRR':>6}")
+    print(f"   {'embedder':>8}  {'hit@3':>6}  {'MRR@10':>6}")
     print(f"   {'hashed':>8}  {h3h:>6.2f}  {mrrh:>6.2f}")
     print(f"   {'MiniLM':>8}  {h3m:>6.2f}  {mrrm:>6.2f}")
     print("\n   question by question (rank of the right paper, - if not in the top 10):")
@@ -92,8 +92,9 @@ def main():
     print("\nThink about these for class:")
     print("  1. Where the hashed embedder finds the paper, which words did the question")
     print("     share with the abstract? Where it misses, what did the paraphrase change?")
-    print("  2. MiniLM never saw these papers or questions. What did it learn that the")
-    print("     hashing trick cannot, and what does that cost at query time?")
+    print("  2. This lab uses a pretrained MiniLM model without fine-tuning it on the")
+    print("     evaluation questions. How can learned representations help with")
+    print("     paraphrases, and what does encoding a new question cost?")
     print("  3. Your project corpus: which of the two failure modes will it show more,")
     print("     and how many labeled questions would convince you either way?")
 

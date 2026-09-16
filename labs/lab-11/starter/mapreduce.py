@@ -3,23 +3,23 @@
 Lab 11 of Advanced Databases for Data Science (DS 6XXX, Fall 2026).
 Part A of three; pure standard library, fully offline.
 
-THE PATTERN: every distributed batch engine since Google's 2004 paper runs
-the same three phases over partitioned data:
+THE PATTERN: MapReduce separates per-record work from per-key aggregation:
 
     map      each input record -> zero or more (key, value) pairs
-             runs anywhere, needs no other record            (parallel, free)
+             processes one record independently
     shuffle  route every pair to the partition its KEY hashes to,
              then group values by key inside each partition  (the network cost)
     reduce   each (key, [values]) -> one result
-             runs per key, sees ALL values for that key      (parallel again)
+             runs per key, sees ALL values for that key
 
 The shuffle is the whole trick: hash partitioning guarantees every pair
 with the same key lands in the same partition, so reduce never needs to
 talk to another partition. That guarantee is what you implement today.
 
-This file runs the phases sequentially in one process. Nothing about the
-functions you write would change on a 1,000-machine cluster - only the
-plumbing around them (which is what Spark sells, in Part B).
+This file runs the phases sequentially in one process. A distributed engine
+also needs serialization, scheduling, retries, and a partition function
+whose configuration agrees across workers. Python's string hash is stable
+within a run, but separately launched processes can use different seeds.
 
 The corpus is 4,000 real arXiv abstracts (corpus.py), the papers Lab 9 embedded.
 
@@ -39,14 +39,14 @@ N_PARTITIONS = 4
 # ------------------------------------------------- provided: input + runner
 
 def records() -> list[tuple[str, str]]:
-    """The input: (doc_id, text) pairs — one record per course document."""
+    """The input: (doc_id, text) pairs, one per arXiv abstract and title."""
     return [(doc_id, title + " " + text) for doc_id, title, text in DOCS]
 
 
 def run_mapreduce(inputs, map_fn, reduce_fn, n_partitions=N_PARTITIONS):
     """The plumbing every engine provides. Provided complete — read it:
-    three phases, three lines each, and phase boundaries are the only
-    places data crosses machines in the real thing."""
+    the map phase emits pairs, shuffle groups them, and reduce produces
+    one result per key. This local runner performs no network transfer."""
     mapped = []                                    # map phase
     for key, value in inputs:
         mapped.extend(map_fn(key, value))
@@ -60,7 +60,7 @@ def run_mapreduce(inputs, map_fn, reduce_fn, n_partitions=N_PARTITIONS):
     return results
 
 
-# ------------------------------------------------- YOUR JOB: three functions
+# ------------------------------------------------- YOUR JOB: four functions
 
 def map_words(doc_id: str, text: str) -> list[tuple[str, int]]:
     """One (word, 1) pair per word occurrence in the text.

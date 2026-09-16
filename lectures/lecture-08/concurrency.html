@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="../../labs/_shared/teaching-trace.css?v=1">
 </head>
 <body>
 
@@ -20,6 +21,7 @@
     <li><a href="#locking">Two-phase locking orders conflicting operations</a></li>
     <li><a href="#levels">Isolation levels provide different guarantees</a></li>
     <li><a href="#mvcc">Postgres keeps row versions for snapshot reads</a></li>
+    <li><a href="#worked-example">Worked example</a></li>
     <li><a href="#thursday">Prepare for Thursday’s transaction lab</a></li>
     <li><a href="#recap">Recap &amp; next time</a></li>
     <li><a href="#faq">FAQ</a></li>
@@ -211,6 +213,16 @@ conflict table:        S      X
 </div>
 
 <!-- ============================================================ -->
+<h2 id="worked-example">Predict what two SELECTs can see</h2>
+
+<p>Use one fixed schedule to compare the snapshot boundaries. This example is about ordinary PostgreSQL SELECT statements, with no writes by the reader. A transaction’s start, its snapshot, and another transaction’s commit are separate events. <a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL documents these isolation rules</a>.</p>
+<div data-teaching-trace="snapshots">
+  <p><strong>Worked result:</strong> R first reads 100. W commits 120. R’s second SELECT reads 120 at Read Committed and 100 at Repeatable Read. A new transaction can see 120 at either level.</p>
+  <p>Enable JavaScript to step through the code and intermediate state.</p>
+</div>
+<p><strong>Connection to Lab 7:</strong> its provided <code>LockTable</code> holds locks until completion and raises <code>LockAbortError</code> on conflict. It does not implement snapshots or waiting. A buffer pin prevents eviction; a transaction lock controls conflicting access. One does not replace the other.</p>
+
+<!-- ============================================================ -->
 <h2 id="thursday">Prepare for Thursday’s transaction lab</h2>
 
 <p>Lab 7 completes microdb with WAL, commit, rollback, recovery, and the provided lock table controlling reads and writes at block granularity. Then you kill the process partway through a transaction and confirm that recovery brings the database back intact.</p>
@@ -291,5 +303,7 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=4"></script>
+<script src="../../labs/_shared/teaching-traces.js?v=1"></script>
+<script src="../../labs/_shared/teaching-trace.js?v=1"></script>
 </body>
 </html>

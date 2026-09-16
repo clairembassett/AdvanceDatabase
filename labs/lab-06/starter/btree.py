@@ -8,9 +8,10 @@ AN INDEX IS A MAP FROM VALUES TO RIDS. This one is the classic:
 
     - leaves hold (key, rid) pairs in sorted order, linked left-to-right
     - internal nodes hold ordered keys that route a search downward
-    - every node holds at most ORDER entries; inserting into a full node
-      SPLITS it, pushing its middle key up (growing at the ROOT, which
-      is why B+ trees stay balanced for free)
+    - every node holds at most ORDER distinct keys; a fifth distinct key
+      overflows a node when ORDER=4. A split copies a leaf separator or
+      moves an internal separator into the parent. Only a root split
+      adds a level, and it adds that level above every leaf.
 
     search(k)  descends height-many nodes:  O(log n)  vs a scan's O(n)
     range(lo, hi)  descends once, then walks the leaf chain
@@ -37,7 +38,8 @@ class Node:
                next -> the right-hand sibling leaf (the range-scan chain)
 
     Internal:  keys = [10]         children = [left-subtree, right-subtree]
-               invariant: children[i] holds keys < keys[i] <= children[i+1]
+               child 0 holds keys < 10; child 1 holds keys >= 10.
+               In general, m separators route to m+1 child subtrees.
     """
 
     def __init__(self, leaf: bool):
@@ -48,11 +50,12 @@ class Node:
         self.next: Node | None = None   # leaves only
 
     def is_full(self) -> bool:
+        """True when OVER capacity and a split is needed; four keys fit."""
         return len(self.keys) > ORDER
 
     def child_index_for(self, key) -> int:
         """Which child to descend into for `key`. Provided.
-        The first child whose upper bound admits the key."""
+        Equality goes right: advance past every separator <= key."""
         i = 0
         while i < len(self.keys) and key >= self.keys[i]:
             i += 1

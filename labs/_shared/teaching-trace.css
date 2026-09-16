@@ -1,0 +1,49 @@
+/* Worked examples follow the existing course page typography and colors. */
+.teaching-trace {
+  scroll-margin-top: 80px;
+  border: 1px solid var(--rule, #c8d1c9);
+  border-radius: 8px;
+  margin: 24px 0;
+  padding: 22px;
+  background: var(--paper, #fff);
+  font-family: var(--sans, sans-serif);
+}
+#worked-example { scroll-margin-top: 80px; }
+.teaching-trace .trace-title { margin: 0 0 12px; font-size: 21px; }
+.trace-premise { font-size: 15px; line-height: 1.65; }
+.trace-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 18px 0 10px; }
+.trace-controls label { font-size: 13px; font-weight: 600; }
+.trace-controls select { max-width: 100%; min-width: 0; padding: 9px; background: #fff; color: #20352e; border: 1px solid #87998d; border-radius: 5px; font: inherit; font-size: 14px; }
+.trace-controls button { min-height: 40px; }
+.trace-controls button:disabled { opacity: .5; cursor: default; }
+.trace-controls :focus-visible, .trace-check summary:focus-visible { outline: 3px solid #356885; outline-offset: 3px; }
+.trace-status { font-size: 14px; font-weight: 600; color: #30785b; min-height: 1.5em; }
+.trace-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.trace-label { font-size: 12px; font-weight: 600; color: #61716a; margin: 0 0 8px; }
+.trace-code { margin: 0; padding: 8px 0 8px 2.8em; background: #f7f6f2; border: 1px solid #e0e5df; border-radius: 5px; }
+.trace-code li { margin: 0; padding: 5px 8px; color: #61716a; border-left: 3px solid transparent; }
+.trace-code li::marker { font: 12px var(--mono, monospace); }
+.trace-code code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; background: transparent; color: #20352e; font: 13px/1.6 var(--mono, monospace); padding: 0; }
+.trace-code .trace-active { background: #dcece1; border-left-color: #30785b; color: #20352e; }
+.trace-table { margin: 0; width: 100%; table-layout: fixed; font-size: 14px; }
+.trace-table caption { text-align: left; font-size: 15px; font-weight: 600; margin-bottom: 9px; color: #20352e; }
+.trace-table th, .trace-table td { padding: 9px; overflow-wrap: anywhere; vertical-align: top; }
+.trace-table th { width: 46%; font-weight: 500; }
+.trace-table td { font-family: var(--mono, monospace); }
+.trace-explanation { font-size: 14px; line-height: 1.65; margin: 14px 0 0; }
+.trace-check { border-top: 1px solid var(--rule, #c8d1c9); margin-top: 20px; padding-top: 14px; font-size: 14px; }
+.trace-check summary { cursor: pointer; font-weight: 600; line-height: 1.6; }
+.trace-check p { margin-bottom: 0; line-height: 1.65; }
+@media (max-width: 760px) {
+  .teaching-trace { padding: 15px; }
+  .trace-body { grid-template-columns: 1fr; }
+  .trace-controls select { flex-basis: 100%; }
+}
+@media print {
+  .trace-controls { display: none; }
+  .teaching-trace { break-inside: avoid; }
+  .trace-code .trace-active { border-left: 3px solid #000; }
+}
+body.presentation-mode .teaching-trace { font-size: initial; text-align: left; }
+body.presentation-mode .teaching-trace .btn { font-size: 14px; }
+body.presentation-mode .teaching-trace table { font-size: 14px; }

@@ -58,27 +58,36 @@ def main():
         tree = build_index(bm, fm, "users", lay, "uid")
         build_secs = time.perf_counter() - t0
         tree.nodes_touched = 0
-        idx = IndexSelectScan(TableScan(bm, fm, "users", lay), tree, TARGET)
+        # IndexSelectScan.__init__ calls tree.search(). Include that descent
+        # in the timed lookup, then fetch the matching heap rows as the scan
+        # measurement does. Opening the heap scan is setup for both paths.
+        index_table = TableScan(bm, fm, "users", lay)
         t0 = time.perf_counter()
+        idx = IndexSelectScan(index_table, tree, TARGET)
         idx.before_first()
         found = 0
+        heap_blocks = set()
         while idx.next():
             found += 1
+            heap_blocks.add(index_table.rid()[0])
         index_secs = time.perf_counter() - t0
         idx.close()
         print(f"index:  found {found} row · touched {tree.nodes_touched} tree nodes "
-              f"(height {tree.height}) + 1 heap block · {index_secs * 1000:.2f} ms")
-        print(f"        (index build took {build_secs:.1f}s, the once-per-table price)")
+              f"(height {tree.height}) + {len(heap_blocks)} distinct matching heap block{'s' if len(heap_blocks) != 1 else ''} "
+              f"· {index_secs * 1000:.2f} ms")
+        print(f"        (index build took {build_secs:.1f}s, separate from lookup)")
+        print("        (tree nodes are in memory; heap block count is not physical I/O)")
         print(f"\nlookup speedup: {scan_secs / max(index_secs, 1e-9):,.0f}x")
         fm.close()
     finally:
         shutil.rmtree(d, ignore_errors=True)
     print("\nRecord all numbers, then think about these for class:")
-    print("  1. The scan touched 100,000 rows to return 1. What fraction of its")
-    print("     work was wasted, and what decides that fraction? (Name: selectivity.)")
+    print(f"  1. The scan examined {N_ROWS:,} rows. What fraction matched, and how")
+    print("     would more matches change the index's heap work? (Selectivity.)")
     print("  2. The index descended", "height-many", "nodes. How many would it")
-    print("     descend for 100 MILLION rows? (Compute, don't guess: ORDER=4 here,")
-    print("     ~200 in a real page-sized node.)")
+    print("     descend for 100 MILLION distinct keys? State an occupancy model:")
+    print("     ORDER=4 permits 5 children; compare with fan-out about 200.")
+    print("     Exact height also depends on leaf capacity and insertion history.")
     print("  3. Who should pay the index-build price, and when — every query,")
     print("     or something else?")
 
