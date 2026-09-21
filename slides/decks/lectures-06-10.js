@@ -1054,7 +1054,7 @@ const plans = [
         "title": "Optimizer",
         "minutes": 3,
         "kind": "definition",
-        "notes": "Define the optimizer and separate correctness from efficiency. The Lab 5 planner translates a correct query into a fixed shape; optimization searches alternatives. It estimates candidate cost rather than executing every plan. Estimates, physical properties and a limited search budget all affect the choice. Ask which part the students already built and which parts are new.",
+        "notes": "Define the optimizer and separate correctness from efficiency. The supplied Lab 5 planner translates a correct query into a fixed shape; optimization searches alternatives. It estimates candidate cost rather than executing every plan. Estimates, physical properties and a limited search budget all affect the choice. Ask which plan transformations students measured in Lab 5 and what an automatic optimizer must now choose.",
         "definition": "A query optimizer chooses an execution plan using estimated costs and data statistics.",
         "id": "optimizer",
         "steps": 3,

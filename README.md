@@ -43,7 +43,8 @@ python3 test_filemanager.py      # 0/9 passing is the correct starting state
 
 Labs 1 to 7 are cumulative: each `starter/` folder ships a working reference
 implementation of every layer below the one you are building, so a difficult week
-does not prevent you from starting the next. Lab 6 supplies an in-memory index;
+does not prevent you from starting the next. Lab 5 supplies the complete parser and planner for a guided walkthrough, SQL
+writing, and measurement assignment. Lab 6 supplies an in-memory index;
 Lab 7 supplies a separate transaction API. Integrating them with the SQL REPL
 is an optional extension.
 
@@ -88,7 +89,9 @@ Function-level checks provide known data and working helpers for unfinished
 dependencies, while always calling the selected student function. These results
 are practice feedback. Running without flags uses the original integration tests
 and grading rules; it never substitutes implementations. Unfinished methods still
-fail their own checks. Measurements and reflections remain for class discussion.
+fail their own checks. Lab 5 is the exception to the implementation workflow:
+its supplied engine passes immediately, and students submit queries, predictions,
+measurements, and explanations. Other labs retain their stated grading rules.
 
 ## Maintainer checks
 

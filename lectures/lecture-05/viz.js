@@ -9,7 +9,7 @@
     },
     'predicate': {
       title: 'Predicate',
-      body: '<p>The condition in a WHERE clause: the part that decides whether a row is kept. In microSQL a predicate is one or more terms joined by AND, and each term compares a field to a number, a string, or another field, such as gpa &gt; 35. The parser stores the predicate as plain data inside QueryData. The planner later wraps the scan tree in a SelectScan that evaluates the predicate against each row and passes through only the rows for which it is true. Lab 4 already built SelectScan; this week you build the code that reads a predicate out of the text.</p>',
+      body: '<p>The condition in a WHERE clause: the part that decides whether a row is kept. In microSQL a predicate is one or more terms joined by AND, and each term compares a field to a number, a string, or another field, such as gpa &gt; 35. The parser stores the predicate as plain data inside QueryData. The planner later wraps the scan tree in a SelectScan that evaluates the predicate against each row and passes through only the rows for which it is true. Lab 4 already built SelectScan; this week you trace the supplied code that reads a predicate out of the text.</p>',
     },
     'token': {
       title: 'Token',
@@ -177,7 +177,7 @@
         'Note the description: <code>mid = F(mid2)</code> — an ID on the right became a field reference. The parser records the comparison as field-to-field rather than field-to-constant.'));
   $('sq-q3').addEventListener('click', () =>
     run("INSERT INTO students VALUES (7, 'gil', 33)",
-        'INSERT parses with the provided worked-example method — read it before Thursday.'));
+        'INSERT uses a supplied method. Trace it, then follow the complete SELECT parser in Lab 5.'));
   $('sq-q4').addEventListener('click', () =>
     run("SELECT name students",
         ''));
@@ -287,9 +287,9 @@
       data: { fields: ['name', 'gpa'], tables: ['students'] } },
     { c: 9, stack: ['parse_query', '_parse_predicate', '_parse_term'], note: 'expect(PUNCT) returns ">"',
       data: { fields: ['name', 'gpa'], tables: ['students'] } },
-    { c: 10, stack: ['parse_query', '_parse_predicate', '_parse_term'], note: 'expect(NUM) returns 35 — term complete, RETURN Term(gpa > 35)',
+    { c: 10, stack: ['parse_query', '_parse_predicate', '_parse_term'], note: '_parse_literal() consumes NUM 35 — term complete, RETURN (gpa, >, 35)',
       data: { fields: ['name', 'gpa'], tables: ['students'] } },
-    { c: 10, stack: ['parse_query', '_parse_predicate'], note: 'no AND next — predicate complete, RETURN Predicate([gpa > 35])',
+    { c: 10, stack: ['parse_query', '_parse_predicate'], note: 'no AND next — predicate complete, RETURN Predicate((gpa, >, 35))',
       data: { fields: ['name', 'gpa'], tables: ['students'], predicate: 'gpa > 35' } },
     { c: 10, stack: ['parse_query'], note: 'tokens exhausted — RETURN the finished QueryData. The stack unwinds; the description remains.',
       data: { fields: ['name', 'gpa'], tables: ['students'], predicate: 'gpa > 35', done: true } },

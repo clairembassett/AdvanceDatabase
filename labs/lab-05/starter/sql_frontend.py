@@ -7,18 +7,18 @@ microSQL, the subset we speak (case-insensitive keywords):
 
     SELECT * | field {, field}  FROM table {, table}  [WHERE term {AND term}]
     term   :=  field (= | < | >) value        value := number | 'string' | field
-    INSERT INTO table VALUES ( value {, value } )
+    INSERT INTO table VALUES ( literal {, literal } )   literal := number | 'string'
     CREATE TABLE table ( field INT | field VARCHAR ( n ) {, ...} )
 
 Three stages, one per class below:
 
     Lexer   (provided)   text  -> a stream of tokens
-    Parser  (yours)      tokens -> plain-data descriptions (QueryData, ...)
-    Planner (yours)      QueryData -> a scan tree, built from Lab 4 operators
+    Parser  (provided)   tokens -> plain-data descriptions (QueryData, ...)
+    Planner (provided)   QueryData -> a scan tree, built from Lab 4 operators
 
-parse_insert and parse_create are PROVIDED, on purpose: they are worked
-examples of recursive descent. Read them first — parse_query is the same
-song in a longer verse.
+The parser and planner are complete. Lab 5 walks through their implementation,
+then asks you to write SQL, predict work, and measure query plans.
+No parser or planner implementation is required.
 
 Run the tests any time:   python3 test_sql.py
 Talk to your database:    python3 microdb.py        (the REPL, provided)
@@ -57,7 +57,7 @@ class Lexer:
           (?P<NUM>\d+)
         | '(?P<STR>[^']*)'
         | (?P<WORD>[A-Za-z_][A-Za-z0-9_]*)
-        | (?P<PUNCT>[(),=<>*])
+        | (?P<PUNCT>[(),=<>*;])
         )""", re.VERBOSE)
 
     def __init__(self, text: str):
@@ -141,12 +141,17 @@ class Parser:
     def parse(self):
         """Dispatch on the first keyword. Provided."""
         if self.lex.match("KEYWORD", "select"):
-            return self.parse_query()
-        if self.lex.match("KEYWORD", "insert"):
-            return self.parse_insert()
-        if self.lex.match("KEYWORD", "create"):
-            return self.parse_create()
-        raise ParseError(f"statement must start with SELECT, INSERT or CREATE")
+            data = self.parse_query()
+        elif self.lex.match("KEYWORD", "insert"):
+            data = self.parse_insert()
+        elif self.lex.match("KEYWORD", "create"):
+            data = self.parse_create()
+        else:
+            raise ParseError("statement must start with SELECT, INSERT or CREATE")
+        if self.lex.match("PUNCT", ";"):
+            self.lex.next()
+        self.lex.expect("EOF")  # reject unsupported/trailing syntax
+        return data
 
     # ---- worked example #1: INSERT (provided — imitate me) ----
 
@@ -199,7 +204,7 @@ class Parser:
         k, v = self.lex.peek()
         raise ParseError(f"expected a number or 'string', found {v!r}")
 
-    # ---------------- YOUR JOB starts here. ----------------
+    # ---------------- supplied implementation ----------------
 
     def parse_query(self) -> QueryData:
         """SELECT fieldlist FROM tablelist [WHERE predicate]
@@ -208,30 +213,55 @@ class Parser:
         IDs separated by commas); expect FROM; read table IDs separated
         by commas; if WHERE follows, read the predicate. Return QueryData.
         parse_insert above has every move you need."""
-        # TODO
-        raise NotImplementedError
+        self.lex.expect("KEYWORD", "select")
+        if self.lex.match("PUNCT", "*"):
+            self.lex.next()
+            fields = ["*"]
+        else:
+            fields = [self.lex.expect("ID")]
+            while self.lex.match("PUNCT", ","):
+                self.lex.next()
+                fields.append(self.lex.expect("ID"))
+        self.lex.expect("KEYWORD", "from")
+        tables = [self.lex.expect("ID")]
+        while self.lex.match("PUNCT", ","):
+            self.lex.next()
+            tables.append(self.lex.expect("ID"))
+        predicate = None
+        if self.lex.match("KEYWORD", "where"):
+            self.lex.next()
+            predicate = self._parse_predicate()
+        return QueryData(fields, tables, predicate)
 
     def _parse_predicate(self) -> Predicate:
         """term {AND term} — collect terms, return Predicate(*terms)."""
-        # TODO
-        raise NotImplementedError
+        terms = [self._parse_term()]
+        while self.lex.match("KEYWORD", "and"):
+            self.lex.next()
+            terms.append(self._parse_term())
+        return Predicate(*terms)
 
     def _parse_term(self) -> tuple:
         """field op value  ->  ("gpa", ">", 35) or ("mid", "=", F("mid2"))
 
         The right-hand side is the fork: NUM and STR tokens are literals;
         an ID token is a FIELD — wrap it in F so the predicate knows."""
-        # TODO
-        raise NotImplementedError
-
-    # ---------------- YOUR JOB ends here. ----------------
+        field = self.lex.expect("ID")
+        op = self.lex.expect("PUNCT")
+        if op not in ("=", "<", ">"):
+            raise ParseError(f"expected =, < or >, found {op!r}")
+        if self.lex.match("ID"):
+            rhs = F(self.lex.next()[1])
+        else:
+            rhs = self._parse_literal()
+        return field, op, rhs
 
 
 # ---------------------------------------------------------------- planner
 
 class Database:
     """The friendly face: db.execute(sql) does the whole trip.
-    Construction and non-query execution are provided; plan_query is yours."""
+    Parsing, planning, and execution are provided for the lab walkthrough."""
 
     def __init__(self, fm, bm, catalog):
         self.fm = fm
@@ -247,7 +277,7 @@ class Database:
             return self._run_insert(data)
         return self._run_create(data)
 
-    # ---------------- YOUR JOB starts here. ----------------
+    # ---------------- supplied implementation ----------------
 
     def plan_query(self, data: QueryData):
         """QueryData -> a scan tree. The naive (correct, unoptimized) plan:
@@ -258,25 +288,46 @@ class Database:
             4. wrap in a ProjectScan unless fields == ["*"]
 
         Return the top scan. Do not call before_first — the runner does."""
-        # TODO
-        raise NotImplementedError
-
-    # ---------------- YOUR JOB ends here. ----------------
+        layouts = [self.catalog.get_layout(table) for table in data.tables]
+        scans = []
+        try:
+            for table, layout in zip(data.tables, layouts):
+                scans.append(TableScan(self.bm, self.fm, table, layout))
+            plan = scans[0]
+            for right in scans[1:]:
+                plan = ProductScan(plan, right)
+            needed = set(data.fields) if data.fields != ["*"] else set()
+            for field, _, rhs in data.predicate.terms if data.predicate else ():
+                needed.add(field)
+                if isinstance(rhs, F):
+                    needed.add(rhs.name)
+            unknown = sorted(field for field in needed if not plan.has_field(field))
+            if unknown:
+                raise ParseError("unknown field(s): " + ", ".join(unknown))
+            if data.predicate is not None:
+                plan = SelectScan(plan, data.predicate)
+            if data.fields != ["*"]:
+                plan = ProjectScan(plan, data.fields)
+            return plan
+        except Exception:
+            for scan in scans:
+                scan.close()
+            raise
 
     def _run_query(self, data: QueryData) -> list[dict]:
+        fields = data.fields
+        if fields == ["*"]:
+            fields = [field for table in data.tables
+                      for field in self.catalog.get_layout(table).schema.fields()]
         plan = self.plan_query(data)
-        if data.fields == ["*"]:
-            fields = []
-            for tbl in data.tables:
-                fields += self.catalog.get_layout(tbl).schema.fields()
-        else:
-            fields = data.fields
-        plan.before_first()
-        rows = []
-        while plan.next():
-            rows.append({f: plan.get_val(f) for f in fields})
-        plan.close()
-        return rows
+        try:
+            plan.before_first()
+            rows = []
+            while plan.next():
+                rows.append({field: plan.get_val(field) for field in fields})
+            return rows
+        finally:
+            plan.close()
 
     def _run_insert(self, data: InsertData) -> str:
         layout = self.catalog.get_layout(data.table)

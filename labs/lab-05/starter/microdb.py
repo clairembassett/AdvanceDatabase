@@ -1,4 +1,4 @@
-"""microdb — the REPL. Provided complete; works once your parser does.
+"""microdb — the REPL. Provided complete for the SQL writing exercises.
 
     $ python3 microdb.py
     microdb> CREATE TABLE students (id INT, name VARCHAR(8), gpa INT)

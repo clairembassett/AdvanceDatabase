@@ -22,7 +22,7 @@
     <li><a href="#descent">One grammar rule becomes one Python method</a></li>
     <li><a href="#planner">The lab planner constructs a plan in four steps</a></li>
     <li><a href="#errors">expect() reports the expected and actual tokens</a></li>
-    <li><a href="#thursday">Prepare to implement four methods in Lab 5</a></li>
+    <li><a href="#thursday">Prepare to trace, query, and measure in Lab 5</a></li>
     <li><a href="#recap">Recap &amp; next time</a></li>
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#sources">Sources</a></li>
@@ -44,7 +44,7 @@
   <div class="byline">Daniel G. Graham · UVA School of Data Science</div>
 </header>
 
-<p class="lede">The engine can store records and run operator trees, but it still needs a way to turn SQL text into those operations. Today we build the <strong><span class="gloss" data-gloss="front-end">front end</span></strong>. The lexer produces <span class="gloss" data-gloss="token">tokens</span>, the parser records what the statement requests, and the planner constructs a Lab 4 scan tree. In Lab 5, you will connect these stages so microdb can execute <code>SELECT name FROM students WHERE gpa &gt; 35</code> typed at a prompt.</p>
+<p class="lede">The engine can store records and run operator trees, but it still needs a way to turn SQL text into those operations. Today we examine the <strong><span class="gloss" data-gloss="front-end">front end</span></strong>. The lexer produces <span class="gloss" data-gloss="token">tokens</span>, the parser records what the statement requests, and the planner constructs a Lab 4 scan tree. In Lab 5, you will walk through the complete implementation, then measure queries such as <code>SELECT name FROM students WHERE gpa &gt; 35</code> typed at a prompt.</p>
 
 <div class="cite">
   Companion reading: Sciore, <em>Database Design and Implementation</em>, ch. 9 (parsing) &amp; ch. 10 (planning)<sup class="src"><a href="#src-1" title="Database Design and Implementation: Second Edition, Edward Sciore (Google Books record)">1</a></sup> ·
@@ -81,8 +81,8 @@ Hover or tap an underlined term like <span class="gloss-demo">this one</span> to
   <thead><tr><th>Stage</th><th>In → out</th><th>Knows about</th><th>In the lab</th></tr></thead>
   <tbody>
     <tr><td><strong>Lexer</strong></td><td>characters → tokens</td><td>recognizes numbers, quoted strings, words, and punctuation and assigns token kinds</td><td>provided. Read if curious; not required.</td></tr>
-    <tr><td><strong>Parser</strong></td><td>tokens → description</td><td>checks whether tokens follow the grammar and records the statement’s fields, tables, and conditions</td><td><strong>you</strong> write it</td></tr>
-    <tr><td><strong>Planner</strong></td><td>description → scan tree</td><td>the catalog, to look up each table's layout, and Lab 4's scan operators, to build a tree that produces the rows</td><td><strong>you</strong> write it</td></tr>
+    <tr><td><strong>Parser</strong></td><td>tokens → description</td><td>checks whether tokens follow the grammar and records the statement’s fields, tables, and conditions</td><td>provided; walk through it</td></tr>
+    <tr><td><strong>Planner</strong></td><td>description → scan tree</td><td>the catalog, to look up each table's layout, and Lab 4's scan operators, to build a tree that produces the rows</td><td>provided; walk through it</td></tr>
   </tbody>
 </table>
 
@@ -129,12 +129,12 @@ SELECT 'select' FROM demo;  -- returns the literal text: select</code></pre>
 <!-- ============================================================ -->
 <h2 id="try-it">Three stages turn typed text into a scan tree</h2>
 
-<p>Choose a statement to see its tokens, parsed description, and plan. Lab 5 provides the lexer; you implement the SELECT parser and query planner.</p>
+<p>Choose a statement to see its tokens, parsed description, and plan. Lab 5 provides the lexer, parser, and planner. You trace their implementation, write SQL, and measure its execution.</p>
 
 <div class="viz" id="viz-sql">
   <div class="viz-title">Text → tokens → description → plan</div>
   <p class="viz-description">Each stage's real output, computed as you watch. The plan stage
-  shows the exact scan tree your planner will build.</p>
+  shows the scan tree the supplied simple planner builds.</p>
   <div class="qj-controls">
     <button type="button" class="btn primary" id="sq-q1">the honors query</button>
     <button type="button" class="btn primary" id="sq-q2">the join</button>
@@ -153,8 +153,8 @@ SELECT 'select' FROM demo;  -- returns the literal text: select</code></pre>
   <tbody>
     <tr><td>text</td><td>a string</td><td>raw characters, including quotes and whitespace</td><td>the user, who typed it</td></tr>
     <tr><td>lexer</td><td>token list</td><td>a list of (kind, value) pairs, one per token</td><td>provided</td></tr>
-    <tr><td>parser</td><td><code>QueryData</code> (a compact <span class="gloss" data-gloss="ast">AST</span> representation)</td><td>a plain object holding the field list, the table list, and the <span class="gloss" data-gloss="predicate">predicate</span>; <a href="#ast-example">see the example below</a></td><td><strong>you</strong></td></tr>
-    <tr><td>planner</td><td>scan tree</td><td>a tree of Lab 4 scan objects; calling next() on the root pulls rows through the whole tree</td><td><strong>you</strong></td></tr>
+    <tr><td>parser</td><td><code>QueryData</code> (a compact <span class="gloss" data-gloss="ast">AST</span> representation)</td><td>a plain object holding the field list, the table list, and the <span class="gloss" data-gloss="predicate">predicate</span>; <a href="#ast-example">see the example below</a></td><td>provided; walk through it</td></tr>
+    <tr><td>planner</td><td>scan tree</td><td>a tree of Lab 4 scan objects; calling next() on the root pulls rows through the whole tree</td><td>provided; walk through it</td></tr>
   </tbody>
 </table>
 
@@ -164,7 +164,7 @@ SELECT 'select' FROM demo;  -- returns the literal text: select</code></pre>
 
 <pre><code class="language-sql">SELECT name FROM students WHERE gpa &gt; 35;</code></pre>
 
-<p class="keep-in-present">An <strong>abstract syntax tree (AST)</strong> represents the structure of this request. Here is one way to draw it. The node names are illustrative; you do not need to implement classes called <code>SelectQuery</code> or <code>GreaterThan</code>.</p>
+<p class="keep-in-present">An <strong>abstract syntax tree (AST)</strong> represents the structure of this request. Here is one way to draw it. The node names are illustrative; the supplied implementation does not use classes called <code>SelectQuery</code> or <code>GreaterThan</code>.</p>
 
 <pre class="equation"><code>SelectQuery
 ├── fields
@@ -234,9 +234,9 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
 <!-- ============================================================ -->
 <h2 id="descent">One grammar rule becomes one Python method</h2>
 
-<p class="keep-in-present">Recursive descent assigns a method to each grammar rule. Each method inspects or consumes tokens through four helpers. Step through the provided INSERT parser below to connect a grammar rule to its Python method, then use the same patterns to implement SELECT in Lab 5.</p>
+<p class="keep-in-present">Recursive descent assigns a method to each grammar rule. Each method inspects or consumes tokens through four helpers. Step through the provided INSERT parser below to connect a grammar rule to its Python method, then follow the same patterns in Lab 5’s supplied SELECT implementation.</p>
 
-<p class="key-fact keep-in-present"><strong>4 verbs</strong> peek, next, match, expect: every parsing method you write is built from only these</p>
+<p class="key-fact keep-in-present"><strong>4 verbs</strong> peek, next, match, expect: the supplied parsing methods use these token-stream helpers</p>
 
 <div class="viz rd-viz" id="viz-insert" role="region" aria-labelledby="rd-title">
   <div class="viz-title" id="rd-title">Grammar → Python → token cursor</div>
@@ -305,7 +305,7 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
   <div class="code-step" data-step="i1" data-explain="An ID token's value IS the table name; expect returns it.">    table = self.lex.expect("ID")</div>
   <div class="code-step" data-step="i1" data-explain="">    self.lex.expect("KEYWORD", "values")</div>
   <div class="code-step" data-step="i1" data-explain="">    self.lex.expect("PUNCT", "(")</div>
-  <div class="code-step" data-step="i2" data-step-name="the { , } idiom" data-explain="The grammar's { , value } becomes: read one, then while a comma is next, consume it and read another. You will type this exact shape three times on Thursday: field lists, table lists, AND chains.">    values = [self._parse_literal()]</div>
+  <div class="code-step" data-step="i2" data-step-name="the { , } idiom" data-explain="The grammar's { , value } becomes: read one, then while a comma is next, consume it and read another. You will see this same shape in three places on Thursday: field lists, table lists, AND chains.">    values = [self._parse_literal()]</div>
   <div class="code-step" data-step="i2" data-explain="">    while self.lex.match("PUNCT", ","):</div>
   <div class="code-step" data-step="i2" data-explain="">        self.lex.next(); values.append(self._parse_literal())</div>
   <div class="code-step" data-step="i1" data-explain="">    self.lex.expect("PUNCT", ")")</div>
@@ -345,7 +345,7 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
     <div class="tr-panel"><div class="tr-panel-title">call stack</div><div id="tr-stack"></div></div>
     <div class="tr-panel"><div class="tr-panel-title">QueryData so far</div><div id="tr-data"></div></div>
   </div>
-  <p class="viz-caption">When the parser reaches WHERE, <code>parse_query</code> calls <code>_parse_predicate</code>, which calls <code>_parse_term</code>. Returning from each method passes the parsed data back to its caller. These are the three parsing methods you implement in the lab.</p>
+  <p class="viz-caption">When the parser reaches WHERE, <code>parse_query</code> calls <code>_parse_predicate</code>, which calls <code>_parse_term</code>. Returning from each method passes the parsed data back to its caller. Lab 5 walks through all three supplied parsing methods.</p>
 </div>
 
 <h3 class="new-slide" data-kicker="Recursive descent">The parser returns data, not scans</h3>
@@ -373,14 +373,14 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
 
 <h3 class="new-slide" data-kicker="The naive planner">Compare the simple planner with an equivalent filtered plan</h3>
 
-<p>Lab 5 prints your planner’s join plan and counts the pairs it enumerates. Compare it with Lab 4’s plan that filters the inputs before taking their product:</p>
+<p>Lab 5 supplies both the simple plan and an early-filter alternative. Predict their work, then compare actual source-row visits, candidate pairs, predicate comparisons, output cells, and repeated execution timings:</p>
 
-<pre class="equation"><code>your planner:      SelectScan[everything] ← Product        900 pairs examined
-Lab 4, by hand:    Select[join] ← Product(σ(s) × σ(m))      60 pairs examined</code></pre>
+<pre class="equation"><code>simple planner:    SelectScan[everything] ← Product        900 pairs examined
+early-filter plan: Select[join] ← Product(σ(s) × σ(m))      60 pairs examined</code></pre>
 
-<p class="key-fact keep-in-present"><strong>900 vs 60</strong> pairs examined: your naive plan against Lab 4's hand-built one, for the same join query</p>
+<p class="key-fact keep-in-present"><strong>900 vs 60</strong> pairs examined by the two supplied plans for the same join query</p>
 
-<p class="keep-in-present">Lecture 9 explains how an optimizer can choose a better plan using statistics. Implementing that optimizer is optional; the required labs keep this simple planner.</p>
+<p class="keep-in-present">Lecture 9 explains how an optimizer chooses among plans using statistics. Lab 5 compares two supplied plans so you can reason about their work first. The 15× reduction counts candidate pairs; it does not promise a 15× runtime improvement.</p>
 
 <h3 class="new-slide" data-kicker="The naive planner">Trace a SQL query through the completed layers</h3>
 
@@ -424,28 +424,23 @@ Lab 4, by hand:    Select[join] ← Product(σ(s) × σ(m))      60 pairs examin
 <p class="keep-in-present">For this mistake, microdb’s message names both the missing keyword and the token in its place. Using <code>expect()</code> consistently gives the parser’s grammar checks the same error format.</p>
 
 <!-- ============================================================ -->
-<h2 id="thursday">Prepare to implement four methods in Lab 5</h2>
+<h2 id="thursday">Prepare to trace, query, and measure in Lab 5</h2>
 
-<p class="keep-in-present">You implement three parsing methods and one planner method. The repeated-item loop in <code>parse_insert</code> is useful for SELECT’s field list, table list, and AND conditions. The REPL and the INSERT and CREATE TABLE parsers are provided.</p>
-
-<table>
-  <thead><tr><th>You write</th><th>Imitating</th><th>Lines</th></tr></thead>
-  <tbody>
-    <tr><td><code>parse_query</code></td><td><code>parse_insert</code>, with a star case and an optional WHERE</td><td>~18</td></tr>
-    <tr><td><code>_parse_predicate</code></td><td>the <code>{ AND term }</code> idiom</td><td>~6</td></tr>
-    <tr><td><code>_parse_term</code></td><td><code>_parse_literal</code>, plus one extra branch for join terms: when the value to the right of the operator is an ID rather than a number or string, it is another field, and the term records a field reference (the <code>F(…)</code> in the demo) instead of a constant</td><td>~10</td></tr>
-    <tr><td><code>Database.plan_query</code></td><td>the four-step recipe, verbatim</td><td>~12</td></tr>
-  </tbody>
-</table>
-
-<h3 class="new-slide" data-kicker="Thursday's build">Before class checklist</h3>
-
+<p class="keep-in-present">The parser and planner are complete. We will read <code>parse_query</code>, <code>_parse_predicate</code>, <code>_parse_term</code>, and <code>Database.plan_query</code> together, then use the engine to test predictions about query work.</p>
+<table><thead><tr><th>You investigate</th><th>Reason from</th></tr></thead><tbody>
+<tr><td>A selective WHERE</td><td>TableScan visits versus returned rows</td></tr>
+<tr><td>One output field versus *</td><td>projection and output decoding</td></tr>
+<tr><td>Simple versus early-filter join</td><td>the number of rows reaching ProductScan</td></tr>
+<tr><td>Reversed FROM order</td><td>which input is restarted</td></tr>
+<tr><td>More selective predicates and larger tables</td><td>surviving rows, pair counts, comparisons, and repeated timings</td></tr>
+</tbody></table>
+<h3 class="new-slide" data-kicker="Thursday's investigation">Before class checklist</h3>
 <ul class="checklist">
-  <li>☐ Lab 4 submitted: the starter now ships reference Labs 1–4 (five layers).</li>
-  <li>☐ Download the nine starter files from the Lab 5 page.</li>
-  <li>☐ Harness runs: <code>python3 test_sql.py</code> prints <strong>0/12 passed</strong>.</li>
-  <li>☐ Read <code>parse_insert</code> and identify the token or repeated group of tokens consumed by each line.</li>
-  <li>☐ After the tests pass, optionally run <code>python3 microdb.py</code> and execute SQL in your engine. Inspect the resulting table file with a hex viewer to connect the SQL values to their stored bytes.</li>
+  <li>☐ Download or pull the complete Lab 5 files and query/report templates.</li>
+  <li>☐ Run <code>python3 test_sql.py</code>: expect <strong>12/12 passed</strong> immediately.</li>
+  <li>☐ Step through INSERT and identify which helpers consume tokens.</li>
+  <li>☐ Open the <a href="../../labs/lab-05/sqlfrontend.html#big-idea">guided implementation walkthrough</a>.</li>
+  <li>☐ Keep predictions before running <code>measure_sql.py</code>; explain changed predictions using the operators.</li>
 </ul>
 
 <!-- ============================================================ -->
@@ -461,14 +456,13 @@ Lab 4, by hand:    Select[join] ← Product(σ(s) × σ(m))      60 pairs examin
 
 <p class="key-fact keep-in-present">Four helpers support token processing. Filtering inputs reduces the example join from 900 candidate pairs to 60.</p>
 
-<p class="keep-in-present"><strong>Thursday:</strong> four methods, then type SQL at your own
-engine. <strong>Next Tuesday:</strong> B+ trees: the structure that finds one row in a
+<p class="keep-in-present"><strong>Thursday:</strong> walk through the supplied implementation, write SQL, predict the work, and measure both plans. <strong>Next Tuesday:</strong> B+ trees: the structure that finds one row in a
 million without scanning. Quiz 5 opens class: parsing &amp; planning.</p>
 
 <p class="keep-in-present"><strong>Before Thursday:</strong></p>
 <ul>
   <li><strong>Read</strong> <code>parse_insert</code> until you can say what each line consumes (<a href="https://link.springer.com/chapter/10.1007/978-3-030-33836-7_9" title="Edward Sciore, Database Design and Implementation, Chapter 9: Parsing">Sciore ch. 9</a> for the long form).</li>
-  <li><strong>Run</strong> <code>python3 test_sql.py</code> on the nine Lab 5 starter files; it should print <strong>0/12 passed</strong>.</li>
+  <li><strong>Run</strong> <code>python3 test_sql.py</code> on the complete Lab 5 files; it should immediately print <strong>12/12 passed</strong>.</li>
   <li><strong>Bring</strong> a laptop with Lab 4 submitted and the Lab 5 starter on it.</li>
 </ul>
 
@@ -520,6 +514,6 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
 <script src="insert-trace.js?v=1"></script>
-<script src="viz.js?v=6"></script>
+<script src="viz.js?v=7"></script>
 </body>
 </html>

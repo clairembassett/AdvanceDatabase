@@ -9,7 +9,7 @@
     },
     'recursive-descent': {
       title: 'Recursive descent',
-      body: "<p>A parsing technique in which functions implement grammar rules. Each function consumes the tokens for its rule and calls other rule functions for nested parts. The provided <code>parse_insert</code> and <code>parse_create</code> methods illustrate this approach.</p>",
+      body: "<p>A parsing technique in which functions implement grammar rules. Each function consumes the tokens for its rule and calls other rule functions for nested parts. The complete supplied parser illustrates this approach. Lab 5 walks through SELECT parsing and the planner before the query experiments.</p>",
     },
     'ast': {
       title: 'AST (abstract syntax tree)',
@@ -40,9 +40,10 @@
   let tables = {};        // name -> {fields: [names], rows: [dicts]}
 
   function lex(sql) {
-    const re = /\s*(?:(\d+)|'([^']*)'|([A-Za-z_][A-Za-z0-9_]*)|([(),=<>*]))/y;
+    sql = sql.trim();
+    const re = /\s*(?:(\d+)|'([^']*)'|([A-Za-z_][A-Za-z0-9_]*)|([(),=<>*;]))/y;
     const toks = []; let pos = 0;
-    while (pos < sql.trim().length) {
+    while (pos < sql.length) {
       re.lastIndex = pos;
       const m = re.exec(sql);
       if (!m) throw new Error(`cannot read SQL at: ${sql.slice(pos, pos + 15)}`);
@@ -68,6 +69,15 @@
       return next()[1];
     };
 
+    const finish = () => {
+      if (match('PUNCT', ';')) next();
+      expect('EOF');
+    };
+    const literal = () => {
+      if (match('NUM') || match('STR')) return next()[1];
+      throw new Error(`expected a number or string, found ${JSON.stringify(peek()[1])}`);
+    };
+
     if (match('KEYWORD', 'create')) {
       next(); expect('KEYWORD', 'table');
       const name = expect('ID');
@@ -81,6 +91,7 @@
         break;
       }
       expect('PUNCT', ')');
+      finish();
       tables[name] = { fields, rows: [] };
       return `table ${name} created`;
     }
@@ -89,9 +100,11 @@
       const name = expect('ID');
       if (!tables[name]) throw new Error(`no such table in catalog: '${name}'`);
       expect('KEYWORD', 'values'); expect('PUNCT', '(');
-      const vals = [next()[1]];
-      while (match('PUNCT', ',')) { next(); vals.push(next()[1]); }
+      const vals = [literal()];
+      while (match('PUNCT', ',')) { next(); vals.push(literal()); }
       expect('PUNCT', ')');
+      finish();
+      if (vals.length !== tables[name].fields.length) throw new Error('wrong number of inserted values');
       const row = {};
       tables[name].fields.forEach((f, k) => row[f] = vals[k]);
       tables[name].rows.push(row);
@@ -111,6 +124,7 @@
       while (true) {
         const f = expect('ID');
         const op = expect('PUNCT');
+        if (!['=', '<', '>'].includes(op)) throw new Error('expected =, < or >');
         let rhs;
         if (match('NUM') || match('STR')) rhs = next()[1];
         else rhs = { field: expect('ID') };
@@ -119,11 +133,12 @@
         break;
       }
     }
+    finish();
     // naive plan: fold products, filter, project — exactly the lab recipe
     let rows = tables[tnames[0]].rows.map(r => ({ ...r }));
     for (const t of tnames.slice(1)) {
       const out = [];
-      for (const l of rows) for (const r of tables[t].rows) out.push({ ...l, ...r });
+      for (const l of rows) for (const r of tables[t].rows) out.push({ ...r, ...l });
       rows = out;
     }
     rows = rows.filter(r => terms.every(([f, op, rhs]) => {
@@ -140,7 +155,10 @@
   }
 
   function print(cls, text) {
-    screen.insertAdjacentHTML('beforeend', `<div class="${cls}">${text.replace(/</g, '&lt;')}</div>`);
+    const line = document.createElement('div');
+    line.className = cls;
+    line.textContent = text;
+    screen.appendChild(line);
     screen.scrollTop = screen.scrollHeight;
   }
 

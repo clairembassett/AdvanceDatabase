@@ -623,6 +623,7 @@
     if(s>=0)row(d,'tokens',140,425,['SELECT','name'],-1,145);
     if(s>=1){d.rect('obj',540,415,240,135,P.blueLight,P.blue,8,3);['fields','tables'].forEach((v,i)=>text(d,'v'+i,660,465+i*48,v,28));}
     if(s>=2){[[1050,410],[965,550],[1140,550]].forEach(([x,y],i)=>dot(d,'node'+i,x,y,24,P.green));d.line('a',1050,435,965,525,P.green,4);d.line('b',1050,435,1140,525,P.green,4);}
+    if(s>=2)text(d,'lab-work',640,655,'Lab 5: trace the supplied code · write SQL · predict · measure · explain',27,P.muted);
   });
 
   const metadata = [
@@ -1378,7 +1379,7 @@
         "title": "Five token families",
         "minutes": 4,
         "kind": "definition",
-        "notes": "Classify SELECT, name, 35, a quoted string and the greater-than symbol before revealing their five families. The lexer handles spelling, quoting and normalization of unquoted words. It does not decide whether FROM appears in the right place. Ask why a field called select is rejected in the teaching language: the fixed keyword set classifies it as a keyword. Production SQL supports richer identifier and keyword rules. This definition gives the parser a cleaner input stream. Explain that ANTLR can generate lexer and parser code from a grammar. The grammar and code that interprets parsed input are still application responsibilities. ANTLR can produce a parse tree; building an AST or QueryData is a separate application step. Lexer internals and ANTLR are optional reading: students need the token contract, then implement the parser and planner.",
+        "notes": "Classify SELECT, name, 35, a quoted string and the greater-than symbol before revealing their five families. The lexer handles spelling, quoting and normalization of unquoted words. It does not decide whether FROM appears in the right place. Ask why a field called select is rejected in the teaching language: the fixed keyword set classifies it as a keyword. Production SQL supports richer identifier and keyword rules. This definition gives the parser a cleaner input stream. Explain that ANTLR can generate lexer and parser code from a grammar. The grammar and code that interprets parsed input are still application responsibilities. ANTLR can produce a parse tree; building an AST or QueryData is a separate application step. Lexer internals and ANTLR are optional reading: students need the token contract, then trace the supplied parser and planner before writing and measuring queries.",
         "id": "lecture-05-scene-04",
         "definition": "A classified unit of input, such as a keyword, identifier, number or string.",
         "term": "Token",
@@ -1414,7 +1415,7 @@
         "title": "The four token moves",
         "minutes": 4,
         "kind": "activity",
-        "notes": "For each token helper, ask whether the cursor moves. peek and match inspect without advancing. next consumes one token. expect first validates, then consumes or raises ParseError. The individual examples in this visual are separate operations, not one running parse. Open the linked INSERT walkthrough to connect the insert grammar rule to parse_insert and the literal rule to _parse_literal. Step through the first value, then the comma loop. Ask why match leaves the comma unread and next must consume it before the next literal call. Switch to Missing comma to see expect fail without moving the cursor, and Missing value to see peek prepare an error message. The returned InsertData describes the insert; parsing writes no rows. Use the same patterns to implement SELECT in Lab 5.",
+        "notes": "For each token helper, ask whether the cursor moves. peek and match inspect without advancing. next consumes one token. expect first validates, then consumes or raises ParseError. The individual examples in this visual are separate operations, not one running parse. Open the linked INSERT walkthrough to connect the insert grammar rule to parse_insert and the literal rule to _parse_literal. Step through the first value, then the comma loop. Ask why match leaves the comma unread and next must consume it before the next literal call. Switch to Missing comma to see expect fail without moving the cursor, and Missing value to see peek prepare an error message. The returned InsertData describes the insert; parsing writes no rows. Use the same patterns to understand the supplied SELECT implementation in Lab 5.",
         "id": "lecture-05-scene-07",
         "demo": "viz-insert",
         "sources": [
@@ -1467,7 +1468,7 @@
         "title": "Correct can be expensive",
         "minutes": 3,
         "kind": "visual",
-        "notes": "Return to the 300-student, three-major measurement with both local predicates. The naive tree enumerates 900 pairs; a pushdown plan enumerates 60; both return 20 rows. Ask which stage must change to choose the second tree. The planner changes while QueryData and the parser can remain unchanged. Lecture9 discusses the statistics and transformations an optimizer needs. Implementing an optimizer is optional; required labs retain the simple planner. Do not confuse this workload with the six-row widget.",
+        "notes": "Return to the 300-student, three-major measurement with both local predicates. The naive tree enumerates 900 pairs; a pushdown plan enumerates 60; both return 20 rows. Ask which stage must change to choose the second tree. The planner changes while QueryData and the parser can remain unchanged. Lecture9 discusses the statistics and transformations an optimizer needs. Lab 5 supplies the simple planner and a separate early-filter comparison plan. Students predict row visits, pairs, comparisons, and output work before measuring repeated execution times. Fifteen times fewer pairs does not guarantee a fifteen-fold speedup. Do not confuse this workload with the six-row widget.",
         "id": "lecture-05-scene-12",
         "sources": [
           "lectures/lecture-05/parsing.html"
@@ -1498,7 +1499,7 @@
         "title": "The whole engine answers",
         "minutes": 3,
         "kind": "visual",
-        "notes": "Ask students to narrate one boundary each as a query moves through all seven icons. The lexer recognizes units, the parser records intent, the planner creates operators, the scans use layouts, the pool provides pages, and the file manager transfers blocks. Answers flow back after execution begins. Thursday’s four responsibilities are parse_query, _parse_predicate, _parse_term and plan_query. Provided INSERT parsing and the REPL are models to read. Encourage tracing each consumed token rather than copying patterns blindly.",
+        "notes": "Ask students to narrate one boundary each as a query moves through all seven icons. The lexer recognizes units, the parser records intent, the planner creates operators, the scans use layouts, the pool provides pages, and the file manager transfers blocks. Answers flow back after execution begins. Thursday is a guided reading of the complete parse_query, _parse_predicate, _parse_term and plan_query implementations. Students then write six SQL queries, predict work, measure the simple and early-filter plans, and explain the results from the operators. The completed engine is supplied.",
         "id": "lecture-05-scene-15",
         "sources": [
           "lectures/lecture-05/parsing.html"
@@ -1508,7 +1509,7 @@
         "title": "Read, describe, execute",
         "minutes": 3,
         "kind": "recap",
-        "notes": "Use the final three-panel reconstruction as an exit check. Which stage handles quotes? Lexer. Which checks SELECT–FROM ordering? Parser. Which chooses scan objects? Planner. Why can optimization evolve independently? The intermediate intent object decouples syntax from execution. The unedited Lab5 starter should report zero of twelve tests before implementation. Completed work makes typed microSQL exercise the full engine. Next Tuesday B+trees provide an alternative to touching every table block.",
+        "notes": "Use the final three-panel reconstruction as an exit check. Which stage handles quotes? Lexer. Which checks SELECT–FROM ordering? Parser. Which chooses scan objects? Planner. Why can optimization evolve independently? The intermediate intent object decouples syntax from execution. The supplied Lab 5 code should pass all twelve setup tests immediately. The assignment is SQL, predictions, measurements, and explanations. Ask whether fewer result rows must mean fewer source-row visits; with this heap scan, no. Compare 300 and 600 students and separate logical counts from noisy timings. Next Tuesday B+trees provide an alternative to touching every table block.",
         "id": "lecture-05-scene-16",
         "sources": [
           "lectures/lecture-05/parsing.html"

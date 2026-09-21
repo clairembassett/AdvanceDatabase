@@ -41,11 +41,11 @@
 <header class="hero">
   <div class="eyebrow">DS 6XXX · Lecture 9 · Tuesday October 20, 2026 · midterm Thursday</div>
   <h1>The Query Optimizer</h1>
-  <div class="subtitle">For the example join, your Lab 5 planner examines 900 pairs. In Lab 4, you found a plan that examines 60. How can an optimizer choose between them before execution?</div>
+  <div class="subtitle">For the example join, the supplied Lab 5 planner examines 900 pairs. In Lab 4, you found a plan that examines 60. How can an optimizer choose between them before execution?</div>
   <div class="byline">Daniel G. Graham · UVA School of Data Science</div>
 </header>
 
-<p class="lede">Your Lab 5 planner builds the join plan that examines 900 pairs. In Lab 4, you rearranged that plan to examine just 60 pairs and return the same answer. Today we will see how an optimizer searches for such improvements automatically. It uses <span class="gloss" data-gloss="statistics">statistics</span> about the data, a <span class="gloss" data-gloss="cost-model">cost model</span> to estimate work, and a search through equivalent plans. We will use <span class="gloss" data-gloss="explain-analyze">EXPLAIN ANALYZE</span> output to compare estimates with measurements. Lab 7 is due today, and the final third of class reviews material for Thursday’s midterm.</p>
+<p class="lede">The supplied Lab 5 planner builds the join plan that examines 900 pairs. In Lab 4, you rearranged that plan to examine just 60 pairs and return the same answer. Today we will see how an optimizer searches for such improvements automatically. It uses <span class="gloss" data-gloss="statistics">statistics</span> about the data, a <span class="gloss" data-gloss="cost-model">cost model</span> to estimate work, and a search through equivalent plans. We will use <span class="gloss" data-gloss="explain-analyze">EXPLAIN ANALYZE</span> output to compare estimates with measurements. Lab 7 is due today, and the final third of class reviews material for Thursday’s midterm.</p>
 
 <div class="cite">
   Companion reading: Sciore, <em>Database Design and Implementation</em>, ch. 10 &amp; 15 ·
@@ -67,7 +67,7 @@ hover or tap for a plain-language explainer that opens right below the sentence 
 
 <p>Lab 7 is due today, and the midterm is Thursday. We will finish the first part of the course by connecting the storage engine from Labs 1–7 to query optimization, then review the midterm topics.</p>
 
-<p class="keep-in-present">Lab 4’s two join plans return the same 20 rows, but one examines 900 pairs and the other only 60. Your Lab 5 planner always builds the first plan. A cost-based optimizer estimates the work of alternatives and selects one before executing the query.</p>
+<p class="keep-in-present">Lab 4’s two join plans return the same 20 rows, but one examines 900 pairs and the other only 60. The supplied Lab 5 planner always builds the first plan. A cost-based optimizer estimates the work of alternatives and selects one before executing the query.</p>
 
 
 <p class="keep-in-present"><strong>An optimizer chooses a plan using cost estimates.</strong> It has limited planning time and incomplete information about the data. Comparing its estimates with actual execution helps explain both good and poor plan choices.</p>
@@ -78,8 +78,8 @@ hover or tap for a plain-language explainer that opens right below the sentence 
 <table>
   <thead><tr><th>Plan for Lab 4's join</th><th>Pairs examined</th><th>Rows out</th><th>Who can build it</th></tr></thead>
   <tbody>
-    <tr><td>Product first, then filter (the naive plan)</td><td>900</td><td>20</td><td>your Lab 5 planner, every time</td></tr>
-    <tr><td>Filter first, then product (the pushed-down plan)</td><td>60</td><td>20</td><td>you, by hand, in Lab 4; the Lab 5 planner does not search for this alternative</td></tr>
+    <tr><td>Product first, then filter (the naive plan)</td><td>900</td><td>20</td><td>the supplied Lab 5 planner, every time</td></tr>
+    <tr><td>Filter first, then product (the pushed-down plan)</td><td>60</td><td>20</td><td>the early-filter comparison supplied in Lab 5; the simple planner does not search for it</td></tr>
   </tbody>
 </table>
 

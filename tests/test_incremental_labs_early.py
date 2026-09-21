@@ -1,4 +1,4 @@
-"""Regression checks for independent function tests in Labs 1, 2, 4, and 5.
+"""Regression checks for independent function tests in Labs 1, 2, and 4.
 
 Run: python3 -m unittest discover -s tests -p 'test_incremental_labs_early.py' -v
 These checks load only one completed method at a time. Student files are
@@ -17,64 +17,7 @@ LABS = {
     1: ("file_manager", "test_filemanager", 2, 9),
     2: ("buffer_manager", "test_buffermanager", 3, 10),
     4: ("query_engine", "test_scans", 5, 11),
-    5: ("sql_frontend", "test_sql", None, 12),
 }
-
-# Lab 5's completed parser is not shipped in a later starter. Keep its
-# regression reference here, outside the student download. Dependencies
-# go through self, as a student's incremental implementation normally does.
-SQL_REFERENCE = '''
-class Parser:
-    def _parse_term(self):
-        field = self.lex.expect("ID")
-        op = self.lex.expect("PUNCT")
-        if op not in ("=", "<", ">"):
-            raise ParseError("expected comparison")
-        rhs = F(self.lex.next()[1]) if self.lex.match("ID") else self._parse_literal()
-        return (field, op, rhs)
-
-    def _parse_predicate(self):
-        terms = [self._parse_term()]
-        while self.lex.match("KEYWORD", "and"):
-            self.lex.next()
-            terms.append(self._parse_term())
-        return Predicate(*terms)
-
-    def parse_query(self):
-        self.lex.expect("KEYWORD", "select")
-        if self.lex.match("PUNCT", "*"):
-            self.lex.next()
-            fields = ["*"]
-        else:
-            fields = [self.lex.expect("ID")]
-            while self.lex.match("PUNCT", ","):
-                self.lex.next()
-                fields.append(self.lex.expect("ID"))
-        self.lex.expect("KEYWORD", "from")
-        tables = [self.lex.expect("ID")]
-        while self.lex.match("PUNCT", ","):
-            self.lex.next()
-            tables.append(self.lex.expect("ID"))
-        predicate = None
-        if self.lex.match("KEYWORD", "where"):
-            self.lex.next()
-            predicate = self._parse_predicate()
-        return QueryData(fields, tables, predicate)
-
-class Database:
-    def plan_query(self, data):
-        scans = [TableScan(self.bm, self.fm, table, self.catalog.get_layout(table))
-                 for table in data.tables]
-        plan = scans[0]
-        for right in scans[1:]:
-            plan = ProductScan(plan, right)
-        if data.predicate is not None:
-            plan = SelectScan(plan, data.predicate)
-        if data.fields != ["*"]:
-            plan = ProjectScan(plan, data.fields)
-        return plan
-'''
-
 
 def todo_targets(lab):
     module = LABS[lab][0]
@@ -88,7 +31,7 @@ def todo_targets(lab):
 def setup_code(lab):
     module, harness, reference_lab, _ = LABS[lab]
     starter = ROOT / "labs" / f"lab-{lab:02d}" / "starter"
-    reference = SQL_REFERENCE if reference_lab is None else (
+    reference = (
         ROOT / "labs" / f"lab-{reference_lab:02d}" / "starter" / f"{module}.py").read_text()
     return f'''
 import ast, importlib, sys

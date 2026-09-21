@@ -91,14 +91,6 @@ assert small.root.children[1].children == children[3:]
         self.run_example(5, '''
 import tempfile
 import sql_frontend as student
-from test_incremental_labs_early import SQL_REFERENCE
-namespace = dict(vars(student))
-exec(SQL_REFERENCE, namespace)
-for name in ("parse_query","_parse_predicate","_parse_term"):
-    setattr(student.Parser,name,getattr(namespace["Parser"],name))
-student.Database.plan_query = namespace["Database"].plan_query
-# The reference methods resolve Parser through their globals only for types;
-# all recursive calls use self and therefore the patched student instance.
 query = student.Parser("SELECT name FROM students WHERE gpa > 35").parse()
 assert query.fields == ["name"] and query.tables == ["students"]
 lex = student.Lexer("SELECT name FROM students WHERE gpa > 35")

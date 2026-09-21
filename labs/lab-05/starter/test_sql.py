@@ -1,11 +1,11 @@
 """Lab 5 test harness — run:  python3 test_sql.py
 
-Build one function at a time:
+Inspect one supplied function at a time:
     python3 test_sql.py --list
     python3 test_sql.py --unit Class.method
     python3 test_sql.py --unit
 Unit checks supply the other functions as test fixtures. The target always
-runs your code. The default command still runs the full integration suite.
+runs the supplied implementation. The default command still runs the full integration suite.
 
 
 Three groups, mirroring the lab page:
@@ -14,7 +14,7 @@ Three groups, mirroring the lab page:
     PLAN  — QueryData becomes the right scan tree
     SQL   — end to end: CREATE, INSERT, SELECT through Database.execute
 
-Pure stdlib; no pytest. The Gradescope autograder runs this same harness.
+Pure stdlib; no pytest. These are setup and regression checks, not the Lab 5 grade.
 """
 
 import shutil
@@ -335,7 +335,7 @@ def _unit_parser(method):
 
 
 def _unit_plan():
-    # Construct QueryData directly; every parser TODO can still be unfinished.
+    # Construct QueryData directly so this check isolates the supplied planner.
     layouts = {name: object() for name in ("students", "majors", "rooms")}
     manager, files = object(), object()
     class CatalogFixture:
@@ -348,6 +348,9 @@ def _unit_plan():
             self.name = name
         def before_first(self):
             raise AssertionError("plan_query builds the plan; the runner positions it later")
+        def has_field(self, field):
+            return field in {"students": {"name", "gpa", "mid"},
+                             "majors": {"mid2", "dept"}, "rooms": {"room"}}[self.name]
         def close(self):
             pass
     db = Database(files, manager, CatalogFixture())
@@ -418,7 +421,7 @@ def main():
         return
     if args.unit is not None:
         RESULTS.clear()
-        print("UNIT checks use test fixtures for unfinished dependencies.")
+        print("UNIT checks isolate each supplied method with known fixtures.")
         print("Run without --unit to check the complete implementation together.")
         names = UNIT_TESTS if args.unit == "all" else [args.unit]
         for name in names:

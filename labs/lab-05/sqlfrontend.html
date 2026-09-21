@@ -14,13 +14,16 @@
 <aside class="toc">
   <div class="toc-title">Lab 5 · microdb 5</div>
   <ul>
-    <li><a href="#try-it">Run SQL queries</a></li>
-    <li><a href="#big-idea">Parsing from worked examples</a></li>
-    <li><a href="#the-api">Implementation requirements</a></li>
-    <li><a href="#worked-example">Worked example</a></li>
-    <li><a href="#build">Part 1 · Build</a></li>
-    <li><a href="#verify">Part 2 · Verify</a></li>
-    <li><a href="#measure">Part 3 · Measure</a></li>
+    <li><a href="#try-it">Try SQL in the browser</a></li>
+    <li><a href="#verify">Part 1 · Run the supplied engine</a></li>
+    <li><a href="#big-idea">Part 2 · Walk through the implementation</a></li>
+    <li><a href="#the-api">Grammar and token helpers</a></li>
+    <li><a href="#parse-query">Parse SELECT</a></li>
+    <li><a href="#parse-predicate">Parse predicates and field references</a></li>
+    <li><a href="#plan-query">Build and execute the scan tree</a></li>
+    <li><a href="#worked-example">Trace a complete query</a></li>
+    <li><a href="#build">Part 3 · Write queries and predict</a></li>
+    <li><a href="#measure">Part 4 · Measure and explain</a></li>
     <li><a href="#assignment">Assignment</a></li>
     <li><a href="#going-further">Going further</a></li>
     <li><a href="#faq">FAQ</a></li>
@@ -38,11 +41,11 @@
 <header class="hero">
   <div class="eyebrow">DS 6XXX · Lab 5 · Thursday September 24, 2026 · microdb part 5 of 7</div>
   <h1>The SQL Front End</h1>
-  <div class="subtitle">Add a parser and planner so microdb can run SQL statements instead of requiring plans built by hand.</div>
-  <div class="byline">Follows Lecture 5 (From SQL Text to Plan) · in class: 75 min · aim to finish Build + Verify · due Thu Oct 1 at class start</div>
+  <div class="subtitle">Walk through a complete parser and planner, then write SQL and explain the work each query performs.</div>
+  <div class="byline">Follows Lecture 5 (From SQL Text to Plan) · in class: 75 min · walk through · write queries · predict and measure · due Thu Oct 1 at class start</div>
 </header>
 
-<p class="lede">In Lab 4, you built query plans by assembling Python operators. In this lab, you will add a SQL interface. Implement three parser methods and the query planner, then use the provided <span class="gloss" data-gloss="repl">REPL</span> to create a table, insert rows, and run filters and joins. You can also inspect the table file to see how the SQL interface uses the storage layer from Lab 1.</p>
+<p class="lede">The parser and planner are provided complete. We will walk through how SQL becomes a query description and then an executable scan tree. Your work is to write queries, predict their cost from the operators involved, measure the actual work, and explain why some plans run faster. Use counts to support your explanation before interpreting timings.</p>
 
 <div class="cite">
   Companion reading: Sciore, <em>Database Design and Implementation</em>, ch. 9–10 ·
@@ -59,7 +62,7 @@
 <!-- ============================================================ -->
 <h2 id="try-it">Run SQL in the browser</h2>
 
-<p class="keep-in-present">The browser widget demonstrates the microSQL syntax supported by this lab. Use it to create tables, insert rows, and run queries before implementing your own parser and planner.</p>
+<p class="keep-in-present">The browser widget demonstrates the microSQL syntax supported by this lab. Use it to create tables, insert rows, and run queries before running the same syntax in the supplied Python engine.</p>
 
 <div class="viz" id="viz-repl">
   <div class="viz-title">The microdb SQL prompt</div>
@@ -78,7 +81,7 @@
     <button type="button" class="btn primary" id="rp-run">run</button>
   </div>
   <div class="chat-downloads">
-    <span class="chat-downloads-label">Starter code:</span>
+    <span class="chat-downloads-label">Complete code and worksheets:</span>
     <a class="chat-dl-btn" href="starter/sql_frontend.py" download>sql_frontend.py</a>
     <a class="chat-dl-btn" href="starter/microdb.py" download>microdb.py (REPL)</a>
     <a class="chat-dl-btn" href="starter/query_engine.py" download>query_engine.py (ref)</a>
@@ -88,6 +91,8 @@
     <a class="chat-dl-btn" href="starter/catalog.py" download>catalog.py (ref)</a>
     <a class="chat-dl-btn" href="starter/test_sql.py" download>test_sql.py</a>
     <a class="chat-dl-btn" href="starter/measure_sql.py" download>measure_sql.py</a>
+    <a class="chat-dl-btn" href="starter/queries.sql" download>queries.sql (you complete)</a>
+    <a class="chat-dl-btn" href="starter/lab5_report.md" download>report template</a>
   </div>
   <p class="viz-caption clone-label">Open a terminal in the top-level <code>AdvanceDatabase</code> folder you cloned in Lab 1. Pull the latest files, then open this lab’s starter folder:</p>
 <pre class="clone-cmd"><span class="cl-line">git pull</span>
@@ -96,202 +101,233 @@
 </div>
 
 <!-- ============================================================ -->
-<h2 id="big-idea">Implement grammar rules as parser methods</h2>
-
-<p class="keep-in-present">The starter includes two worked parser methods: <code>parse_insert</code> and <code>parse_create</code>. Read them alongside the grammar. In <span class="gloss" data-gloss="recursive-descent">recursive descent</span>, each method consumes the <span class="gloss" data-gloss="token">tokens</span> for one grammar rule, using <code>peek</code>, <code>next</code>, <code>match</code>, and <code>expect</code>. Use the same approach for <code>parse_query</code>, including its <code>*</code> alternative and optional <code>WHERE</code> clause.</p>
-
-<!-- ============================================================ -->
-<h2 id="the-api">Parser and planner methods</h2>
-
-<p>Implement the following four methods:</p>
-
-<div class="code-annotated" data-lang="python">
-  <div class="code-step" data-step="pq" data-step-name="parse_query" data-explain="Consume SELECT, then parse either * or a comma-separated list of field identifiers. Consume FROM and parse a comma-separated table list. If WHERE follows, parse its predicate. Return QueryData with the fields, tables, and optional predicate.">parse_query        # imitates parse_insert + a * case + an optional clause</div>
-  <div class="code-step" data-step="pp" data-step-name="_parse_predicate" data-explain="Parse one term. While the next token is AND, consume it and parse another term. Return Predicate(*terms).">_parse_predicate   # parse terms separated by AND</div>
-  <div class="code-step" data-step="pt" data-step-name="_parse_term" data-explain="Read a field identifier, then validate the operator as =, &lt;, or &gt;. Parse NUM and STR tokens as literals and an ID as F(name), a reference to another field. Field references allow join conditions.">_parse_term        # field, operator, then literal or field reference</div>
-  <div class="code-step" data-step="pl" data-step-name="plan_query" data-explain="Create TableScans using catalog layouts. Combine multiple tables with ProductScan from left to right. Add SelectScan if there is a predicate, then ProjectScan unless the field list is [&#x27;*&#x27;]. The tests check this structure.">Database.plan_query  # scans → products → select? → project?</div>
-  <div class="code-explain-panel">Hover a line: between them they touch every layer you've built since August.</div>
-</div>
+<h2 id="verify">Part 1 · Run the supplied engine <span class="part-time">5 min</span></h2>
+<p>Use the files above or pull the repository. Run the setup check from <code>labs/lab-05/starter/</code>:</p>
+<pre class="terminal"><code>python3 test_sql.py
+# Expected immediately: 12/12 tests passed
+python3 microdb.py</code></pre>
+<p>The tests verify the supplied engine; they are not the assignment. In the REPL (Read–Eval–Print Loop), create a table of your own, insert three rows, and select a subset. Type <code>exit</code> to close it. The REPL saves data in <code>./mydb</code>; the measurement runner below creates a separate temporary database each time.</p>
+<pre><code class="language-sql">CREATE TABLE readings (rid INT, label VARCHAR(12), value INT);
+INSERT INTO readings VALUES (1, 'north', 12);
+INSERT INTO readings VALUES (2, 'south', 28);
+INSERT INTO readings VALUES (3, 'west', 35);
+SELECT label FROM readings WHERE value &gt; 20;</code></pre>
+<p>A final semicolon is optional. microSQL supports SELECT, CREATE TABLE, INSERT, comma-separated FROM tables, and AND-connected <code>=</code>, <code>&lt;</code>, or <code>&gt;</code> comparisons. It has no aliases, qualified field names, OR, aggregation, ORDER BY, or LIMIT.</p>
+<h3 id="function-tests">Optional checks while reading</h3>
+<p><code>python3 test_sql.py --list</code> lists the four main methods; <code>--unit Parser._parse_term</code> checks one and <code>--unit</code> checks all four. Each should already pass.</p>
 
 <!-- ============================================================ -->
-<h2 id="worked-example">Trace the tokens, query description, and scan plan</h2>
+<h2 id="big-idea">Part 2 · Walk through the implementation <span class="part-time">25 min</span></h2>
+<p class="keep-in-present">Open <a href="starter/sql_frontend.py"><code>sql_frontend.py</code></a> alongside this page. Everything below is supplied. Follow the token cursor, the data returned by each method, and the scan objects built from that data. No parser or planner code is required for this lab.</p>
 
-<p>Follow the same query through all three interfaces. The lexer labels tokens, the parser consumes them into a description, and the planner constructs scans. Only pulling the scan produces result rows.</p>
+<h3 id="the-api">The grammar tells each method what to consume</h3>
+<pre><code>query     := SELECT fieldlist FROM tablelist [ WHERE predicate ]
+fieldlist := * | field { , field }
+tablelist := table { , table }
+predicate := term { AND term }
+term      := field ( = | &lt; | &gt; ) value
+value     := number | 'string' | field</code></pre>
+<p>BNF means <strong>Backus–Naur form</strong>; Extended Backus–Naur form (EBNF) adds the optional <code>[ ]</code> and repeated <code>{ }</code> groups used here. <code>|</code> separates alternatives in the grammar. The <code>*</code> is a literal SQL token asking for all columns. A comma loop is “read one item, then repeat comma + item.”</p>
+<table><thead><tr><th>Helper</th><th>Result</th><th>Cursor</th></tr></thead><tbody>
+<tr><td><code>peek()</code></td><td>current (kind, value) pair</td><td>stays</td></tr>
+<tr><td><code>match(kind, value)</code></td><td>True or False</td><td>stays</td></tr>
+<tr><td><code>next()</code></td><td>current (kind, value) pair</td><td>advances</td></tr>
+<tr><td><code>expect(kind, value)</code></td><td>matching token's value, or ParseError</td><td>advances only on success</td></tr>
+</tbody></table>
+<p>First use the <a href="../../lectures/lecture-05/parsing.html#viz-insert">interactive INSERT walkthrough</a>. Predict whether each action moves the cursor. Then inspect <code>Parser.parse()</code>: it chooses the statement method from the first keyword and checks that no unsupported trailing tokens remain. EOF (end of file) is the helper's end-of-input marker. Lexer implementation details remain optional reading.</p>
+
+<h3 id="parse-query">1 · SELECT becomes a QueryData object</h3>
+<p>Trace <code>SELECT name FROM students WHERE gpa &gt; 35</code>. Required keywords use <code>expect</code>; alternatives and repetitions first use <code>match</code>. The field and table lists are ordinary Python lists. An absent WHERE leaves <code>predicate = None</code>.</p>
+<pre data-source-method="Parser.parse_query"><code class="language-python">def parse_query(self) -&gt; QueryData:
+    self.lex.expect(&quot;KEYWORD&quot;, &quot;select&quot;)
+    if self.lex.match(&quot;PUNCT&quot;, &quot;*&quot;):
+        self.lex.next()
+        fields = [&quot;*&quot;]
+    else:
+        fields = [self.lex.expect(&quot;ID&quot;)]
+        while self.lex.match(&quot;PUNCT&quot;, &quot;,&quot;):
+            self.lex.next()
+            fields.append(self.lex.expect(&quot;ID&quot;))
+    self.lex.expect(&quot;KEYWORD&quot;, &quot;from&quot;)
+    tables = [self.lex.expect(&quot;ID&quot;)]
+    while self.lex.match(&quot;PUNCT&quot;, &quot;,&quot;):
+        self.lex.next()
+        tables.append(self.lex.expect(&quot;ID&quot;))
+    predicate = None
+    if self.lex.match(&quot;KEYWORD&quot;, &quot;where&quot;):
+        self.lex.next()
+        predicate = self._parse_predicate()
+    return QueryData(fields, tables, predicate)</code></pre>
+<p>The comma tests leave the comma unread; the following <code>next()</code> consumes it before the next name is read. The WHERE test works the same way. <code>QueryData</code> stores the request; it neither opens a table nor produces rows.</p>
+<div class="exercise"><span class="ex-label">Pause and predict</span><p>For <code>SELECT * FROM majors</code>, which branch runs, what are the two lists, and is a predicate built?</p><details><summary>Check your trace</summary><p>The star branch stores <code>fields=["*"]</code>; the table list is <code>["majors"]</code>; no WHERE means <code>predicate=None</code>.</p></details></div>
+
+<h3 id="parse-predicate">2 · AND repeats terms; each term distinguishes values from fields</h3>
+<p><code>_parse_predicate</code> reads at least one term, then collects any additional terms after AND. <code>Predicate(*terms)</code> packages a conjunction; it does not evaluate it during parsing.</p>
+<pre data-source-method="Parser._parse_predicate"><code class="language-python">def _parse_predicate(self) -&gt; Predicate:
+    terms = [self._parse_term()]
+    while self.lex.match(&quot;KEYWORD&quot;, &quot;and&quot;):
+        self.lex.next()
+        terms.append(self._parse_term())
+    return Predicate(*terms)</code></pre>
+<p><code>_parse_term</code> checks the operator and inspects the right-hand token. A number or quoted string is a constant. An identifier must be wrapped in <code>F</code> so execution reads that field from the current row.</p>
+<pre data-source-method="Parser._parse_term"><code class="language-python">def _parse_term(self) -&gt; tuple:
+    field = self.lex.expect(&quot;ID&quot;)
+    op = self.lex.expect(&quot;PUNCT&quot;)
+    if op not in (&quot;=&quot;, &quot;&lt;&quot;, &quot;&gt;&quot;):
+        raise ParseError(f&quot;expected =, &lt; or &gt;, found {op!r}&quot;)
+    if self.lex.match(&quot;ID&quot;):
+        rhs = F(self.lex.next()[1])
+    else:
+        rhs = self._parse_literal()
+    return field, op, rhs</code></pre>
+<pre><code>("gpa", "&gt;", 35)           # numeric literal
+("dept", "=", "cs")        # string literal from 'cs'
+("mid", "=", F("mid2"))    # value of the other field in this pair</code></pre>
+<p><code>_parse_literal</code> is the number/string helper you just traced in INSERT. A term such as <code>mid = mid2</code> needs a combined row from both tables; <code>gpa &gt; 35</code> needs only the student row. That difference will determine where a filter may safely run.</p>
+
+<h3 id="plan-query">3 · The planner builds operators from the description</h3>
+<p>The supplied simple planner retrieves each existing table layout from the catalog. It opens table scans, combines them from left to right, adds selection if needed, and finally projects the requested fields. It checks that fields mentioned by SELECT and WHERE exist before applying the wrappers. The exception handler closes any scans already opened if construction fails.</p>
+<pre data-source-method="Database.plan_query"><code class="language-python">def plan_query(self, data: QueryData):
+    layouts = [self.catalog.get_layout(table) for table in data.tables]
+    scans = []
+    try:
+        for table, layout in zip(data.tables, layouts):
+            scans.append(TableScan(self.bm, self.fm, table, layout))
+        plan = scans[0]
+        for right in scans[1:]:
+            plan = ProductScan(plan, right)
+        needed = set(data.fields) if data.fields != [&quot;*&quot;] else set()
+        for field, _, rhs in data.predicate.terms if data.predicate else ():
+            needed.add(field)
+            if isinstance(rhs, F):
+                needed.add(rhs.name)
+        unknown = sorted(field for field in needed if not plan.has_field(field))
+        if unknown:
+            raise ParseError(&quot;unknown field(s): &quot; + &quot;, &quot;.join(unknown))
+        if data.predicate is not None:
+            plan = SelectScan(plan, data.predicate)
+        if data.fields != [&quot;*&quot;]:
+            plan = ProjectScan(plan, data.fields)
+        return plan
+    except Exception:
+        for scan in scans:
+            scan.close()
+        raise</code></pre>
+<pre><code>SELECT name FROM students WHERE gpa &gt; 35
+
+ProjectScan[name]
+└── SelectScan[gpa &gt; 35]
+    └── TableScan(students)</code></pre>
+<p>Selection must see <code>gpa</code> before projection hides it. <code>SELECT * FROM students</code> needs just the table scan. Two FROM tables create a product; its left input advances once for each complete traversal of its right input. The planner preserves the FROM order and puts the whole WHERE above the product. It does not automatically push filters down.</p>
+
+<h3>4 · Execution pulls rows and always closes the plan</h3>
+<pre data-source-method="Database._run_query"><code class="language-python">def _run_query(self, data: QueryData) -&gt; list[dict]:
+    fields = data.fields
+    if fields == [&quot;*&quot;]:
+        fields = [field for table in data.tables
+                  for field in self.catalog.get_layout(table).schema.fields()]
+    plan = self.plan_query(data)
+    try:
+        plan.before_first()
+        rows = []
+        while plan.next():
+            rows.append({field: plan.get_val(field) for field in fields})
+        return rows
+    finally:
+        plan.close()</code></pre>
+<p><code>before_first()</code> initializes the scans; repeated <code>next()</code> calls on the root pull qualifying rows through the tree. <code>get_val()</code> reads each requested output field. The list stores the result in memory. <code>finally</code> releases the plan's buffer pins even if a query fails. Creating the plan alone does not enumerate the result.</p>
+
+<h3 id="worked-example">Trace the tokens, query description, and scan plan</h3>
 <div data-teaching-trace="sql-plan">
-  <p><strong>Worked result:</strong> <code>SELECT name FROM students WHERE gpa &gt; 35</code> becomes fields <code>[name]</code>, tables <code>[students]</code>, and predicate <code>gpa &gt; 35</code>. The plan wraps TableScan with SelectScan, then ProjectScan. On the six toy rows, it yields ada, cyd, and eli.</p>
+  <p><strong>Worked result:</strong> <code>SELECT name FROM students WHERE gpa &gt; 35</code> becomes fields <code>[name]</code>, tables <code>[students]</code>, and predicate <code>gpa &gt; 35</code>. ProjectScan wraps SelectScan wraps TableScan. On the six toy rows, it yields ada, cyd, and eli.</p>
   <p>Enable JavaScript to step through the code and intermediate state.</p>
 </div>
-<p><strong>Implementation checkpoints:</strong> <code>match()</code> and <code>peek()</code> do not consume tokens. <code>next()</code> and a successful <code>expect()</code> do. A field reference on the right of a predicate must become <code>F(name)</code>, while a quoted string remains a literal. Apply selection before projection so predicates can still access fields omitted from SELECT.</p>
+<p>Explain each boundary aloud: characters → tokens → query description → scan tree → rows. The measurements below use a larger, explicitly defined dataset.</p>
 
 <!-- ============================================================ -->
-<h2 id="build">Part 1 · Build <span class="part-time">~30 min in class</span></h2>
+<h2 id="build">Part 3 · Write queries and predict <span class="part-time">20 min</span></h2>
+<p>Complete <a href="starter/queries.sql" download><code>queries.sql</code></a> from these English requests. Save your predictions in the <a href="starter/lab5_report.md" download>report template</a> <strong>before</strong> running the measurement script.</p>
+<p>The measurement fixture has 300 students and three majors. Student <code>i</code>, for <code>i=0…299</code>, has <code>sid=i</code>, <code>name='s'+str(i)</code>, <code>gpa=20+i%20</code>, and <code>mid=1+i%3</code>. The major rows are <code>(1,'cs'), (2,'stat'), (3,'econ')</code>. GPA 35 represents 3.5. Use the distinct join fields <code>students.mid</code> and <code>majors.mid2</code>; microSQL queries spell them as <code>mid</code> and <code>mid2</code>.</p>
+<table><thead><tr><th>Query</th><th>Write a SELECT that…</th></tr></thead><tbody>
+<tr><td>S1</td><td>returns every student's name</td></tr>
+<tr><td>S2</td><td>returns names where gpa &gt; 35</td></tr>
+<tr><td>S3</td><td>returns all student columns for exactly the same rows as S2</td></tr>
+<tr><td>J1</td><td>returns name and dept for students with gpa &gt; 35 in 'cs'; join mid to mid2, with students first in FROM</td></tr>
+<tr><td>J2</td><td>returns J1's fields and rows, with majors first in FROM</td></tr>
+<tr><td>J3</td><td>uses J1's table order and department, but requires gpa &gt; 38</td></tr>
+</tbody></table>
+<p>For each, sketch the simple plan and predict table row visits, candidate pairs, returned rows, and output cells. For joins, also predict the early-filter plan below. Use the mechanics of <code>TableScan</code>, <code>SelectScan</code>, <code>ProductScan</code>, and <code>ProjectScan</code> to justify every prediction.</p>
+<div class="callout note"><span class="label">A model to reason from</span>
+<p>A sequential scan visits every row. A filter can reject rows after they are read. A product of <code>L</code> left rows and <code>R</code> right rows produces <code>L × R</code> candidate pairs. Projection changes the number of output fields. It does not provide an index or make the heap scan skip records.</p>
+<p>Separate those kinds of work. Fewer returned rows, fewer candidate pairs, fewer predicate comparisons, and fewer disk reads are different claims.</p></div>
 
-<p>After each function, use the <a href="#function-tests">function-level checks</a> to test it before completing the rest of the lab.</p>
+<!-- ============================================================ -->
+<h2 id="measure">Part 4 · Measure and explain <span class="part-time">25 min · finish as homework</span></h2>
+<p>The supplied <a href="starter/measure_sql.py"><code>measure_sql.py</code></a> runs every SELECT through two plans, checks that the results match <em>including duplicates</em>, and reports counters and repeated timings. No implementation changes are needed.</p>
+<pre class="terminal"><code>python3 measure_sql.py
+python3 measure_sql.py --queries queries.sql --repeat 7
+python3 measure_sql.py --queries queries.sql --students 300 --repeat 7 --json &gt; results-300.json
+python3 measure_sql.py --queries queries.sql --students 600 --repeat 7 --json &gt; results-600.json</code></pre>
+<p>The first command demonstrates three supplied queries. The others run your six queries. SQL files allow <code>--</code> comments and semicolon-separated statements. To explore one query, use <code>--sql "SELECT name FROM students WHERE gpa &gt; 35"</code>. A malformed statement produces an error instead of measurements.</p>
 
-<p>Work in <code>labs/lab-05/starter/</code> after pulling the latest files, or download the nine files into <code>microdb-lab5/</code>. Five provide the lower database layers, and the REPL is complete. All required changes belong in <code>sql_frontend.py</code>. Implement the methods in this order:</p>
+<h3>What each measurement counts</h3>
+<table><thead><tr><th>Measurement</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>Table row visits</td><td>Successful advances of each base TableScan, including rereads after rewinds. These are logical visits, not physical disk reads.</td></tr>
+<tr><td>Candidate pairs</td><td>Rows produced by ProductScan before any filter above it. For a larger product tree, counts are summed across products.</td></tr>
+<tr><td>Predicate comparisons</td><td>Individual <code>=</code>, <code>&lt;</code>, or <code>&gt;</code> tests actually evaluated. AND stops at the first false term.</td></tr>
+<tr><td>Rows / output cells</td><td>Result rows, and rows × requested fields. Fewer cells means fewer output values decoded and stored.</td></tr>
+<tr><td>Execution median</td><td>Median elapsed milliseconds for uninstrumented executions after an untimed warm-up. Includes rewind, iteration, field decoding, result materialization, and close. Excludes fixture creation, parsing, planning, and printing.</td></tr>
+</tbody></table>
+<p>Each process uses 4096-byte blocks and eight buffer frames. Both plans use the same generated data and repeated-run protocol. Caches are not cleared between runs, so these are not cold-storage timings. Small differences can be noise; the JSON output preserves all samples. A logical-work ratio is not a promised runtime ratio.</p>
 
+<h3>Why the supplied early-filter alternative is valid</h3>
+<p>Read <code>early_filter_plan</code> in the measurement script. It finds which table owns each field used by a term. A term referring to one table goes just above that table's scan. A term referring to both tables stays above the product. It preserves FROM order, then adds projection. This is a supplied comparison plan, not a cost-based optimizer.</p>
+<p>For this inner join with AND predicates, a student that fails <code>gpa &gt; 35</code> cannot appear in any final answer, whichever major it is paired with. A major that fails <code>dept = 'cs'</code> cannot appear either. Removing those rows before pairing them therefore preserves the answer. The equality <code>mid = mid2</code> needs both rows and stays above the product. Field ownership establishes that the rewrite is valid; row counts help predict how much work it saves.</p>
+<pre><code>Simple                            Early filter
+Project[name, dept]                Project[name, dept]
+└─ Select[all three terms]         └─ Select[mid = mid2]
+   └─ Product                        └─ Product
+      ├─ students                       ├─ Select[gpa &gt; 35] → students
+      └─ majors                         └─ Select[dept = 'cs'] → majors</code></pre>
+
+<details class="exercise"><summary>Worked check for J1: reveal after making your prediction</summary>
+<pre><code>SELECT name, dept FROM students, majors
+WHERE mid = mid2 AND gpa &gt; 35 AND dept = 'cs';</code></pre>
+<p>With 300 students, 60 pass <code>gpa &gt; 35</code>, one major passes <code>dept = 'cs'</code>, and 20 students satisfy the full join. The simple plan produces <code>300 × 3 = 900</code> candidate pairs; the early-filter plan produces <code>60 × 1 = 60</code>. Both return 20 rows and 40 output cells.</p>
+<p>The early plan still visits all 300 student rows. Its right-hand filter is restarted for each of 60 qualifying students, so it visits <code>60 × 3 = 180</code> major rows. It does not materialize and reuse the one matching major. With predicates written in J1's illustrated order, the simple plan evaluates <code>900 + 300 + 60 = 1260</code> comparisons; the early plan evaluates <code>300 + 180 + 60 = 540</code>. Reordering AND terms can change comparison counts without changing the pairs or result.</p>
+</details>
+
+<h3>Explain each comparison from the operators</h3>
 <ol>
-  <li>Read <code>parse_insert</code> and <code>parse_create</code> alongside the grammar in the module docstring (about 8 min). Identify how each method handles required tokens, repeated items, and errors.</li>
-  <li><strong><code>parse_query</code></strong>: field list (star or <code>{ , }</code>),
-  FROM, table list, optional WHERE. Run <code>--unit Parser.parse_query</code>; its fixture supplies the unfinished predicate parser.</li>
-  <li><code>_parse_predicate</code> and <code>_parse_term</code>: parse AND-separated terms, and distinguish literal values from field references represented by <code>F</code>. Test each with <code>--unit Parser._parse_predicate</code> and <code>--unit Parser._parse_term</code>, then run the PARSE integration tests.</li>
-  <li><code>plan_query</code>: construct table scans, combine them with products, add selection when needed, and add projection unless the query requests <code>*</code>. Run the PLAN and SQL tests, then start the REPL with <code>python3 microdb.py</code>.</li>
+<li><strong>S1 vs S2:</strong> did returning fewer rows reduce table visits? Explain why a selective condition still requires a full scan here.</li>
+<li><strong>S2 vs S3:</strong> which work changes when you request more columns? Separate scan work from decoding and storing output values.</li>
+<li><strong>J1, two plans:</strong> derive the pair counts. Explain the repeated right-hand filter and why 15× fewer pairs need not mean 15× less time.</li>
+<li><strong>J1 vs J2:</strong> which table is restarted? Explain why equal candidate-pair counts can coexist with different source-row visits. Compare both plan modes.</li>
+<li><strong>J1 vs J3:</strong> predict how many students pass each GPA test. Which plan reduces its pair count as the filter becomes more selective?</li>
+<li><strong>300 vs 600 students:</strong> identify which counts double, then explain why elapsed time need not double exactly.</li>
 </ol>
-
-<div class="callout note">
-  <span class="label">Common implementation mistakes</span>
-  <p><code>*</code> is a <code>PUNCT</code> token and must be the entire field list: <code>["*"]</code>. In <code>_parse_term</code>, accept only <code>=</code>, <code>&lt;</code>, or <code>&gt;</code> as the operator; raise <code>ParseError</code> for anything else. In <code>plan_query</code>, retrieve each table’s existing layout from <code>self.catalog</code> rather than constructing a new schema.</p>
-</div>
-
-<!-- ============================================================ -->
-<h2 id="verify">Part 2 · Verify <span class="part-time">~20 min in class</span></h2>
-
-<h3 id="function-tests">Test one function at a time</h3>
-<p>Run these commands from the starter directory. <code>--list</code> lists the function names, <code>--unit NAME</code> checks one function, and <code>--unit</code> checks every function independently. The tests supply known data and working helpers for unfinished dependencies. The selected function always uses your code.</p>
-<pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_sql.py --list</span>
-<span class="t-prompt">$</span> <span class="t-cmd">python3 test_sql.py --unit Parser._parse_term</span>
-<span class="t-prompt">$</span> <span class="t-cmd">python3 test_sql.py --unit</span></code></pre>
-<p>Unit results are practice feedback. Run <code>python3 test_sql.py</code> without flags to check that your functions work together. The integration tests below determine your grade.</p>
-
-<h3>Run the full tests</h3>
-
-<p>The passing output below is the target after implementing the four required methods. A fresh starter is expected to report unfinished methods. Use the unit checks to verify one method while the others remain TODOs.</p>
-
-<p>The twelve tests cover parsing, plan structure, and query execution. PARSE checks <span class="gloss" data-gloss="ast">query descriptions</span>, field references represented by <code>F</code>, and invalid SQL that must raise <code>ParseError</code>. PLAN checks that the planner adds only the required operators: <code>SELECT * FROM t</code> needs just a <code>TableScan</code>. SQL runs complete queries, including the Lab 4 join, and checks that <code>execute()</code> releases its buffer pins.</p>
-
-<pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_sql.py</span>
-<span class="t-head">PARSE group</span>
-  <span class="t-pass">[PASS]</span> PARSE: an ID rhs becomes F (join term)
-<span class="t-mute">  ...</span>
-<span class="t-head">SQL group</span>
-  <span class="t-pass">[PASS]</span> SQL: the Lab 4 join, via text
-  <span class="t-pass">[PASS]</span> SQL: execute() leaks no pins
-
-<span class="t-pass">12/12 tests passed</span></code></pre>
-
-<div class="exercise">
-  <span class="ex-label">Exercise · read the failure</span>
-  <p>A classmate’s <code>test_sql_join</code> returns zero rows, although all PARSE tests pass. Their planner reverses the two tables from the <code>FROM</code> clause. The test’s join fields have distinct names. Does reversing the inputs explain the missing rows? Which parts of the plan should you inspect next?</p>
-  <details><summary>Show answer</summary>
-  <p>Reversing the inputs changes row order, not the matching pairs in this example. Dropping the predicate would return too many rows, not zero. Check that both scans can produce rows, that the product initializes its left input, and that the predicate reads the intended fields. Inspect the intermediate rows to locate the failure.</p>
-  </details>
-</div>
-
-<!-- ============================================================ -->
-<h2 id="measure">Part 3 · Measure <span class="part-time">~20 min · finish as homework</span></h2>
-
-<p><code>measure_sql.py</code> uses the provided <code>render_plan</code> to print plans for three queries, then counts the pairs examined by the join. Compare the planner’s output with the plan you improved by hand in Lab 4.</p>
-
-<pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 measure_sql.py</span>
-microdb> SELECT name, dept FROM students, majors WHERE mid = mid2 AND gpa > 35 AND dept = 'cs'
-  ProjectScan['name', 'dept']
-    SelectScan[mid = mid2 AND gpa > 35 AND dept = 'cs']
-      ProductScan
-        TableScan(students)
-        TableScan(majors)
-
-the join plan, measured: 900 pairs examined -> 20 rows returned
-Lab 4's hand-pushed-down plan did the same query in 60 pairs.</code></pre>
-
-<p class="key-fact keep-in-present"><strong>900 vs 60</strong> pairs examined for the same join: your correct planner does 15× the work of last week's hand-pushed plan</p>
-
-<p class="keep-in-present">Your planner returns the correct rows but examines 15 times as many pairs as the plan with an early filter. An optimizer can apply that transformation automatically when the filter depends on only one input. Data statistics help it estimate the benefit and compare more complicated alternatives; Lecture 9 introduces those estimates.</p>
-
-<h3 class="new-slide" data-kicker="Part 3 · Measure">Break one query and read where your parser points</h3>
-
-<p class="keep-in-present"><strong>Now change something.</strong> Add a fourth string to <code>QUERIES</code> in
-<code>measure_sql.py</code> with one deliberate mistake, for example
-<code>SELECT name FROM students WHERE gpa 35</code>. The three reference trees still print, then
-your parser stops the script with a <code>ParseError</code>. Report the message verbatim, which
-token it blamed, and whether that is the token you would have blamed; then run the same string in
-any database you have installed (DuckDB or Postgres) and report where its message points.</p>
-
-<h3 class="new-slide" data-kicker="Part 3 · Measure">Parsing and planning in other tools</h3>
-
-<p class="keep-in-present">SQL submitted through tools such as <code>pd.read_sql</code>, <code>duckdb.sql</code>, or <code>psycopg</code> is parsed and planned by the database. Production engines support much richer syntax and planning rules, but your implementation illustrates the same separation between query text and execution operators.</p>
-
-<table>
-  <thead><tr><th>Where you meet it</th><th>What the parser is doing there</th></tr></thead>
-  <tbody>
-    <tr><td>Postgres answers a typo with <code>syntax error at or near "35"</code></td>
-        <td>That is its parser doing what yours does in <code>expect</code>: the token it names is the one
-        that failed to match the grammar, which is where the parser first noticed and may be one token
-        past the real mistake.</td></tr>
-    <tr><td><code>df.filter(pl.col("gpa") &gt; 35).select("name")</code> in Polars, and the same chain in PySpark</td>
-        <td>These APIs construct expression and query-plan objects through method calls. They can represent filtering and projection without parsing an equivalent SQL string.</td></tr>
-    <tr><td>SQL written by a language model</td>
-        <td>Parsing can catch malformed SQL, but a valid statement can still refer to missing fields or express the wrong query. Additional checks are needed before execution.</td></tr>
-    <tr><td><code>EXPLAIN</code> in a production engine</td>
-        <td>The plan tree is what <code>EXPLAIN</code> prints, so reading your own <code>render_plan</code>
-        output is practice for reading a production plan.</td></tr>
-  </tbody>
-</table>
+<p>Keep an incorrect prediction in your report and explain what changed your model. A strong explanation names the operator, counts its work, and then uses the measurement as evidence. “The database optimizes it” is insufficient for this engine: identify the actual plan and rewrite.</p>
 
 <!-- ============================================================ -->
 <h2 id="assignment">Assignment</h2>
+<p><strong>Submit your completed report, <code>queries.sql</code>, and measurement outputs by Thursday Oct 1 at class start, using the course submission instructions.</strong> The <a href="starter/lab5_report.md" download>report template</a> lists the questions and evidence. You may submit the report as Markdown or PDF.</p>
+<ul><li>Explain the supplied parser/planner using the four walkthrough questions.</li><li>Write all six SQL queries and retain your predictions.</li><li>Include results for 300 and 600 students, both plans, with commands and repeat counts.</li><li>Explain the six comparisons from the scan operations and discuss timing limitations.</li></ul>
+<p>Assessment is based on query correctness, reproducible measurements, and explanations supported by the operator behavior and observed counts. The already-passing implementation tests are a setup check, not a score for this assignment. No changes to <code>sql_frontend.py</code> are required.</p>
 
-<p class="keep-in-present"><strong>Submit <code>sql_frontend.py</code> to Gradescope, per the course submission
-instructions, by Thursday Oct 1 at class start.</strong> One file; the harness score you see locally is the grade.</p>
-
-<h3>Deliverables</h3>
-<ul>
-  <li>☐ <code>sql_frontend.py</code>: all twelve local tests pass (<code>12/12</code>).</li>
-</ul>
-<p>Submit only the file listed above. Grading uses the lab’s correctness tests; measurements and reflections are for class discussion.</p>
-
-<h3>Discussion prompts (not graded)</h3>
-<p>Use the measurement and reflection questions to explain your results. They are not graded, but bring your measurements and answers to class for discussion.</p>
-<ul>
-  <li>The three plan trees, the pair count, and answers to
-  the script's two questions (why filters-above-product is always correct; what the planner
-  would need to know to push down safely and profitably).</li>
-  <li>A REPL transcript (paste, ~10 lines): CREATE a table of your own design, INSERT three
-  rows, run one filtered SELECT: your engine, your data, your SQL.</li>
-</ul>
-
-<h3>Provided code and required work</h3>
-<table>
-  <thead><tr><th>File</th><th>Provided</th><th>You write</th></tr></thead>
-  <tbody>
-    <tr><td><code>sql_frontend.py</code></td><td>Lexer, token-stream helpers, parse_insert/parse_create examples, Database support code, render_plan</td><td>parse_query · _parse_predicate · _parse_term · plan_query</td></tr>
-    <tr><td><code>microdb.py</code></td><td>the REPL, complete</td><td>&nbsp;</td></tr>
-    <tr><td>reference layers ×5</td><td>Labs 1–4, do not edit</td><td>&nbsp;</td></tr>
-    <tr><td>harness + measure</td><td>complete, do not edit</td><td>run, record</td></tr>
-  </tbody>
-</table>
-
-<h3>Grading</h3>
-<table>
-  <thead><tr><th>Component</th><th>Checked how</th><th>Weight</th></tr></thead>
-  <tbody>
-    <tr><td>Correctness</td><td>Gradescope runs the graded test group described above. Each test contributes an equal share of the points.</td><td>100%</td></tr>
-  </tbody>
-</table>
-
-<!-- ============================================================ -->
 <h2 id="going-further">Going further <span class="part-time">optional</span></h2>
+<p>Reorder the AND terms without changing their meaning. Predict why the simple plan's comparison count changes while its pair count does not. Then try a filter that returns no rows, or increase the student count to 3000. Explain any timing changes without treating row visits as disk reads. Implementing an optimizer or extending the SQL grammar is optional and outside the required work.</p>
 
-<p class="keep-in-present">If you finish early, add <code>DELETE FROM t WHERE …</code> by parsing the statement and scanning matching rows with <code>TableScan.delete()</code>. Alternatively, add OR and parentheses to the predicate grammar. You could also include token positions in <code>expect()</code> errors, for example <code>expected 'from' at token 3</code>, so users can locate syntax errors more easily.</p>
-
-<!-- ============================================================ -->
 <h2 id="faq">FAQ</h2>
-
-<h3 class="keep-in-present">The REPL says <code>no such table in catalog</code> after I restart it.</h3>
-<p class="keep-in-present">First check that you restarted in the same working directory: <code>./mydb</code> is a relative path. Close the database normally so buffers are flushed. If a crash interrupted writes, preserve a copy of the directory before investigating; Lab 7 introduces recovery.</p>
-
-<h3 class="keep-in-present">Why lowercase everything? <code>SELECT</code> and <code>select</code> both work but my strings changed case!</h3>
-<p class="keep-in-present">The lexer lowercases <em>words</em> (keywords and IDs) but not
-STR tokens; check that your table/field names are compared post-lowercase and that you're
-not lowercasing string literals somewhere. <code>'Ada'</code> must stay <code>'Ada'</code>.</p>
-
-<h3 class="keep-in-present">Can two tables in a FROM share a field name?</h3>
-<p class="keep-in-present">MicroSQL does not support aliases or qualified field names. If both inputs contain a field with the same name, the left input supplies its value under Lab 4’s lookup rule. The tests avoid this ambiguity; use distinct field names in your own schemas. Supporting aliases would require changes to parsing and name resolution.</p>
-
-<h3 class="keep-in-present">My parser works but the REPL prints columns in a weird order for SELECT *.</h3>
-<p class="keep-in-present">The catalog rebuilds each schema in stored-offset order. Check the catalog’s field offsets if <code>SELECT *</code> returns columns in an unexpected order.</p>
-
-<h3 class="keep-in-present">Is this how SQL injection happens?</h3>
-<p class="keep-in-present">SQL <span class="gloss" data-gloss="sql-injection">injection</span> can occur when an application inserts untrusted text directly into a SQL statement. The parser may interpret part of that text as SQL syntax. Parameterized queries keep parameter values separate from the statement’s syntax. A syntactically valid query alone does not establish that user input was handled safely.</p>
+<h3>Why do both plans have the same shape for a single-table query?</h3>
+<p>The filter is already directly above that table. There is no product below it to eliminate. Different execution samples can still give slightly different timings; use that variation as a reminder to avoid conclusions from one small measurement.</p>
+<h3>Does the smaller output prove the query is faster?</h3>
+<p>No. The engine may visit the same source rows and evaluate extra predicates to return fewer rows. Account for scanning, comparisons, pairing, and output work separately, then inspect repeated timings.</p>
+<h3>Why does reversing FROM sometimes help?</h3>
+<p>ProductScan restarts its right input for every left row. Reversing the inputs changes the repeated work, even when the Cartesian product size is unchanged. There is no ORDER BY here, so compare result multisets rather than row order. The measurement runner checks multiplicities too.</p>
+<h3>Can I use my own tables in the measurement runner?</h3>
+<p>The runner creates only the documented students and majors fixture in a temporary directory. Use <code>microdb.py</code> for your own persistent tables. For the required comparisons, keep the fixture fixed and change only the specified query or student count.</p>
+<h3>Why did my SQL file stop with a ParseError?</h3>
+<p>Check the expected and found tokens, then compare the statement with the supported grammar. Use single quotes for strings, commas between fields/tables, and one statement per semicolon. Unsupported trailing syntax is rejected. Field names must be distinct across tables for the early-filter comparison; aliases and qualified names are not supported.</p>
 
 <footer>
   DS 6XXX · Advanced Databases for Data Science · Fall 2026 · Daniel G. Graham, UVA School of Data Science
@@ -302,7 +338,7 @@ not lowercasing string literals somewhere. <code>'Ada'</code> must stay <code>'A
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../_shared/lab-base.js?v=13"></script>
-<script src="viz.js?v=1"></script>
+<script src="viz.js?v=2"></script>
 <script src="../_shared/teaching-traces.js?v=1"></script>
 <script src="../_shared/teaching-trace.js?v=1"></script>
 </body>
