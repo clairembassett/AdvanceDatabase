@@ -16,6 +16,7 @@
   <ul>
     <li><a href="#try-it">Try SQL in the browser</a></li>
     <li><a href="#verify">Part 1 · Run the supplied engine</a></li>
+    <li><a href="#terminal">Interactive SQL terminal</a></li>
     <li><a href="#big-idea">Part 2 · Walk through the implementation</a></li>
     <li><a href="#the-api">Grammar and token helpers</a></li>
     <li><a href="#parse-query">Parse SELECT</a></li>
@@ -66,7 +67,7 @@
 
 <div class="viz" id="viz-repl">
   <div class="viz-title">The microdb SQL prompt</div>
-  <p class="viz-description">Try the presets, then enter your own statements. The browser demo stores tables in memory. Your Python REPL stores them in <code>./mydb</code> using the block format from Lab 1.</p>
+  <p class="viz-description">Try the presets, then enter your own statements. The browser demo stores tables in memory. For an interactive terminal running the real Python engine, use <code>python3 microdb.py --demo</code> as shown below. Normal Python sessions save your tables in <code>./mydb</code>.</p>
   <div class="qj-controls">
     <button type="button" class="btn" id="rp-p1">CREATE + INSERT the students</button>
     <button type="button" class="btn" id="rp-p2">the honors query</button>
@@ -105,14 +106,47 @@
 <p>Use the files above or pull the repository. Run the setup check from <code>labs/lab-05/starter/</code>:</p>
 <pre class="terminal"><code>python3 test_sql.py
 # Expected immediately: 12/12 tests passed
-python3 microdb.py</code></pre>
-<p>The tests verify the supplied engine; they are not the assignment. In the REPL (Read–Eval–Print Loop), create a table of your own, insert three rows, and select a subset. Type <code>exit</code> to close it. The REPL saves data in <code>./mydb</code>; the measurement runner below creates a separate temporary database each time.</p>
+python3 microdb.py --demo</code></pre>
+<p>The tests verify the supplied engine; they are not the assignment. The second command opens an <strong>interactive SQL terminal</strong>, also called a REPL (Read–Eval–Print Loop). It stays open so you can type queries and see their results. Demo mode starts with the same 300 students and three majors used in the measurements. You can try your six assignment queries here before measuring them.</p>
+<h3 id="terminal">Type SQL at the microdb prompt</h3>
+<p>When you see <code>microdb&gt;</code>, type the SQL statement and press Enter. Do not type the prompt itself. Enter one complete statement per line; a final semicolon is optional.</p>
+<pre class="terminal"><code>microdb&gt; SELECT * FROM majors;
+mid2  dept
+----  ----
+1     cs
+2     stat
+3     econ
+(3 rows)
+
+microdb&gt; SELECT name, gpa FROM students WHERE sid &lt; 3;
+name  gpa
+----  ---
+s0    20
+s1    21
+s2    22
+(3 rows)
+
+microdb&gt; SELECT name FROM students WHERE gpa &gt; 39;
+(0 rows)
+
+microdb&gt; exit
+bye — demo data removed</code></pre>
+<table><thead><tr><th>At the prompt</th><th>What it does</th></tr></thead><tbody>
+<tr><td><code>.help</code></td><td>Show supported SQL and examples.</td></tr>
+<tr><td><code>.tables</code></td><td>List available tables.</td></tr>
+<tr><td><code>.schema</code> or <code>.schema students</code></td><td>Show column names and types.</td></tr>
+<tr><td><code>exit</code> or <code>quit</code></td><td>Close the terminal session.</td></tr>
+</tbody></table>
+<p>Up/Down arrows recall statements when Python's optional <code>readline</code> support is available. A query error leaves the prompt open so you can fix the statement and try again. Commands beginning with a dot are terminal helpers, not SQL grammar rules.</p>
+<h3>Create and keep your own tables</h3>
+<p>Demo changes last only for that session. To keep your work, exit and run <code>python3 microdb.py</code> without <code>--demo</code>. This mode saves tables in <code>./mydb</code> and reopens them next time. Create a table of your own, insert three rows, and select a subset:</p>
 <pre><code class="language-sql">CREATE TABLE readings (rid INT, label VARCHAR(12), value INT);
 INSERT INTO readings VALUES (1, 'north', 12);
 INSERT INTO readings VALUES (2, 'south', 28);
 INSERT INTO readings VALUES (3, 'west', 35);
 SELECT label FROM readings WHERE value &gt; 20;</code></pre>
 <p>A final semicolon is optional. microSQL supports SELECT, CREATE TABLE, INSERT, comma-separated FROM tables, and AND-connected <code>=</code>, <code>&lt;</code>, or <code>&gt;</code> comparisons. It has no aliases, qualified field names, OR, aggregation, ORDER BY, or LIMIT.</p>
+<p>Use this terminal to check syntax and results. For the assignment's work counts and repeated timings, run <code>measure_sql.py</code> from your ordinary shell after exiting the SQL prompt. Each measurement run creates its own fresh temporary database.</p>
 <h3 id="function-tests">Optional checks while reading</h3>
 <p><code>python3 test_sql.py --list</code> lists the four main methods; <code>--unit Parser._parse_term</code> checks one and <code>--unit</code> checks all four. Each should already pass.</p>
 
