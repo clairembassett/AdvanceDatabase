@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../../labs/_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 
@@ -17,6 +17,7 @@
     <li><a href="#plan">Today's plan</a></li>
     <li><a href="#pipeline">Separate token recognition from statement structure</a></li>
     <li><a href="#try-it">Three stages turn typed text into a scan tree</a></li>
+    <li><a href="#ast-example">Example AST, QueryData, and scan tree</a></li>
     <li><a href="#grammar">A small grammar defines microSQL’s supported statements</a></li>
     <li><a href="#descent">One grammar rule becomes one Python method</a></li>
     <li><a href="#planner">The lab planner constructs a plan in four steps</a></li>
@@ -85,6 +86,11 @@ Hover or tap an underlined term like <span class="gloss-demo">this one</span> to
   </tbody>
 </table>
 
+<div class="callout note">
+  <span class="label">Lexer implementation is optional reading</span>
+  <p>Tools such as <a href="https://www.antlr.org/">ANTLR</a> can generate lexer and parser code from a grammar. You supply the language rules and the code that interprets the parsed input.<sup class="src"><a href="#src-16" title="ANTLR v4: Getting Started (generating lexer and parser code)">16</a></sup> In this course, the lexer is provided. You need to understand its output tokens and how the parser consumes them; you do not need to study its implementation or learn ANTLR. We focus on building a query description and connecting it to database operators.</p>
+</div>
+
 <h3 class="new-slide" data-kicker="Two simple machines">Five token kinds cover all of microSQL</h3>
 
 <pre class="equation"><code>"SELECT name FROM students WHERE gpa > 35"
@@ -147,12 +153,48 @@ SELECT 'select' FROM demo;  -- returns the literal text: select</code></pre>
   <tbody>
     <tr><td>text</td><td>a string</td><td>raw characters, including quotes and whitespace</td><td>the user, who typed it</td></tr>
     <tr><td>lexer</td><td>token list</td><td>a list of (kind, value) pairs, one per token</td><td>provided</td></tr>
-    <tr><td>parser</td><td><span class="gloss" data-gloss="ast">QueryData</span></td><td>a plain object holding the field list, the table list, and the <span class="gloss" data-gloss="predicate">predicate</span></td><td><strong>you</strong></td></tr>
+    <tr><td>parser</td><td><code>QueryData</code> (a compact <span class="gloss" data-gloss="ast">AST</span> representation)</td><td>a plain object holding the field list, the table list, and the <span class="gloss" data-gloss="predicate">predicate</span>; <a href="#ast-example">see the example below</a></td><td><strong>you</strong></td></tr>
     <tr><td>planner</td><td>scan tree</td><td>a tree of Lab 4 scan objects; calling next() on the root pulls rows through the whole tree</td><td><strong>you</strong></td></tr>
   </tbody>
 </table>
 
 <p class="keep-in-present">The lexer removes character-level concerns such as whitespace and quotes. The parser records the query’s structure. The planner then uses that structured description to build executable operators.</p>
+
+<h3 id="ast-example" class="new-slide" data-kicker="Text to structure">An AST shows what the query asks for</h3>
+
+<pre><code class="language-sql">SELECT name FROM students WHERE gpa &gt; 35;</code></pre>
+
+<p class="keep-in-present">An <strong>abstract syntax tree (AST)</strong> represents the structure of this request. Here is one way to draw it. The node names are illustrative; you do not need to implement classes called <code>SelectQuery</code> or <code>GreaterThan</code>.</p>
+
+<pre class="equation"><code>SelectQuery
+├── fields
+│   └── Field("name")
+├── tables
+│   └── Table("students")
+└── predicate
+    └── GreaterThan
+        ├── Field("gpa")
+        └── Number(35)</code></pre>
+
+<p class="keep-in-present">The tree keeps the requested field, source table, and comparison. It does not need nodes for spaces or the semicolon. <code>Number(35)</code> records a numeric value, while <code>Field("gpa")</code> names a value to read later from a row. Building this description does not read any student rows.</p>
+
+<h3 class="new-slide" data-kicker="Structure to execution">QueryData stores the request; the planner chooses operators</h3>
+
+<p class="keep-in-present">Lab 5 stores the same structure in a compact object. For this query, the parser returns the equivalent of:</p>
+
+<pre><code class="language-python">QueryData(
+    fields=["name"],
+    tables=["students"],
+    predicate=Predicate(("gpa", "&gt;", 35))
+)</code></pre>
+
+<p class="keep-in-present">The planner uses those three parts to construct the following scan tree. These labels describe the operators and their settings:</p>
+
+<pre class="equation"><code>ProjectScan   fields = [name]
+└── SelectScan   predicate = gpa &gt; 35
+    └── TableScan   table = students</code></pre>
+
+<p class="keep-in-present">The AST records <em>what</em> was requested. The scan tree specifies <em>how</em> this implementation will produce it: read students, keep rows with <code>gpa &gt; 35</code>, and expose <code>name</code>. Constructing the tree still does not run the query. Calling <code>next()</code> on its root starts pulling rows.</p>
 
 <!-- ============================================================ -->
 <h2 id="grammar">A small grammar defines microSQL’s supported statements</h2>
@@ -163,16 +205,27 @@ tablelist := table { , table }
 predicate := term { AND term }
 term    :=  field ( = | < | > ) value
 value   :=  number | 'string' | field          ← field here means: a join!
-insert  :=  INSERT INTO table VALUES ( value { , value } )</code></pre>
+insert  :=  INSERT INTO table VALUES ( literal { , literal } )
+literal :=  number | 'string'</code></pre>
 
-<p class="keep-in-present">The notation is <strong><span class="gloss" data-gloss="bnf">extended BNF (EBNF)</span></strong>. Braces <code>{ }</code> mean repetition and square brackets <code>[ ]</code> mean an optional part. In this parser, each grammar rule corresponds to a method that consumes that part of the token stream<sup class="src"><a href="#src-4" title="ISO/IEC 14977:1996 Extended BNF (final draft text)">4</a></sup>.</p>
+<p class="keep-in-present"><strong>BNF</strong> stands for <strong>Backus–Naur form</strong>, a notation for writing grammar rules. Here we use <strong><span class="gloss" data-gloss="bnf">Extended Backus–Naur form (EBNF)</span></strong>. Braces <code>{ }</code> mean repetition and square brackets <code>[ ]</code> mean an optional part. In this parser, each grammar rule corresponds to a method that consumes that part of the token stream<sup class="src"><a href="#src-4" title="ISO/IEC 14977:1996 Extended BNF (final draft text)">4</a></sup>.</p>
 
-<h3 class="new-slide" data-kicker="Seven-line grammar">The lab implements a deliberately small SQL subset</h3>
+<div class="callout note keep-in-present">
+  <span class="label">Reading <code>*</code> and <code>|</code></span>
+  <p>In <code>fieldlist := * | field { , field }</code>, the <strong>asterisk <code>*</code></strong> is a literal SQL token meaning “all columns.” You type it in a query such as <code>SELECT * FROM students;</code>. Here, repetition is written with braces, not with <code>*</code>.</p>
+  <p>The <strong>vertical bar <code>|</code></strong> means “choose one alternative” in the grammar. Read the rule as: “a field list is either <code>*</code>, or one field followed by zero or more comma-and-field pairs.” The bar is grammar notation; you do not type it into the SQL query.</p>
+  <pre><code class="language-sql">SELECT * FROM students;          -- the * alternative: all columns
+SELECT name FROM students;       -- one field, no repetitions
+SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</code></pre>
+  <p>Likewise, <code>( = | &lt; | &gt; )</code> means choose one comparison operator: <code>=</code>, <code>&lt;</code>, or <code>&gt;</code>. For example, <code>WHERE gpa &gt; 35</code> chooses <code>&gt;</code>.</p>
+</div>
+
+<h3 class="new-slide" data-kicker="Eight-line grammar">The lab implements a deliberately small SQL subset</h3>
 
 <table>
   <thead><tr><th>microSQL has</th><th>microSQL lacks (and who adds it)</th></tr></thead>
   <tbody>
-    <tr><td>SELECT · multi-table FROM · WHERE with AND · INSERT · CREATE TABLE</td><td>Lecture 9 discusses the sort and grouping operators used by ORDER BY and GROUP BY. OR and parentheses in WHERE are optional lab extensions. INNER JOIN … ON can express the same joins as a multi-table FROM with a WHERE condition. UPDATE and DELETE need parsing rules and execution support; Sciore ch. 9 discusses them.</td></tr>
+    <tr><td>SELECT · multi-table FROM · WHERE with AND · INSERT · CREATE TABLE</td><td>Lecture 9 discusses the sort and grouping operators used by ORDER BY and GROUP BY. OR and parentheses in WHERE are optional lab extensions. INNER JOIN … ON can express the same joins as a multi-table FROM with a WHERE condition. UPDATE and DELETE need parsing rules and execution support; <a href="https://link.springer.com/chapter/10.1007/978-3-030-33836-7_9" title="Edward Sciore, Database Design and Implementation, Chapter 9: Parsing">Sciore ch. 9</a> discusses them.</td></tr>
   </tbody>
 </table>
 
@@ -181,10 +234,69 @@ insert  :=  INSERT INTO table VALUES ( value { , value } )</code></pre>
 <!-- ============================================================ -->
 <h2 id="descent">One grammar rule becomes one Python method</h2>
 
-<p>Recursive descent assigns a method to each grammar rule. Each method inspects or consumes tokens through four helpers. Read the provided INSERT parser below, then use the same patterns to implement SELECT in Lab 5.</p>
+<p class="keep-in-present">Recursive descent assigns a method to each grammar rule. Each method inspects or consumes tokens through four helpers. Step through the provided INSERT parser below to connect a grammar rule to its Python method, then use the same patterns to implement SELECT in Lab 5.</p>
 
 <p class="key-fact keep-in-present"><strong>4 verbs</strong> peek, next, match, expect: every parsing method you write is built from only these</p>
 
+<div class="viz rd-viz" id="viz-insert" role="region" aria-labelledby="rd-title">
+  <div class="viz-title" id="rd-title">Grammar → Python → token cursor</div>
+  <p class="viz-description">Step advances one parser action. Click a grammar fragment to jump to its first use. Watch the literal method return to its caller, then run again for the next value.</p>
+  <div class="rd-controls">
+    <label for="rd-example">Example</label>
+    <select id="rd-example">
+      <option value="valid">Three values</option>
+      <option value="comma">Missing comma</option>
+      <option value="value">Missing value</option>
+    </select>
+    <button type="button" class="btn" id="rd-back" aria-label="Previous parser action">◂ Back</button>
+    <button type="button" class="btn primary" id="rd-next" aria-label="Next parser action">Step ▸</button>
+    <button type="button" class="btn" id="rd-reset">Reset</button>
+    <span id="rd-count"></span>
+  </div>
+  <pre class="rd-sql"><code id="rd-sql">INSERT INTO students VALUES (7, 'gil', 33)</code></pre>
+  <p class="rd-cursor" id="rd-cursor"></p>
+  <div class="rd-tokens" id="rd-tokens" aria-label="Lexer tokens"></div>
+  <div class="rd-status" id="rd-status" role="status" aria-live="polite" aria-atomic="true">
+    <strong id="rd-action"></strong>
+    <p id="rd-note"></p>
+  </div>
+  <div class="rd-map">
+    <div class="rd-grammar">
+      <h4>Grammar rules and their methods</h4>
+      <div class="rd-rule" id="rd-insert-rule">
+        <div class="rd-rule-heading"><code>insert</code> → <code>parse_insert()</code></div>
+        <div class="rd-parts" aria-label="Jump to a part of the insert rule">
+          <button type="button" data-rd-rule="insert">INSERT</button>
+          <button type="button" data-rd-rule="into">INTO</button>
+          <button type="button" data-rd-rule="table">table</button>
+          <button type="button" data-rd-rule="values">VALUES</button>
+          <button type="button" data-rd-rule="open" aria-label="Opening parenthesis">(</button>
+          <button type="button" data-rd-rule="first">literal</button>
+          <button type="button" data-rd-rule="repeat">{ , literal }</button>
+          <button type="button" data-rd-rule="close" aria-label="Closing parenthesis">)</button>
+        </div>
+      </div>
+      <div class="rd-call-arrow" aria-hidden="true">↓ call for each literal · ↑ return its value</div>
+      <div class="rd-rule" id="rd-literal-rule">
+        <div class="rd-rule-heading"><code>literal</code> → <code>_parse_literal()</code></div>
+        <div class="rd-literal-options"><code>number | 'string'</code></div>
+      </div>
+      <p class="rd-rule-note">INSERT accepts literal values here. The field-reference alternative in the earlier grammar is for comparisons in WHERE.</p>
+      <h4>Calls at this step</h4>
+      <ol class="rd-stack" id="rd-stack"></ol>
+    </div>
+    <div class="rd-python">
+      <h4>Python · <span id="rd-method">parse_insert()</span></h4>
+      <pre class="rd-code" tabindex="0" aria-label="Python method; the highlighted line is the current action"><code id="rd-code"></code></pre>
+    </div>
+  </div>
+  <pre class="rd-data" aria-label="Parsed data so far"><code id="rd-data"></code></pre>
+  <p class="viz-caption">The highlighted token is next to be read. <code>peek</code> and <code>match</code> leave the cursor in place; <code>next</code> consumes one token; <code>expect</code> checks and consumes, or raises an error. Calls inside <code>expect</code> are grouped into one step. Try “Missing value” to see <code>peek</code> prepare the error message.</p>
+  <noscript><p>Enable JavaScript for the diagram, or expand the annotated parser below.</p></noscript>
+</div>
+
+<details class="rd-reference">
+<summary>Read the annotated INSERT parser without stepping</summary>
 <div class="code-annotated" data-lang="python">
   <div class="code-step" data-step="h" data-step-name="the four verbs" data-explain="peek looks without consuming; next consumes; match asks 'is the current token this?'; expect either consumes the token it expects or raises an error naming what it wanted. Every rule below is built from only these.">peek() · next() · match(kind, val) · expect(kind, val)</div>
   <div class="code-step" data-step="i1" data-explain="The rule: INSERT INTO table VALUES ( value {, value} ). The method consumes exactly the tokens the rule owns, no more, no fewer.">def parse_insert(self):</div>
@@ -200,6 +312,7 @@ insert  :=  INSERT INTO table VALUES ( value { , value } )</code></pre>
   <div class="code-step" data-step="i3" data-step-name="plain data out" data-explain="Return the table name and values as InsertData. Parsing describes the operation; execution writes the table later.">    return InsertData(table, values)</div>
   <div class="code-explain-panel">Hover a line to connect its operation to the corresponding grammar rule.</div>
 </div>
+</details>
 
 <h3 class="new-slide" data-kicker="Recursive descent">The call stack shows the grammar rules currently being parsed</h3>
 
@@ -354,7 +467,7 @@ million without scanning. Quiz 5 opens class: parsing &amp; planning.</p>
 
 <p class="keep-in-present"><strong>Before Thursday:</strong></p>
 <ul>
-  <li><strong>Read</strong> <code>parse_insert</code> until you can say what each line consumes (Sciore ch. 9 for the long form).</li>
+  <li><strong>Read</strong> <code>parse_insert</code> until you can say what each line consumes (<a href="https://link.springer.com/chapter/10.1007/978-3-030-33836-7_9" title="Edward Sciore, Database Design and Implementation, Chapter 9: Parsing">Sciore ch. 9</a> for the long form).</li>
   <li><strong>Run</strong> <code>python3 test_sql.py</code> on the nine Lab 5 starter files; it should print <strong>0/12 passed</strong>.</li>
   <li><strong>Bring</strong> a laptop with Lab 4 submitted and the Lab 5 starter on it.</li>
 </ul>
@@ -398,6 +511,7 @@ document that supports the claim it is attached to.</p>
   <li id="src-13"><a href="https://www.postgresql.org/docs/current/sql-prepare.html">PostgreSQL Documentation, PREPARE</a></li>
   <li id="src-14"><a href="https://github.com/postgres/postgres/blob/REL_17_STABLE/src/backend/parser/gram.y">PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)</a></li>
   <li id="src-15"><a href="https://www.postgresql.org/docs/current/sql-syntax-lexical.html">PostgreSQL Documentation, 4.1. Lexical Structure (quoted identifiers and string constants)</a></li>
+  <li id="src-16"><a href="https://github.com/antlr/antlr4/blob/master/doc/getting-started.md">ANTLR v4: Getting Started (generating lexer and parser code)</a></li>
 </ol>
 
 </main>
@@ -405,6 +519,7 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
-<script src="viz.js?v=4"></script>
+<script src="insert-trace.js?v=1"></script>
+<script src="viz.js?v=6"></script>
 </body>
 </html>

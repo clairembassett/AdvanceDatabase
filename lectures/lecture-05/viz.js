@@ -20,12 +20,12 @@
       body: "<p>The stages that interpret a statement’s text and prepare it for execution. In this lecture the lexer produces tokens, the parser produces a structured statement description, and the planner builds the scan tree that the execution engine will run.</p>",
     },
     'bnf': {
-      title: 'BNF and extended BNF (EBNF)',
-      body: "<p>BNF describes a language using grammar rules and alternatives. The extended form used here, EBNF, adds convenient notation such as braces for repetition and square brackets for optional items. These rules describe which token sequences the parser accepts.</p>",
+      title: 'BNF (Backus–Naur form)',
+      body: "<p>Backus–Naur form (BNF) describes a language using grammar rules and alternatives. Extended Backus–Naur form (EBNF), used here, adds convenient notation such as braces for repetition and square brackets for optional items. These rules describe which token sequences the parser accepts.</p><p>In <code>fieldlist := * | field { , field }</code>, <code>|</code> separates alternatives: choose either <code>*</code> or a comma-separated field list. The <code>*</code> is a literal SQL token requesting all columns, as in <code>SELECT * FROM students</code>. The bar is grammar notation and does not appear in the SQL query.</p>",
     },
     'ast': {
       title: 'AST (abstract syntax tree)',
-      body: "<p>An abstract syntax tree represents a parsed statement’s structure without preserving every punctuation mark or keyword token. microdb’s QueryData is a small structured query description. It separates parsing from planning, allowing more than one plan to be built from the same parsed query.</p>",
+      body: '<p>An abstract syntax tree represents a statement’s structure. For <code>SELECT name FROM students WHERE gpa &gt; 35</code>, it records:</p><pre><code>SelectQuery\n  fields: name\n  tables: students\n  predicate: &gt;(Field(gpa), Number(35))</code></pre><p>Lab 5 stores this structure in <code>QueryData</code>, using lists for fields and tables and a <code>Predicate</code> for the comparison. The planner then builds a separate tree of scan operators that can produce rows. <a href="#ast-example">See the full AST and its scan tree.</a></p>',
     },
     'repl': {
       title: 'REPL',
@@ -182,6 +182,77 @@
     run("SELECT name students",
         ''));
   msg.textContent = 'Pick a statement to push through the pipeline.';
+})();
+
+/* ---------------- Grammar → provided INSERT parser ---------------- */
+(function () {
+  const root = document.getElementById('viz-insert');
+  if (!root || !window.InsertParserTrace || root.dataset.ready) return;
+  root.dataset.ready = 'true';
+  const trace = window.InsertParserTrace;
+  const $ = id => root.querySelector('#rd-' + id);
+  const fragments = [...root.querySelectorAll('[data-rd-rule]')];
+  let example, steps, step = 0;
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function render() {
+    const state = steps[step], tokens = [...example.tokens, ['EOF', null]];
+    $('count').textContent = 'Step ' + (step + 1) + ' of ' + steps.length;
+    $('back').disabled = step === 0;
+    $('next').disabled = step === steps.length - 1;
+    $('cursor').textContent = state.pos + '/' + example.tokens.length + ' tokens consumed · Next unread: ' + trace.tokenText(tokens[state.pos]);
+    $('tokens').replaceChildren(...tokens.map(([kind, value], index) => {
+      const chip = el('span', 'rd-token' + (index < state.pos ? ' used' : '') + (index === state.pos ? ' current' : ''));
+      chip.append(el('small', '', kind), el('code', '', kind === 'STR' ? trace.repr(value) : value === null ? 'end' : value));
+      chip.setAttribute('aria-label', (index < state.pos ? 'Consumed: ' : index === state.pos ? 'Next unread: ' : 'Unread: ') + trace.tokenText([kind, value]));
+      return chip;
+    }));
+    for (const button of fragments) {
+      button.disabled = !steps.some(s => s.rule === button.dataset.rdRule);
+      if (state.rule === button.dataset.rdRule) button.setAttribute('aria-current', 'step');
+      else button.removeAttribute('aria-current');
+    }
+    $('insert-rule').classList.toggle('active', state.method === 'parse_insert' && state.stack.length > 0);
+    $('literal-rule').classList.toggle('active', state.method === '_parse_literal');
+    $('method').textContent = state.method + '()';
+    $('code').replaceChildren(...trace.code[state.method].map((line, index) => {
+      const row = el('span', 'rd-code-line', line);
+      if (index === state.line) row.setAttribute('aria-current', 'step');
+      return row;
+    }));
+    $('stack').replaceChildren(...(state.stack.length ? state.stack.map(name => el('li', '', name + '()')) : [el('li', '', 'Returned to caller')]));
+    const effects = { call: 'Call', inspect: 'Inspect · cursor stays', consume: 'Consume · cursor advances', return: 'Return', error: 'Error · cursor stays' };
+    $('action').textContent = effects[state.effect] + ' — ' + state.action;
+    $('note').textContent = state.note;
+    $('status').classList.toggle('error', !!state.error);
+    $('data').textContent = state.result
+      ? 'InsertData(table=' + trace.repr(state.table) + ', values=[' + state.values.map(trace.repr).join(', ') + '])\nNo rows written: this is the parser’s output.'
+      : 'table = ' + (state.table === null ? '…' : trace.repr(state.table)) + '\nvalues = [' + state.values.map(trace.repr).join(', ') + ']' + (state.error ? '\nNo InsertData returned.' : '\nDescription in progress; no rows written.');
+  }
+  function choose() {
+    example = trace.cases[$('example').value]; steps = trace.build(example.tokens); step = 0;
+    $('sql').textContent = example.sql; render();
+  }
+  function move(delta) { step = Math.max(0, Math.min(steps.length - 1, step + delta)); render(); }
+  $('example').addEventListener('change', choose);
+  $('next').addEventListener('click', () => move(1));
+  $('back').addEventListener('click', () => move(-1));
+  $('reset').addEventListener('click', () => { step = 0; render(); });
+  fragments.forEach(button => button.addEventListener('click', () => {
+    const target = steps.findIndex(s => s.rule === button.dataset.rdRule);
+    if (target >= 0) { step = target; render(); }
+  }));
+  root.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.stopPropagation();
+    if (event.target.matches('select, pre')) return;
+    event.preventDefault(); move(event.key === 'ArrowRight' ? 1 : -1);
+  });
+  choose();
 })();
 
 /* ---------------- A parse, frame by frame ---------------- */

@@ -520,18 +520,47 @@
     const labels=['KEYWORD','ID','NUM','STR','PUNCT'],samples=['SELECT','name','35',"'ada'",'>'];
     labels.forEach((v,i)=>{box(d,'kind'+i,85+i*242,260,222,90,v,i===0?P.blueLight:i>=2&&i<=3?P.orangeLight:P.white,P.line,28);if(i<2||s>=2)box(d,'sample'+i,95+i*242,450,202,95,samples[i],P.white,P.line,35);});
     if(s>=1)d.arrow('word',300,365,300,430,P.blue,4);if(s>=3)d.arrow('punct',1150,365,1150,430,P.green,4);
+    if(s>=3)text(d,'provided',640,615,'Lexer provided. ANTLR can generate lexers and parsers.',26,P.muted);
   });
-  add(5,4,['Text','Tokens','QueryData','Scan tree'],(d,s)=>{
-    const labels=['SQL','tokens','QueryData','plan'];labels.forEach((v,i)=>{box(d,'stage'+i,100+i*300,125,250,80,v,i<=s?P.greenLight:P.white,i<=s?P.green:P.line,32);if(i<3)d.arrow('a'+i,355+i*300,165,385+i*300,165,P.green,3);});
-    if(s>=1)row(d,'tokens',105,305,['SELECT','name','FROM','students'],-1,210);
-    if(s>=2){box(d,'fields',160,450,350,75,'fields: [name]',P.blueLight,P.blue,29);box(d,'tables',560,450,390,75,'tables: [students]',P.blueLight,P.blue,29);}
-    if(s>=3){d.line('tree1',1100,335,1020,435,P.green,4);d.line('tree2',1100,335,1180,435,P.green,4);dot(d,'n1',1100,325,28,P.green);dot(d,'n2',1020,450,25,P.green);dot(d,'n3',1180,450,25,P.green);}
+  add(5,4,['SQL text','Tokens','Example AST','QueryData','Executable scan tree'],(d,s)=>{
+    const labels=['SQL','tokens','AST sketch','QueryData','scan tree'];
+    labels.forEach((v,i)=>{box(d,'stage'+i,70+i*235,80,200,65,v,i===s?P.greenLight:P.white,i===s?P.green:P.line,29);if(i===2)text(d,'same-structure',757,122,'=',28,P.blue);else if(i<4)d.arrow('a'+i,275+i*235,112,300+i*235,112,P.green,3);});
+    text(d,'sql',640,s===0?350:210,'SELECT name FROM students WHERE gpa > 35',31);
+    if(s===1){
+      const tokens=['KEYWORD select','ID name','KEYWORD from','ID students','KEYWORD where','ID gpa','PUNCT >','NUM 35'];
+      tokens.forEach((v,i)=>box(d,'token'+i,70+(i%4)*290,310+Math.floor(i/4)*125,260,80,v,P.blueLight,P.blue,25));
+    }
+    if(s===2){
+      d.line('ast-fields',640,305,225,385,P.blue,3);d.line('ast-tables',640,305,570,385,P.blue,3);d.line('ast-predicate',640,305,1010,385,P.blue,3);
+      d.line('ast-left',1010,450,880,525,P.blue,3);d.line('ast-right',1010,450,1110,525,P.blue,3);
+      box(d,'ast-root',490,245,300,60,'SelectQuery',P.blueLight,P.blue,32);
+      box(d,'ast-field',90,385,270,65,'Field(name)',P.white,P.blue,29);
+      box(d,'ast-table',420,385,300,65,'Table(students)',P.white,P.blue,29);
+      box(d,'ast-compare',860,385,300,65,'GreaterThan',P.blueLight,P.blue,29);
+      box(d,'ast-lhs',780,525,200,60,'Field(gpa)',P.white,P.blue,27);
+      box(d,'ast-rhs',1010,525,200,60,'Number(35)',P.white,P.blue,27);
+      text(d,'ast-caption',640,635,'Illustrative node names; the lab stores this structure in QueryData.',24,P.muted);
+    }
+    if(s===3){
+      const lines=['QueryData(','    fields=["name"],','    tables=["students"],','    predicate=Predicate(("gpa", ">", 35))',')'];
+      lines.forEach((v,i)=>d.text('object'+i,i>0&&i<4?285:240,315+i*60,v.trimStart(),30,P.blue,'start'));
+      text(d,'object-caption',640,635,'QueryData is the lab’s compact AST representation.',26,P.muted);
+    }
+    if(s===4){
+      ['ProjectScan: name','SelectScan: gpa > 35','TableScan: students'].forEach((v,i)=>{box(d,'scan'+i,395,280+i*110,490,70,v,P.greenLight,P.green,31);if(i<2)d.arrow('input'+i,640,355+i*110,640,385+i*110,P.green,3);});
+      text(d,'execute',640,630,'Calling next() on the root starts pulling rows.',27,P.muted);
+    }
   });
   add(5,5,['The required track','An optional branch','Repeat a list','Read a legal path'],(d,s)=>{
     const vals=['SELECT','fields','FROM','tables'];vals.forEach((v,i)=>{box(d,'rail'+i,115+i*275,300,230,85,v,P.white,P.green,33);if(i<3)d.arrow('ra'+i,350+i*275,342,380+i*275,342,P.green,4);});
     if(s>=1){d.path('branch','M1120,400 L1120,530 L550,530 L550,415','none',P.orange,4);box(d,'where',700,490,250,80,'WHERE …',P.orangeLight,P.orange,34);}
     if(s>=2)d.path('repeat','M475,275 C475,230 595,230 595,275','none',P.blue,4);
-    if(s>=3){const x=[230,505,780,1055][s-3]||1055;dot(d,'token',x,425,18,P.green);text(d,'comma',535,250,',',43,P.blue);}
+    if(s>=3){
+      const x=[230,505,780,1055][s-3]||1055;dot(d,'token',x,425,18,P.green);text(d,'comma',535,250,',',43,P.blue);
+      text(d,'field-rule',640,200,'fieldlist := * | field { , field }',34,P.blue);
+      text(d,'symbols',640,620,'*: all columns     |: choose one alternative',29,P.muted);
+      text(d,'examples',640,665,'SELECT * FROM students   or   SELECT name, gpa FROM students',25);
+    }
   });
   add(5,6,['peek inspects','next consumes','match tests','expect validates and consumes'],(d,s)=>{
     const vals=['SELECT','name','FROM','students'];row(d,'tokens',130,255,vals,s===0?0:s===1?1:s===2?2:3,240);
@@ -1349,7 +1378,7 @@
         "title": "Five token families",
         "minutes": 4,
         "kind": "definition",
-        "notes": "Classify SELECT, name, 35, a quoted string and the greater-than symbol before revealing their five families. The lexer handles spelling, quoting and normalization of unquoted words. It does not decide whether FROM appears in the right place. Ask why a field called select is rejected in the teaching language: the fixed keyword set classifies it as a keyword. Production SQL supports richer identifier and keyword rules. This definition gives the parser a cleaner input stream.",
+        "notes": "Classify SELECT, name, 35, a quoted string and the greater-than symbol before revealing their five families. The lexer handles spelling, quoting and normalization of unquoted words. It does not decide whether FROM appears in the right place. Ask why a field called select is rejected in the teaching language: the fixed keyword set classifies it as a keyword. Production SQL supports richer identifier and keyword rules. This definition gives the parser a cleaner input stream. Explain that ANTLR can generate lexer and parser code from a grammar. The grammar and code that interprets parsed input are still application responsibilities. ANTLR can produce a parse tree; building an AST or QueryData is a separate application step. Lexer internals and ANTLR are optional reading: students need the token contract, then implement the parser and planner.",
         "id": "lecture-05-scene-04",
         "definition": "A classified unit of input, such as a keyword, identifier, number or string.",
         "term": "Token",
@@ -1362,18 +1391,18 @@
         "title": "The full pipeline",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Build the four artifacts in order. SQL begins as characters; tokenization removes irrelevant whitespace and recognizes quoted values; QueryData records fields, tables and a predicate; a planner constructs scan objects. Ask at each boundary what later code no longer needs to understand. The planner need not re-read quotes, and the storage layer never sees SQL. Constructing QueryData is not executing a query. The executable tree produces rows only when the caller invokes next.",
+        "notes": "Trace SELECT name FROM students WHERE gpa > 35 through five views. The AST and QueryData views show two representations of the same parsed request, not an extra required transformation in the lab. First show the SQL text, then all eight tokens. In the conceptual AST, name is the requested field, students is the source table, and GreaterThan has Field(gpa) and Number(35) children. Ask whether 35 is a column name or a literal; it is the integer literal. These node classes are illustrative, not required student code. Next show the actual QueryData constructor with field and table lists and Predicate((gpa, >, 35)). Finally show ProjectScan above SelectScan above TableScan. The AST records what was requested; the planner chooses operators for producing it. Constructing either description does not run the query. Calling next() on the scan root starts execution.",
         "id": "lecture-05-scene-05",
         "demo": "viz-sql",
         "sources": [
-          "lectures/lecture-05/parsing.html#viz-sql"
+          "lectures/lecture-05/parsing.html#ast-example"
         ]
       },
       {
         "title": "Grammar as a railway",
         "minutes": 4,
         "kind": "definition",
-        "notes": "Follow the required SELECT–fields–FROM–tables track. Add the optional WHERE branch, then show a list repeating through a comma. Ask for two legal paths: SELECT name FROM students and the same statement with a predicate. EBNF brackets mean optional and braces mean repeated; the railroad picture presents those choices without a grammar wall. The supported microSQL subset omits many SQL constructs. A small grammar is a deliberate teaching constraint, not a limitation of the iterator interface.",
+        "notes": "Follow the required SELECT–fields–FROM–tables track. Add the optional WHERE branch, then show a list repeating through a comma. Ask for two legal paths: SELECT name FROM students and the same statement with a predicate. BNF stands for Backus–Naur form; EBNF stands for Extended Backus–Naur form. In EBNF, brackets mean optional and braces mean zero or more repetitions. Read fieldlist := * | field { , field } aloud: choose either a literal star, or one field followed by zero or more comma-and-field pairs. The star is typed in SQL and requests all columns. The vertical bar separates grammar alternatives and is not typed in the query. Compare SELECT * FROM students, SELECT name FROM students and SELECT name, gpa FROM students. Likewise, (= | < | >) chooses one comparison operator. The supported microSQL subset omits many SQL constructs. A small grammar is a deliberate teaching constraint, not a limitation of the iterator interface.",
         "id": "lecture-05-scene-06",
         "definition": "Rules describing which sequences of tokens form valid statements.",
         "term": "Grammar",
@@ -1385,10 +1414,11 @@
         "title": "The four token moves",
         "minutes": 4,
         "kind": "activity",
-        "notes": "For each token helper, ask whether the cursor moves. peek and match inspect without advancing. next consumes one token. expect first validates, then consumes or raises ParseError. The individual examples in this visual are separate operations, not one running parse. Ask what happens if an AND loop checks the delimiter but never consumes it: the parser cannot make progress. These four verbs form a concrete contract students can trace before implementing a recursive-descent method.",
+        "notes": "For each token helper, ask whether the cursor moves. peek and match inspect without advancing. next consumes one token. expect first validates, then consumes or raises ParseError. The individual examples in this visual are separate operations, not one running parse. Open the linked INSERT walkthrough to connect the insert grammar rule to parse_insert and the literal rule to _parse_literal. Step through the first value, then the comma loop. Ask why match leaves the comma unread and next must consume it before the next literal call. Switch to Missing comma to see expect fail without moving the cursor, and Missing value to see peek prepare an error message. The returned InsertData describes the insert; parsing writes no rows. Use the same patterns to implement SELECT in Lab 5.",
         "id": "lecture-05-scene-07",
+        "demo": "viz-insert",
         "sources": [
-          "lectures/lecture-05/parsing.html"
+          "lectures/lecture-05/parsing.html#viz-insert"
         ]
       },
       {
