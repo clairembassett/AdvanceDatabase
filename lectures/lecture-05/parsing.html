@@ -74,19 +74,12 @@ Hover or tap an underlined term like <span class="gloss-demo">this one</span> to
 
 <p class="keep-in-present">In <code>SELECT name FROM students WHERE nick = 'from'</code>, one occurrence of <code>from</code> is a keyword and the other is part of a quoted string. A search for that word alone cannot distinguish them. The lexer reads the quoted value as one <code>STR</code> token and the keyword as a <code>KEYWORD</code> token. The parser then works with those tokens, without having to process quote characters itself.</p>
 
-<h3 class="new-slide" data-kicker="Two simple machines">A costly regular expression caused a Cloudflare outage</h3>
-
-<div class="callout note">
-  <span class="label">Case study · Cloudflare’s 2019 regex outage</span>
-  <p class="keep-in-present">On July 2, 2019, a Cloudflare firewall rule containing a regular expression caused extreme CPU use and an outage lasting about 27 minutes. The expression triggered <span class="gloss" data-gloss="catastrophic-backtracking">catastrophic backtracking</span>. This is a performance risk of some patterns in backtracking regex engines, not a limitation of every regex implementation. The example shows why text-processing code needs an understood worst-case cost. Our lexer and parser also separate token recognition from statement structure<sup class="src"><a href="#src-3" title="Details of the Cloudflare outage on July 2, 2019 (Cloudflare Blog)">3</a></sup>.</p>
-</div>
-
 <h3 class="new-slide" data-kicker="Two simple machines">The lexer recognizes tokens; the parser checks their order</h3>
 
 <table>
   <thead><tr><th>Stage</th><th>In → out</th><th>Knows about</th><th>In the lab</th></tr></thead>
   <tbody>
-    <tr><td><strong>Lexer</strong></td><td>characters → tokens</td><td>recognizes numbers, quoted strings, words, and punctuation and assigns token kinds</td><td>provided; read it before Thursday</td></tr>
+    <tr><td><strong>Lexer</strong></td><td>characters → tokens</td><td>recognizes numbers, quoted strings, words, and punctuation and assigns token kinds</td><td>provided. Read if curious; not required.</td></tr>
     <tr><td><strong>Parser</strong></td><td>tokens → description</td><td>checks whether tokens follow the grammar and records the statement’s fields, tables, and conditions</td><td><strong>you</strong> write it</td></tr>
     <tr><td><strong>Planner</strong></td><td>description → scan tree</td><td>the catalog, to look up each table's layout, and Lab 4's scan operators, to build a tree that produces the rows</td><td><strong>you</strong> write it</td></tr>
   </tbody>
@@ -104,16 +97,28 @@ Hover or tap an underlined term like <span class="gloss-demo">this one</span> to
 <p class="keep-in-present">Five token kinds cover all of microSQL: <code>KEYWORD · ID · NUM ·
 STR · PUNCT</code>. Keywords are ordinary words that happen to be on the lexer's fixed list of <span class="gloss" data-gloss="reserved-word">reserved</span>
 words; any word on that list is labeled KEYWORD wherever it appears, which is why
-microdb rejects <code>select</code> as a table name; PostgreSQL permits it as a quoted identifier<sup class="src"><a href="#src-4" title="PostgreSQL Documentation, Appendix C. SQL Key Words">4</a></sup>.</p>
+microdb rejects <code>select</code> as a table name; PostgreSQL permits it as a quoted identifier, written <code>"select"</code><sup class="src"><a href="#src-3" title="PostgreSQL Documentation, Appendix C. SQL Key Words">3</a></sup>.</p>
 
 <h3 class="new-slide" data-kicker="Two simple machines">Reserved words simplify microdb’s naming rules</h3>
 
 <div class="layer-card">
   <div class="lc-row"><span class="lc-k">The rule</span><span>the lexer labels any word in its keyword set as KEYWORD the moment it reads the word, before the parser has seen what comes before or after it, so <code>select</code> can never reach the parser as a table name.</span></div>
   <div class="lc-row"><span class="lc-k">microdb’s choice</span><span>The parser can treat KEYWORD and ID as separate token kinds throughout the small microSQL grammar.</span></div>
-  <div class="lc-row"><span class="lc-k">PostgreSQL’s choice</span><span>PostgreSQL permits quoted identifiers and distinguishes reserved from non-reserved keywords. Its parser applies the naming rules for each grammatical context.<sup class="src"><a href="#src-4" title="PostgreSQL Documentation, Appendix C. SQL Key Words">4</a></sup></span></div>
+  <div class="lc-row"><span class="lc-k">PostgreSQL’s choice</span><span>PostgreSQL permits quoted identifiers, such as <code>"select"</code> for a column name, and distinguishes reserved from non-reserved keywords. Double quotes tell the parser to treat the enclosed text as a name.<sup class="src"><a href="#src-3" title="PostgreSQL Documentation, Appendix C. SQL Key Words">3</a></sup></span></div>
   <div class="lc-row"><span class="lc-k">The lesson</span><span>More flexible naming requires additional lexical or grammatical rules. microdb uses a small reserved-word set to keep the lab focused.</span></div>
 </div>
+
+<h3 id="quoted-identifiers" class="new-slide" data-kicker="Names and values">Double quotes name a column; single quotes supply a value</h3>
+
+<p class="keep-in-present">In PostgreSQL, double quotes let us use the reserved word <code>select</code> as a column name. Here we create that column and store one row. This is a PostgreSQL example; microSQL does not support quoted identifiers.<sup class="src"><a href="#src-15" title="PostgreSQL Documentation, 4.1. Lexical Structure">15</a></sup></p>
+
+<pre><code class="language-sql">CREATE TABLE demo ("select" TEXT);
+INSERT INTO demo ("select") VALUES ('ada');
+
+SELECT "select" FROM demo;  -- reads the column: returns ada
+SELECT 'select' FROM demo;  -- returns the literal text: select</code></pre>
+
+<p class="keep-in-present">In the first query, <code>SELECT</code> is the command keyword and <code>"select"</code> identifies the column to read. In the second, <code>'select'</code> is a string value, so the stored value <code>ada</code> is not read. Writing <code>SELECT select FROM demo</code> without the double quotes causes a syntax error because that second <code>select</code> is a reserved keyword.</p>
 
 <!-- ============================================================ -->
 <h2 id="try-it">Three stages turn typed text into a scan tree</h2>
@@ -160,7 +165,7 @@ term    :=  field ( = | < | > ) value
 value   :=  number | 'string' | field          ← field here means: a join!
 insert  :=  INSERT INTO table VALUES ( value { , value } )</code></pre>
 
-<p class="keep-in-present">The notation is <strong><span class="gloss" data-gloss="bnf">extended BNF (EBNF)</span></strong>. Braces <code>{ }</code> mean repetition and square brackets <code>[ ]</code> mean an optional part. In this parser, each grammar rule corresponds to a method that consumes that part of the token stream<sup class="src"><a href="#src-5" title="ISO/IEC 14977:1996 Extended BNF (final draft text)">5</a></sup>.</p>
+<p class="keep-in-present">The notation is <strong><span class="gloss" data-gloss="bnf">extended BNF (EBNF)</span></strong>. Braces <code>{ }</code> mean repetition and square brackets <code>[ ]</code> mean an optional part. In this parser, each grammar rule corresponds to a method that consumes that part of the token stream<sup class="src"><a href="#src-4" title="ISO/IEC 14977:1996 Extended BNF (final draft text)">4</a></sup>.</p>
 
 <h3 class="new-slide" data-kicker="Seven-line grammar">The lab implements a deliberately small SQL subset</h3>
 
@@ -298,8 +303,8 @@ Lab 4, by hand:    Select[join] ← Product(σ(s) × σ(m))      60 pairs examin
   <thead><tr><th>Engine</th><th>For <code>SELECT name FORM students</code></th><th>Grade</th></tr></thead>
   <tbody>
     <tr><td>microdb (yours)</td><td><code>expected 'from', found 'form'</code></td><td>names both what it expected and what it found</td></tr>
-    <tr><td>Postgres</td><td><code>syntax error at or near "FORM"</code></td><td>names the offending token, but not what it expected in its place<sup class="src"><a href="#src-6" title="PostgreSQL Documentation, 36.5. Query Language (SQL) Functions">6</a></sup></td></tr>
-    <tr><td>older versions of MySQL</td><td><code>You have an error in your SQL syntax; check the manual<sup class="src"><a href="#src-7" title="mysql-server/share/messages_to_clients.txt (MySQL source, GitHub)">7</a></sup>…</code></td><td>names neither, and sends the user to the manual</td></tr>
+    <tr><td>Postgres</td><td><code>syntax error at or near "FORM"</code></td><td>names the offending token, but not what it expected in its place<sup class="src"><a href="#src-5" title="PostgreSQL Documentation, 36.5. Query Language (SQL) Functions">5</a></sup></td></tr>
+    <tr><td>older versions of MySQL</td><td><code>You have an error in your SQL syntax; check the manual<sup class="src"><a href="#src-6" title="mysql-server/share/messages_to_clients.txt (MySQL source, GitHub)">6</a></sup>…</code></td><td>names neither, and sends the user to the manual</td></tr>
   </tbody>
 </table>
 
@@ -358,16 +363,16 @@ million without scanning. Quiz 5 opens class: parsing &amp; planning.</p>
 <h2 id="faq">FAQ</h2>
 
 <h3 class="keep-in-present">Is real SQL parsed this way?</h3>
-<p class="keep-in-present">SQL engines use several parser designs. SQLite uses a handwritten lexer and a Lemon-generated parser. PostgreSQL uses Bison to generate its parser from a grammar. DuckDB used a PostgreSQL-derived parser through v1.x and introduced a PEG parser in v2.0. Handwritten recursive descent, used in languages such as Lua and Go, makes the relationship between grammar rules and code easy to inspect<sup class="src"><a href="#src-8" title="Architecture of SQLite">8</a></sup><sup class="src"><a href="#src-9" title="PostgreSQL Documentation, 51.3. The Parser Stage">9</a></sup><sup class="src"><a href="#src-10" title="DuckDB v2.0: Your Database Deserves a Better Parser (DuckDB blog)">10</a></sup><sup class="src"><a href="#src-11" title="The Implementation of Lua 5.0 (Ierusalimschy, de Figueiredo, Celes), Journal of Universal Computer Science, 2005">11</a></sup><sup class="src"><a href="#src-12" title="Go compiler internals: adding a new statement to Go - Part 1 (Eli Bendersky)">12</a></sup>.</p>
+<p class="keep-in-present">SQL engines use several parser designs. SQLite uses a handwritten lexer and a Lemon-generated parser. PostgreSQL uses Bison to generate its parser from a grammar. DuckDB used a PostgreSQL-derived parser through v1.x and introduced a PEG parser in v2.0. Handwritten recursive descent, used in languages such as Lua and Go, makes the relationship between grammar rules and code easy to inspect<sup class="src"><a href="#src-7" title="Architecture of SQLite">7</a></sup><sup class="src"><a href="#src-8" title="PostgreSQL Documentation, 51.3. The Parser Stage">8</a></sup><sup class="src"><a href="#src-9" title="DuckDB v2.0: Your Database Deserves a Better Parser (DuckDB blog)">9</a></sup><sup class="src"><a href="#src-10" title="The Implementation of Lua 5.0 (Ierusalimschy, de Figueiredo, Celes), Journal of Universal Computer Science, 2005">10</a></sup><sup class="src"><a href="#src-11" title="Go compiler internals: adding a new statement to Go - Part 1 (Eli Bendersky)">11</a></sup>.</p>
 
 <h3 class="keep-in-present">Why does microSQL forbid naming a column <code>select</code>?</h3>
-<p class="keep-in-present">microdb labels an unquoted word in its keyword set as <code>KEYWORD</code> before parsing. It therefore cannot use that token where an <code>ID</code> is required. PostgreSQL supports quoted identifiers and distinguishes reserved from non-reserved keywords, which requires more detailed naming and grammar rules<sup class="src"><a href="#src-15" title="PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)">15</a></sup>.</p>
+<p class="keep-in-present">microdb labels an unquoted word in its keyword set as <code>KEYWORD</code> before parsing. It therefore cannot use that token where an <code>ID</code> is required. PostgreSQL supports quoted identifiers and distinguishes reserved from non-reserved keywords, which requires more detailed naming and grammar rules<sup class="src"><a href="#src-14" title="PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)">14</a></sup>.</p>
 
 <h3 class="keep-in-present">What about SQL injection? Is that a parsing thing?</h3>
-<p class="keep-in-present">SQL injection can occur when untrusted input is concatenated into SQL text and interpreted as part of the statement. Parameterized queries keep bound values separate from SQL syntax, so a value cannot introduce a new clause or statement. Parameter binding would be a useful optional extension to microdb; it is not part of the required parser<sup class="src"><a href="#src-13" title="OWASP SQL Injection Prevention Cheat Sheet">13</a></sup>.</p>
+<p class="keep-in-present">SQL injection can occur when untrusted input is concatenated into SQL text and interpreted as part of the statement. Parameterized queries keep bound values separate from SQL syntax, so a value cannot introduce a new clause or statement. Parameter binding would be a useful optional extension to microdb; it is not part of the required parser<sup class="src"><a href="#src-12" title="OWASP SQL Injection Prevention Cheat Sheet">12</a></sup>.</p>
 
 <h3 class="keep-in-present">Could the planner cache plans for repeated queries?</h3>
-<p class="keep-in-present">Yes. Prepared statements and other plan caches can reuse parsing or planning work. microdb plans each query again to keep the implementation simple. A production cache must also handle changes to schemas, statistics, and other assumptions on which a plan depends<sup class="src"><a href="#src-14" title="PostgreSQL Documentation, PREPARE">14</a></sup>.</p>
+<p class="keep-in-present">Yes. Prepared statements and other plan caches can reuse parsing or planning work. microdb plans each query again to keep the implementation simple. A production cache must also handle changes to schemas, statistics, and other assumptions on which a plan depends<sup class="src"><a href="#src-13" title="PostgreSQL Documentation, PREPARE">13</a></sup>.</p>
 
 <footer>
   DS 6XXX · Advanced Databases for Data Science · Fall 2026 · Daniel G. Graham, UVA School of Data Science
@@ -380,19 +385,19 @@ document that supports the claim it is attached to.</p>
 <ol class="sources">
   <li id="src-1"><a href="https://books.google.com/books/about/Database_Design_and_Implementation.html?id=6GTTDwAAQBAJ">Database Design and Implementation: Second Edition, Edward Sciore (Google Books record)</a></li>
   <li id="src-2"><a href="https://craftinginterpreters.com/parsing-expressions.html">Crafting Interpreters, chapter 6: Parsing Expressions (Robert Nystrom)</a></li>
-  <li id="src-3"><a href="https://blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/">Details of the Cloudflare outage on July 2, 2019 (Cloudflare Blog)</a></li>
-  <li id="src-4"><a href="https://www.postgresql.org/docs/current/sql-keywords-appendix.html">PostgreSQL Documentation, Appendix C. SQL Key Words</a></li>
-  <li id="src-5"><a href="https://www.cl.cam.ac.uk/~mgk25/iso-14977.pdf">ISO/IEC 14977:1996 Extended BNF (final draft text)</a> <span class="src-note">Braces for repetition and square brackets for optional items are Extended BNF (EBNF) conventions standardized in ISO/IEC 14977; plain BNF as introduced for ALGOL 60 has neither construct.</span></li>
-  <li id="src-6"><a href="https://www.postgresql.org/docs/current/xfunc-sql.html">PostgreSQL Documentation, 36.5. Query Language (SQL) Functions</a></li>
-  <li id="src-7"><a href="https://github.com/mysql/mysql-server/blob/trunk/share/messages_to_clients.txt">mysql-server/share/messages_to_clients.txt (MySQL source, GitHub)</a></li>
-  <li id="src-8"><a href="https://www.sqlite.org/arch.html">Architecture of SQLite</a></li>
-  <li id="src-9"><a href="https://www.postgresql.org/docs/current/parser-stage.html">PostgreSQL Documentation, 51.3. The Parser Stage</a></li>
-  <li id="src-10"><a href="https://duckdb.org/2026/08/20/duckdb-20-peg-parser">DuckDB v2.0: Your Database Deserves a Better Parser (DuckDB blog)</a> <span class="src-note">True for DuckDB from its first 2018 commit through v1.x (it used the PostgreSQL parser repackaged as libpg_query), but DuckDB v2.0, announced August 20, 2026, replaced the PostgreSQL-derived parser with a PEG-based parser.</span></li>
-  <li id="src-11"><a href="https://www.lua.org/doc/jucs05.pdf">The Implementation of Lua 5.0 (Ierusalimschy, de Figueiredo, Celes), Journal of Universal Computer Science, 2005</a></li>
-  <li id="src-12"><a href="https://eli.thegreenplace.net/2019/go-compiler-internals-adding-a-new-statement-to-go-part-1/">Go compiler internals: adding a new statement to Go - Part 1 (Eli Bendersky)</a></li>
-  <li id="src-13"><a href="https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">OWASP SQL Injection Prevention Cheat Sheet</a></li>
-  <li id="src-14"><a href="https://www.postgresql.org/docs/current/sql-prepare.html">PostgreSQL Documentation, PREPARE</a></li>
-  <li id="src-15"><a href="https://github.com/postgres/postgres/blob/REL_17_STABLE/src/backend/parser/gram.y">PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)</a></li>
+  <li id="src-3"><a href="https://www.postgresql.org/docs/current/sql-keywords-appendix.html">PostgreSQL Documentation, Appendix C. SQL Key Words</a></li>
+  <li id="src-4"><a href="https://www.cl.cam.ac.uk/~mgk25/iso-14977.pdf">ISO/IEC 14977:1996 Extended BNF (final draft text)</a> <span class="src-note">Braces for repetition and square brackets for optional items are Extended BNF (EBNF) conventions standardized in ISO/IEC 14977; plain BNF as introduced for ALGOL 60 has neither construct.</span></li>
+  <li id="src-5"><a href="https://www.postgresql.org/docs/current/xfunc-sql.html">PostgreSQL Documentation, 36.5. Query Language (SQL) Functions</a></li>
+  <li id="src-6"><a href="https://github.com/mysql/mysql-server/blob/trunk/share/messages_to_clients.txt">mysql-server/share/messages_to_clients.txt (MySQL source, GitHub)</a></li>
+  <li id="src-7"><a href="https://www.sqlite.org/arch.html">Architecture of SQLite</a></li>
+  <li id="src-8"><a href="https://www.postgresql.org/docs/current/parser-stage.html">PostgreSQL Documentation, 51.3. The Parser Stage</a></li>
+  <li id="src-9"><a href="https://duckdb.org/2026/08/20/duckdb-20-peg-parser">DuckDB v2.0: Your Database Deserves a Better Parser (DuckDB blog)</a> <span class="src-note">True for DuckDB from its first 2018 commit through v1.x (it used the PostgreSQL parser repackaged as libpg_query), but DuckDB v2.0, announced August 20, 2026, replaced the PostgreSQL-derived parser with a PEG-based parser.</span></li>
+  <li id="src-10"><a href="https://www.lua.org/doc/jucs05.pdf">The Implementation of Lua 5.0 (Ierusalimschy, de Figueiredo, Celes), Journal of Universal Computer Science, 2005</a></li>
+  <li id="src-11"><a href="https://eli.thegreenplace.net/2019/go-compiler-internals-adding-a-new-statement-to-go-part-1/">Go compiler internals: adding a new statement to Go - Part 1 (Eli Bendersky)</a></li>
+  <li id="src-12"><a href="https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">OWASP SQL Injection Prevention Cheat Sheet</a></li>
+  <li id="src-13"><a href="https://www.postgresql.org/docs/current/sql-prepare.html">PostgreSQL Documentation, PREPARE</a></li>
+  <li id="src-14"><a href="https://github.com/postgres/postgres/blob/REL_17_STABLE/src/backend/parser/gram.y">PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)</a></li>
+  <li id="src-15"><a href="https://www.postgresql.org/docs/current/sql-syntax-lexical.html">PostgreSQL Documentation, 4.1. Lexical Structure (quoted identifiers and string constants)</a></li>
 </ol>
 
 </main>
@@ -400,6 +405,6 @@ document that supports the claim it is attached to.</p>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="../../labs/_shared/lab-base.js?v=13"></script>
-<script src="viz.js?v=3"></script>
+<script src="viz.js?v=4"></script>
 </body>
 </html>

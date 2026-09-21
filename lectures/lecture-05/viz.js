@@ -11,10 +11,6 @@
       title: 'Predicate',
       body: '<p>The condition in a WHERE clause: the part that decides whether a row is kept. In microSQL a predicate is one or more terms joined by AND, and each term compares a field to a number, a string, or another field, such as gpa &gt; 35. The parser stores the predicate as plain data inside QueryData. The planner later wraps the scan tree in a SelectScan that evaluates the predicate against each row and passes through only the rows for which it is true. Lab 4 already built SelectScan; this week you build the code that reads a predicate out of the text.</p>',
     },
-    'catastrophic-backtracking': {
-      title: 'Catastrophic backtracking',
-      body: "<p>Some regular-expression engines try alternative matches by backtracking. Certain patterns with overlapping or nested repetition can cause the number of attempted matches to grow very rapidly on a failing input. Other regex engines avoid this behavior. Separating lexing and parsing does not automatically prove a time bound: the pattern, grammar, and implementation must each be considered.</p>",
-    },
     'token': {
       title: 'Token',
       body: '<p>The smallest meaningful unit of a statement after the lexer has split it up: a keyword, a name, a number, a quoted string, or a punctuation mark. Each token is a (kind, value) pair, so the word students becomes (ID, students) and the number 35 becomes (NUM, 35). The lexer produces the token list by scanning the characters left to right; the parser reads only that list and never looks at raw characters again. That split is what keeps a quoted string like &#39;from&#39; from ever being mistaken for the keyword FROM.</p>',

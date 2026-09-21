@@ -20,6 +20,7 @@
     <li><a href="#join-walkthrough">Follow a join down to slots</a></li>
     <li><a href="#big-idea">How operators share rows</a></li>
     <li><a href="#the-api">Operator control flow</a></li>
+    <li><a href="#product-initialization">Why the product advances left first</a></li>
     <li><a href="#build">Part 1 · Build</a></li>
     <li><a href="#verify">Part 2 · Verify</a></li>
     <li><a href="#measure">Part 3 · Measure</a></li>
@@ -465,6 +466,36 @@ side may be <code>F("mid2")</code> (a field instead of a literal), and
 <span class="gloss" data-gloss="cartesian-product">cartesian product</span> plus that
 predicate <em>is</em> the join.</p>
 
+<h3 id="product-initialization" class="new-slide" data-kicker="ProductScan · getting started">Why reset the left scan and then call next()?</h3>
+
+<p class="keep-in-present"><code>ProductScan</code> holds one left row fixed while scanning every right row. Its initialization selects that first left row and leaves the right scan ready for the first call to <code>ProductScan.next()</code>:</p>
+
+<pre><code class="language-python">def before_first(self) -&gt; None:
+    self.left.before_first()             # Reset to BEFORE the first left row.
+    self._left_ready = self.left.next()   # Move ONTO it, if a row exists.
+    self.right.before_first()            # Leave right BEFORE its first row.</code></pre>
+
+<p class="keep-in-present"><code>before_first()</code> resets a scan without selecting a row. The following <code>next()</code> selects its first row, so <strong>it does not skip anything</strong>. Rewinding first also lets the product restart after an earlier traversal.</p>
+
+<p class="keep-in-present">Save the Boolean result in <code>self._left_ready</code>. If left is empty, it is <code>False</code>, and <code>ProductScan.next()</code> must return <code>False</code> because no pair is possible. An empty right input must also produce no pairs.</p>
+
+<h3 class="new-slide" data-kicker="ProductScan · two cursors">Before the first pair, left is ready and right has not started</h3>
+
+<p class="keep-in-present">Suppose left contains <code>[A, B]</code> and right contains <code>[1, 2]</code>. Each successful product <code>next()</code> makes one pair current for <code>get_val()</code> to read:</p>
+
+<table>
+  <thead><tr><th>Operation</th><th>Left position</th><th>Right position</th><th>Current pair</th></tr></thead>
+  <tbody>
+    <tr><td><code>product.before_first()</code></td><td>A</td><td>Before first</td><td>None yet</td></tr>
+    <tr><td>First <code>product.next()</code></td><td>A</td><td>1</td><td><code>(A, 1)</code></td></tr>
+    <tr><td>Second <code>product.next()</code></td><td>A</td><td>2</td><td><code>(A, 2)</code></td></tr>
+    <tr><td>Third <code>product.next()</code></td><td>B</td><td>1, after rewinding</td><td><code>(B, 1)</code></td></tr>
+    <tr><td>Fourth <code>product.next()</code></td><td>B</td><td>2</td><td><code>(B, 2)</code></td></tr>
+  </tbody>
+</table>
+
+<p class="keep-in-present">The name <code>ProductScan.before_first()</code> means <strong>before the first output pair</strong>. Internally, the left half of that pair is already selected. The first product <code>next()</code> advances right to complete it. If initialization also advanced right, that first call would move right again and skip <code>(A, 1)</code>.</p>
+
 <!-- ============================================================ -->
 <h2 id="build">Part 1 · Build <span class="part-time">~30 min in class</span></h2>
 
@@ -478,8 +509,8 @@ predicate <em>is</em> the join.</p>
   <code>F</code> are provided and worth reading closely.</li>
   <li><strong><code>SelectScan.next</code></strong>: the skip-loop. Run the SELECT tests.</li>
   <li><strong><code>ProjectScan.get_val / has_field</code></strong>: answer only for kept columns, raise for the rest. Run the PROJECT tests.</li>
-  <li><strong><code>ProductScan</code></strong>: <code>before_first</code> first (left gets a
-  <code>next()</code>, right doesn't), then the odometer, then routing. Run the PRODUCT tests, including the join test.</li>
+  <li><strong><code>ProductScan</code></strong>: implement <code>before_first</code> first, using the
+  <a href="#product-initialization">two-cursor explanation above</a>, then implement <code>next</code> and field routing. Run the PRODUCT tests, including the join test.</li>
 </ol>
 
 <div class="callout note">
