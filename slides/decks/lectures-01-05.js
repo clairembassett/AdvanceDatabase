@@ -496,134 +496,165 @@
     if(s>=1){d.arrow('down',940,185,940,530,P.blue,5);d.arrow('up',340,530,340,185,P.green,5);dot(d,'ask',940,300,20,P.blue);dot(d,'row',340,430,20,P.green);}
     if(s>=2){text(d,'small',280,610,'18 → 6',45);text(d,'big',970,610,'900 → 60',45,P.green);}
   });
-  // ── Lecture 5: lexical units, grammar, intent, and executable plans ───
-  add(5,0,['Typed text','A description of intent','An executable tree'],(d,s)=>{
-    text(d,'cover',640,120,'From text to execution',54);
-    box(d,'sql',100,275,400,105,'SELECT name …',P.blueLight,P.blue,38);
-    box(d,'intent',730,275,400,105,s>=1?'QueryData':'?',P.greenLight,P.green,40);d.arrow('flow',525,330,705,330,P.green,5);
-    if(s>=2){node(d,'root',530,470,'Project');node(d,'leaf',530,560,'Scan');d.arrow('edge',640,550,640,545,P.green,4);}
+  // ── Lecture 5: one idea per scene, with the reading's worked examples ──
+  const l5title = (d, label) => text(d,'heading',640,85,label,42);
+  const l5sql = (d, value='SELECT name FROM students WHERE gpa > 35', y=160) => text(d,'sql',640,y,value,30,P.blue);
+  add(5,0,['The SQL request','The parsed request','The executable plan'],(d,s)=>{
+    l5title(d,'SQL needs an executable plan');
+    l5sql(d);
+    box(d,'sql-stage',100,300,280,90,'SQL text',P.blueLight,P.blue,36);
+    if(s>=1){d.arrow('parse',400,345,480,345,P.blue,4);text(d,'parse-label',440,275,'parse',27,P.blue);box(d,'data',500,300,280,90,'QueryData',P.blueLight,P.blue,36);}
+    if(s>=2){d.arrow('plan',800,345,880,345,P.green,4);text(d,'plan-label',840,275,'plan',27,P.green);box(d,'tree',900,300,280,90,'Scan tree',P.greenLight,P.green,36);}
+    text(d,'point',640,540,s<2?'The front end translates the request.':'Execution starts when the runner pulls rows.',32);
   });
-  add(5,1,['Text is not an operator','An intent object','A plan','Execute later'],(d,s)=>{
-    box(d,'source',130,190,420,95,'SELECT name FROM …',P.blueLight,P.blue,34);
-    const labels=s>=1?['fields','tables','predicate']:['?','?','?'];labels.forEach((v,i)=>box(d,'intent'+i,740,180+i*105,370,75,v,P.greenLight,P.green,31));
-    if(s>=2){d.arrow('compile',575,235,705,235,P.green,4);node(d,'operator',260,465,'TableScan');}
-    if(s>=3){d.arrow('execute',500,500,765,500,P.orange,5);box(d,'row',790,470,300,80,'ada',P.orangeLight,P.orange,36);}
+  add(5,1,['The requested fields','The source tables','The condition','The complete QueryData'],(d,s)=>{
+    l5title(d,'Parsing records the request');l5sql(d);
+    d.text('type',250,245,'QueryData',36,P.blue,'start');
+    const values=['fields = ["name"]','tables = ["students"]','predicate = Predicate(("gpa", ">", 35))'];
+    values.forEach((v,i)=>{if(s>=i)d.text('part'+i,250,335+i*90,v,32,P.ink,'start');});
+    if(s>=3)text(d,'meaning',640,635,'The object describes the query. No student rows have been read.',29,P.muted);
   });
-  add(5,2,['The same spelling','Outside quotes','Inside quotes','Different token kinds'],(d,s)=>{
-    text(d,'sql',640,160,"SELECT name FROM students WHERE nick = 'from'",32);
-    box(d,'from',225,295,300,100,'FROM',s>=1?P.blueLight:P.white,s>=1?P.blue:P.line,45);
-    box(d,'string',765,295,300,100,"'from'",s>=2?P.orangeLight:P.white,s>=2?P.orange:P.line,45);
-    if(s>=2){d.path('quote','M760,265 L735,265 L735,430 L760,430 M1070,265 L1095,265 L1095,430 L1070,430','none',P.orange,4);}
-    if(s>=3){text(d,'kind1',375,535,'KEYWORD',36,P.blue);text(d,'kind2',915,535,'STR',36,P.orange);}
+  add(5,2,['Two occurrences of from','The keyword token','The string token'],(d,s)=>{
+    l5title(d,'Quotes change a token’s meaning');
+    l5sql(d,"SELECT name FROM students WHERE nick = 'from'",165);
+    box(d,'keyword',170,275,380,105,'FROM',P.blueLight,P.blue,48);
+    box(d,'string',730,275,380,105,"'from'",P.orangeLight,P.orange,48);
+    if(s>=1){text(d,'keyword-kind',360,460,'(KEYWORD, "from")',32,P.blue);text(d,'keyword-use',360,535,'Introduces the table list',28);}
+    if(s>=2){text(d,'string-kind',920,460,'(STR, "from")',32,P.orange);text(d,'string-use',920,535,'Supplies a text value',28);}
   });
-  add(5,3,['Five families','Words','Values','Punctuation'],(d,s)=>{
-    const labels=['KEYWORD','ID','NUM','STR','PUNCT'],samples=['SELECT','name','35',"'ada'",'>'];
-    labels.forEach((v,i)=>{box(d,'kind'+i,85+i*242,260,222,90,v,i===0?P.blueLight:i>=2&&i<=3?P.orangeLight:P.white,P.line,28);if(i<2||s>=2)box(d,'sample'+i,95+i*242,450,202,95,samples[i],P.white,P.line,35);});
-    if(s>=1)d.arrow('word',300,365,300,430,P.blue,4);if(s>=3)d.arrow('punct',1150,365,1150,430,P.green,4);
-    if(s>=3)text(d,'provided',640,615,'Lexer provided. ANTLR can generate lexers and parsers.',26,P.muted);
+  add(5,3,['Words become keywords or identifiers','Numbers and strings become values','Punctuation gets its own kind'],(d,s)=>{
+    const rows=[['Input text','Token kind','Token value'],['SELECT','KEYWORD','"select"'],['name','ID','"name"']];
+    if(s>=1)rows.push(['35','NUM','35'],["'ada'",'STR','"ada"']);
+    if(s>=2)rows.push(['>','PUNCT','">"']);
+    d.table('tokens',190,245,[300,300,300],rows,{rowHeight:56,fontSize:28,header:true});
+    text(d,'provided',640,640,'The supplied lexer handles quotes and word normalization.',28,P.muted);
   });
-  add(5,4,['SQL text','Tokens','Example AST','QueryData','Executable scan tree'],(d,s)=>{
-    const labels=['SQL','tokens','AST sketch','QueryData','scan tree'];
-    labels.forEach((v,i)=>{box(d,'stage'+i,70+i*235,80,200,65,v,i===s?P.greenLight:P.white,i===s?P.green:P.line,29);if(i===2)text(d,'same-structure',757,122,'=',28,P.blue);else if(i<4)d.arrow('a'+i,275+i*235,112,300+i*235,112,P.green,3);});
-    text(d,'sql',640,s===0?350:210,'SELECT name FROM students WHERE gpa > 35',31);
-    if(s===1){
-      const tokens=['KEYWORD select','ID name','KEYWORD from','ID students','KEYWORD where','ID gpa','PUNCT >','NUM 35'];
-      tokens.forEach((v,i)=>box(d,'token'+i,70+(i%4)*290,310+Math.floor(i/4)*125,260,80,v,P.blueLight,P.blue,25));
+  add(5,4,['The statement root','Fields and tables','The predicate subtree','The distinction between a field and a number'],(d,s)=>{
+    l5title(d,'An AST shows query structure');l5sql(d,undefined,155);
+    box(d,'root',490,240,300,65,'SelectQuery',P.blueLight,P.blue,32);
+    if(s>=1){
+      d.line('fields-edge',540,310,230,365,P.blue,3);d.line('table-edge',640,310,570,365,P.blue,3);
+      box(d,'field',85,370,290,65,'Field("name")',P.white,P.blue,29);
+      box(d,'table',415,370,310,65,'Table("students")',P.white,P.blue,29);
     }
-    if(s===2){
-      d.line('ast-fields',640,305,225,385,P.blue,3);d.line('ast-tables',640,305,570,385,P.blue,3);d.line('ast-predicate',640,305,1010,385,P.blue,3);
-      d.line('ast-left',1010,450,880,525,P.blue,3);d.line('ast-right',1010,450,1110,525,P.blue,3);
-      box(d,'ast-root',490,245,300,60,'SelectQuery',P.blueLight,P.blue,32);
-      box(d,'ast-field',90,385,270,65,'Field(name)',P.white,P.blue,29);
-      box(d,'ast-table',420,385,300,65,'Table(students)',P.white,P.blue,29);
-      box(d,'ast-compare',860,385,300,65,'GreaterThan',P.blueLight,P.blue,29);
-      box(d,'ast-lhs',780,525,200,60,'Field(gpa)',P.white,P.blue,27);
-      box(d,'ast-rhs',1010,525,200,60,'Number(35)',P.white,P.blue,27);
-      text(d,'ast-caption',640,635,'Illustrative node names; the lab stores this structure in QueryData.',24,P.muted);
-    }
-    if(s===3){
-      const lines=['QueryData(','    fields=["name"],','    tables=["students"],','    predicate=Predicate(("gpa", ">", 35))',')'];
-      lines.forEach((v,i)=>d.text('object'+i,i>0&&i<4?285:240,315+i*60,v.trimStart(),30,P.blue,'start'));
-      text(d,'object-caption',640,635,'QueryData is the lab’s compact AST representation.',26,P.muted);
-    }
-    if(s===4){
-      ['ProjectScan: name','SelectScan: gpa > 35','TableScan: students'].forEach((v,i)=>{box(d,'scan'+i,395,280+i*110,490,70,v,P.greenLight,P.green,31);if(i<2)d.arrow('input'+i,640,355+i*110,640,385+i*110,P.green,3);});
-      text(d,'execute',640,630,'Calling next() on the root starts pulling rows.',27,P.muted);
-    }
-  });
-  add(5,5,['The required track','An optional branch','Repeat a list','Read a legal path'],(d,s)=>{
-    const vals=['SELECT','fields','FROM','tables'];vals.forEach((v,i)=>{box(d,'rail'+i,115+i*275,300,230,85,v,P.white,P.green,33);if(i<3)d.arrow('ra'+i,350+i*275,342,380+i*275,342,P.green,4);});
-    if(s>=1){d.path('branch','M1120,400 L1120,530 L550,530 L550,415','none',P.orange,4);box(d,'where',700,490,250,80,'WHERE …',P.orangeLight,P.orange,34);}
-    if(s>=2)d.path('repeat','M475,275 C475,230 595,230 595,275','none',P.blue,4);
+    if(s>=2){d.line('pred-edge',740,310,1010,365,P.blue,3);box(d,'compare',865,370,290,65,'GreaterThan',P.blueLight,P.blue,29);}
     if(s>=3){
-      const x=[230,505,780,1055][s-3]||1055;dot(d,'token',x,425,18,P.green);text(d,'comma',535,250,',',43,P.blue);
-      text(d,'field-rule',640,200,'fieldlist := * | field { , field }',34,P.blue);
-      text(d,'symbols',640,620,'*: all columns     |: choose one alternative',29,P.muted);
-      text(d,'examples',640,665,'SELECT * FROM students   or   SELECT name, gpa FROM students',25);
+      d.line('lhs-edge',960,440,865,510,P.blue,3);d.line('rhs-edge',1060,440,1120,510,P.blue,3);
+      box(d,'lhs',755,515,220,65,'Field("gpa")',P.white,P.blue,28);
+      box(d,'rhs',1010,515,220,65,'Number(35)',P.orangeLight,P.orange,28);
     }
+    text(d,'ast-label',640,645,'Abstract syntax tree: an illustrative view of the QueryData structure',26,P.muted);
   });
-  add(5,6,['peek inspects','next consumes','match tests','expect validates and consumes'],(d,s)=>{
-    const vals=['SELECT','name','FROM','students'];row(d,'tokens',130,255,vals,s===0?0:s===1?1:s===2?2:3,240);
-    d.arrow('cursor',250+s*248,455,250+s*248,330,s===3?P.orange:P.green,5);
-    text(d,'verb',640,140,['peek()','next()','match(…)','expect(…)'][s],50);
-    if(s===0)text(d,'answer',640,580,'SELECT',42,P.blue);
-    if(s===2)text(d,'bool',640,580,'True',44,P.green);
-    if(s===3){box(d,'expected',400,540,480,80,"expected 'from'",P.orangeLight,P.orange,34);}
+  add(5,5,['Required SELECT and FROM','An optional WHERE','The star alternative','A repeated comma and field'],(d,s)=>{
+    d.text('required',100,270,'SELECT fieldlist FROM tablelist',35,P.blue,'start');
+    if(s>=1)d.text('optional',100,335,'[ WHERE predicate ]',35,P.orange,'start');
+    if(s>=2)d.text('fields',100,415,'fieldlist := * | field { , field }',35,P.blue,'start');
+    const examples=['SELECT name FROM students','SELECT name FROM students WHERE gpa > 35','SELECT * FROM students','SELECT name, gpa FROM students'];
+    box(d,'example',90,520,1100,75,examples[s],P.white,P.green,31);
+    const meanings=['Required parts appear in every query.','[ ] means optional.','* requests all columns.  | separates alternatives.','{ , field } means zero or more comma-and-field pairs.'];
+    text(d,'meaning',640,465,meanings[s],27,P.muted);
+    text(d,'ebnf',640,640,'EBNF: Extended Backus–Naur form',28,P.muted);
   });
-  add(5,7,['Parse a query','Enter WHERE','Enter a term','Return data'],(d,s)=>{
-    row(d,'tokens',85,105,['WHERE','gpa','>','35'],s===0?0:s===1?1:s===2?2:3,270);
-    const frames=['parse_query','_parse_predicate','_parse_term'];frames.forEach((v,i)=>{if(i===0||s>=i)box(d,'frame'+i,180,465-i*105,430,85,v,P.greenLight,P.green,32);});
-    box(d,'querydata',795,265,340,230,s>=3?'gpa > 35':'QueryData',P.blueLight,P.blue,36);
-    if(s>=3)d.arrow('return',630,310,770,360,P.green,5);
+  add(5,6,['peek leaves the cursor in place','match leaves the cursor in place','next advances the cursor','expect checks and then advances'],(d,s)=>{
+    l5title(d,'Token helpers either inspect or consume');
+    const calls=['peek()','match("KEYWORD", "select")','next()','expect("KEYWORD", "select")'];
+    text(d,'call',640,175,calls[s],35,P.blue);
+    text(d,'before-label',135,300,'Before',28);text(d,'after-label',135,465,'After',28);
+    ['select','name','from','students'].forEach((v,i)=>{
+      box(d,'before'+i,270+i*225,265,205,65,v,i===0?P.greenLight:P.white,i===0?P.green:P.line,30);
+      const active=i===(s>=2?1:0);
+      box(d,'after'+i,270+i*225,430,205,65,v,active?P.greenLight:P.white,active?P.green:P.line,30);
+    });
+    d.arrow('cursor-before',372,380,372,345,P.green,4);
+    d.arrow('cursor-after',s>=2?597:372,545,s>=2?597:372,510,P.green,4);
+    const returned=['("KEYWORD", "select")','True','("KEYWORD", "select")','"select"'];
+    text(d,'result',640,600,'Returns: '+returned[s],32);
+    text(d,'independent',640,660,'Each example starts at the same token. Green marks the next unread token.',25,P.muted);
   });
-  add(5,8,['A numeric literal','An identifier','Wrap the field reference','Evaluate later'],(d,s)=>{
-    row(d,'literal',180,155,['gpa','>','35'],-1,270);row(d,'field',180,295,['mid','=','mid2'],-1,270);
-    if(s>=1){d.rect('idoutline',736,285,270,80,'none',P.orange,7,4);text(d,'kind',1100,345,'ID',35,P.orange);}
-    if(s>=2){d.arrow('wrap',875,395,875,470,P.orange,5);box(d,'f',715,500,320,90,'F(mid2)',P.orangeLight,P.orange,39);}
-    if(s>=3){box(d,'row',180,510,360,80,'mid: 2 · mid2: 2',P.greenLight,P.green,30);d.arrow('resolve',695,545,560,545,P.green,5);}
+  add(5,7,['parse_query is about to consume WHERE','It calls _parse_predicate','That calls _parse_term','The term returns its tuple','The predicate returns its object','The query returns QueryData'],(d,s)=>{
+    l5title(d,'A parser call returns data to its caller');
+    ['where','gpa','>','35','EOF'].forEach((v,i)=>box(d,'token'+i,90+i*225,155,205,60,v,P.white,P.line,29));
+    const cursor=s===0?0:s<3?1:4;d.arrow('cursor',192+cursor*225,265,192+cursor*225,230,P.green,4);
+    text(d,'stack-label',340,305,'Active grammar methods',28,P.muted);
+    const depth=[1,2,3,2,1,0][s];
+    ['parse_query','_parse_predicate','_parse_term'].forEach((v,i)=>{if(i<depth)box(d,'frame'+i,100,550-i*95,480,70,v,P.greenLight,P.green,31);});
+    if(depth===0)text(d,'empty',340,480,'All three calls have returned',29,P.muted);
+    text(d,'value-heading',915,305,s<3?'Current task':'Returned value',28,P.muted);
+    const labels=['Consume WHERE','Read a predicate','Read gpa > 35','("gpa", ">", 35)','Predicate(("gpa", ">", 35))','QueryData'];
+    box(d,'value',665,390,520,100,labels[s],P.blueLight,P.blue,s===4?26:31);
+    if(s>=3&&s<5)d.arrow('return',650,440,595,s===3?490:585,P.blue,4);
+    if(s===5)text(d,'contents',925,545,'fields, tables, predicate',27);
   });
-  add(5,9,['Query intent','Insert intent','Create intent','Swap the planner'],(d,s)=>{
-    const names=['QueryData','InsertData','CreateData'],content=[['fields','tables','predicate'],['table','values'],['table','schema']];
-    names.forEach((v,i)=>{box(d,'card'+i,100+i*400,180,330,105,v,i===s?P.greenLight:P.white,P.green,34);content[i].forEach((f,j)=>box(d,'field'+i+j,125+i*400,315+j*80,280,60,f,P.blueLight,P.blue,28));});
-    if(s>=3){d.path('swap','M425,625 C625,520 825,520 1000,625','none',P.orange,5);text(d,'swaplabel',690,610,'planner A ↔ planner B',32,P.orange);}
+  add(5,8,['A constant keeps its value','An identifier becomes a field reference','Execution reads that field from the row'],(d,s)=>{
+    l5title(d,'F marks a value to read from a field');
+    text(d,'literal',350,200,'gpa > 35',38,P.blue);
+    box(d,'constant',120,280,460,95,'("gpa", ">", 35)',P.blueLight,P.blue,34);
+    text(d,'constant-meaning',350,435,'35 is a numeric constant',28);
+    if(s>=1){text(d,'field-query',945,200,'mid = mid2',38,P.orange);box(d,'field-value',675,280,535,95,'("mid", "=", F("mid2"))',P.orangeLight,P.orange,30);text(d,'field-meaning',945,435,'mid2 names another field',28);}
+    if(s>=2){text(d,'row',640,550,'Combined row: mid = 2, mid2 = 2',32);text(d,'comparison',640,620,'The predicate reads both values and tests 2 = 2.',30,P.green);}
   });
-  add(5,10,['Scans from FROM','Left-associated products','The WHERE predicate','The projection','The star shortcut'],(d,s)=>{
-    ['t1','t2','t3'].forEach((v,i)=>node(d,'scan'+i,180+i*350,550,v));
-    if(s>=1){node(d,'p1',340,420,'Product');node(d,'p2',695,310,'Product');d.arrow('a1',290,540,420,500,P.green,4);d.arrow('a2',640,540,495,500,P.green,4);d.arrow('a3',990,540,815,390,P.green,4);d.arrow('a4',565,455,705,390,P.green,4);}
-    if(s>=2){node(d,'select',695,190,'Select');d.arrow('a5',805,300,805,270,P.green,4);}
-    if(s>=3){node(d,'project',695,70,'Project');d.arrow('a6',805,180,805,150,P.green,4);}
-    if(s>=4){box(d,'star',150,110,370,90,'SELECT * FROM t',P.blueLight,P.blue,31);d.arrow('stararrow',335,220,335,265,P.blue,4);node(d,'bare',225,280,'TableScan');}
+  add(5,9,['SELECT returns QueryData','INSERT returns InsertData','CREATE TABLE returns CreateData'],(d,s)=>{
+    l5title(d,'Parsing produces a description of a statement');
+    const examples=[['SELECT name FROM students','QueryData','fields, tables, predicate'],["INSERT INTO majors VALUES (1, 'cs')",'InsertData','table, values'],['CREATE TABLE t (id INT)','CreateData','table, schema']];
+    examples.forEach(([sql,kind,fields],i)=>{if(i<=s){const y=195+i*155;d.text('sql'+i,90,y,sql,29,P.blue,'start');d.arrow('arrow'+i,740,y,820,y,P.green,3);d.text('kind'+i,860,y,kind,33,P.green,'start');d.text('fields'+i,860,y+50,fields,25,P.muted,'start');}});
+    text(d,'later',640,665,'Execution uses the description after parsing finishes.',29,P.muted);
   });
-  add(5,11,['The same QueryData','A simple plan','A better plan','The same result'],(d,s)=>{
-    box(d,'intent',420,115,450,85,'QueryData',P.blueLight,P.blue,42);d.arrow('left',485,220,320,325,P.orange,5);d.arrow('right',800,220,980,325,P.green,5);
-    box(d,'a',150,345,360,160,s>=1?'900 pairs':'?',P.orangeLight,P.orange,43);box(d,'b',770,345,360,160,s>=2?'60 pairs':'?',P.greenLight,P.green,43);
-    if(s>=3){d.arrow('ao',350,520,590,590,P.orange,4);d.arrow('bo',950,520,715,590,P.green,4);text(d,'out',650,620,'20 rows',44);}
+  add(5,10,['Open the FROM tables','Combine the scans with ProductScan','Apply the WHERE condition','Expose the SELECT fields'],(d,s)=>{
+    l5title(d,'The planner wraps scans to implement SQL');
+    l5sql(d,'SELECT name, dept FROM students, majors',150);
+    text(d,'where',640,195,'WHERE mid = mid2',30,P.blue);
+    box(d,'students',140,550,360,65,'TableScan: students',P.greenLight,P.green,29);
+    box(d,'majors',780,550,360,65,'TableScan: majors',P.greenLight,P.green,29);
+    if(s>=1){d.arrow('left',320,540,535,500,P.green,3);d.arrow('right',960,540,745,500,P.green,3);box(d,'product',425,440,430,60,'ProductScan',P.greenLight,P.green,30);}
+    if(s>=2){d.arrow('to-select',640,430,640,410,P.green,3);box(d,'select',370,345,540,65,'SelectScan: mid = mid2',P.greenLight,P.green,30);}
+    if(s>=3){d.arrow('to-project',640,335,640,315,P.green,3);box(d,'project',370,250,540,65,'ProjectScan: name, dept',P.greenLight,P.green,30);}
+    text(d,'direction',640,665,'Build from the tables upward. Arrows show where rows will flow.',27,P.muted);
   });
-  add(5,12,['A missing FROM','What was expected','What was found','An actionable boundary'],(d,s)=>{
-    row(d,'bad',145,155,['SELECT','name','students'],-1,315);
-    d.line('gap',795,140,795,245,P.red,5);
-    if(s>=1)box(d,'expected',220,345,380,110,'from',P.greenLight,P.green,48);
-    if(s>=2)box(d,'found',740,345,380,110,'students',P.redLight,P.red,48);
-    if(s>=3){text(d,'a',410,540,'expected',31,P.green);text(d,'b',930,540,'found',31,P.red);d.arrow('boundary',640,605,795,260,P.orange,4);}
+  add(5,11,['The same SQL and data','Product first: 900 pairs','Filter inputs first: 60 pairs','Both plans return 20 rows'],(d,s)=>{
+    l5title(d,'Earlier filters reduce candidate pairs');
+    l5sql(d,'SELECT name, dept FROM students, majors',150);
+    text(d,'predicate',640,200,"WHERE mid = mid2 AND gpa > 35 AND dept = 'cs'",29,P.blue);
+    text(d,'fixture',640,275,'Lab 5 data: 300 students and 3 majors',30,P.muted);
+    text(d,'simple-label',335,355,'Product first',33,P.orange);text(d,'early-label',945,355,'Filter inputs first',33,P.green);
+    if(s>=1){text(d,'simple',335,440,'300 × 3 = 900 pairs',39,P.orange);text(d,'late',335,510,'Then test all WHERE terms',26);}
+    if(s>=2){text(d,'early',945,440,'60 × 1 = 60 pairs',39,P.green);text(d,'local',945,510,'60 students and 1 major pass',26);}
+    if(s>=3){text(d,'rows',640,595,'Same answer: 20 rows',36);text(d,'timing',640,655,'15× fewer pairs does not establish a 15× speedup.',28,P.muted);}
   });
-  add(5,13,['Query structure','A separate value','Bind the value','Keep the boundary'],(d,s)=>{
-    box(d,'sql',145,170,980,105,'SELECT name FROM students WHERE id = ?',P.blueLight,P.blue,31);
-    d.line('boundary',130,345,1150,345,P.orange,4,'12 8');box(d,'value',s>=2?920:200,450,160,95,'42',P.orangeLight,P.orange,47);
-    if(s>=1)d.arrow('lane',410,495,895,495,P.orange,5);
-    if(s>=2)d.line('bind',1000,435,1050,285,P.green,5);
-    if(s>=3){d.circle('ring',1050,230,35,'none',P.green,4);text(d,'labels',640,610,'structure · value',36,P.muted);}
+  add(5,12,['The parser needs FROM','The lexer supplied ID form','expect reports the mismatch'],(d,s)=>{
+    l5title(d,'expect identifies the grammar mismatch');
+    l5sql(d,'SELECT name FORM students',175);
+    text(d,'call',640,270,'expect("KEYWORD", "from")',35,P.blue);
+    text(d,'expected-heading',345,360,'Expected token',29,P.green);
+    box(d,'expected',115,405,460,80,'(KEYWORD, "from")',P.greenLight,P.green,31);
+    if(s>=1){text(d,'found-heading',940,360,'Current token',29,P.red);box(d,'found',710,405,460,80,'(ID, "form")',P.redLight,P.red,31);}
+    if(s>=2){text(d,'error',640,580,"expected 'from', found 'form'",36,P.red);text(d,'cursor',640,650,'The failing expect call leaves the token unread.',28,P.muted);}
   });
-  add(5,14,['Parse','Plan','Read storage','Return the answer'],(d,s)=>{
-    const names=['Lexer','Parser','Planner','Operators','Records','Buffers','Files'];names.forEach((v,i)=>{box(d,'layer'+i,80+i*170,315,150,115,v,i===s*2?P.greenLight:P.white,P.green,24);if(i<6)d.arrow('a'+i,233+i*170,370,247+i*170,370,P.green,3);});
-    const x=[155,495,1175,155][s];dot(d,'packet',x,s===3?520:255,22,s===3?P.orange:P.green);
-    if(s>=3){d.arrow('return',1175,520,205,520,P.orange,5);box(d,'answer',95,555,300,70,'ada',P.orangeLight,P.orange,37);}
+  add(5,13,['A statement with a parameter','A separately supplied value','The value fills one parameter'],(d,s)=>{
+    l5title(d,'Parameter binding keeps values separate');
+    text(d,'scope',640,155,'Optional extension beyond microSQL',28,P.muted);
+    box(d,'sql',100,260,1080,85,'SELECT name FROM students WHERE sid = ?',P.blueLight,P.blue,34);
+    text(d,'structure',640,225,'Statement structure',28,P.blue);
+    if(s>=1){box(d,'value',470,465,220,85,'42',P.orangeLight,P.orange,43);text(d,'value-heading',580,590,'Bound value',29,P.orange);}
+    if(s>=2){d.arrow('bind',710,505,1110,365,P.orange,4);text(d,'meaning',640,665,'The value occupies a parameter position in the statement.',29);}
   });
-  add(5,15,['Recognize tokens','Describe intent','Build execution'],(d,s)=>{
-    const labs=['tokens','intent','plan'];labs.forEach((v,i)=>box(d,'stage'+i,130+i*380,210,320,105,s>=i?v:'?',i<=s?P.greenLight:P.white,P.green,39));
-    if(s>=0)row(d,'tokens',140,425,['SELECT','name'],-1,145);
-    if(s>=1){d.rect('obj',540,415,240,135,P.blueLight,P.blue,8,3);['fields','tables'].forEach((v,i)=>text(d,'v'+i,660,465+i*48,v,28));}
-    if(s>=2){[[1050,410],[965,550],[1140,550]].forEach(([x,y],i)=>dot(d,'node'+i,x,y,24,P.green));d.line('a',1050,435,965,525,P.green,4);d.line('b',1050,435,1140,525,P.green,4);}
-    if(s>=2)text(d,'lab-work',640,655,'Lab 5: trace the supplied code · write SQL · predict · measure · explain',27,P.muted);
+  add(5,14,['A plan ready for execution','next calls travel down the tree','A qualifying row moves upward','The runner reads the requested field'],(d,s)=>{
+    l5title(d,'Execution pulls rows through the scan tree');
+    l5sql(d,undefined,155);
+    ['ProjectScan: name','SelectScan: gpa > 35','TableScan: students'].forEach((v,i)=>box(d,'scan'+i,370,265+i*125,540,75,v,P.greenLight,P.green,31));
+    d.line('link1',640,345,640,380,P.line,3);d.line('link2',640,470,640,505,P.line,3);
+    if(s>=1){d.arrow('pull',1040,290,1040,555,P.blue,5);text(d,'next',1055,230,'next()',32,P.blue);}
+    if(s>=2){d.arrow('rows',245,555,245,300,P.orange,5);text(d,'row',640,650,'Toy input row: name = ada, gpa = 39',29,P.orange);}
+    if(s>=3){box(d,'out',85,205,240,70,'name: ada',P.orangeLight,P.orange,30);text(d,'read',640,215,'get_val("name")',28,P.orange);}
+  });
+  add(5,15,['Predict the effect of WHERE','Compare source row visits','Compare returned rows'],(d,s)=>{
+    l5title(d,'Fewer results can still require a full scan');
+    d.text('all',100,205,'SELECT name FROM students',32,P.blue,'start');
+    d.text('filtered',100,280,'SELECT name FROM students WHERE gpa > 35',32,P.blue,'start');
+    const rows=[['300-student fixture','No WHERE','gpa > 35']];
+    if(s>=1)rows.push(['Table row visits','300','300']);
+    if(s>=2)rows.push(['Returned rows','300','60']);
+    d.table('counts',150,380,[450,260,270],rows,{rowHeight:75,fontSize:30,header:true});
+    if(s>=2)text(d,'reason',640,655,'TableScan still visits every row. SelectScan rejects some afterward.',28,P.muted);
   });
 
   const metadata = [
@@ -1346,181 +1377,357 @@
     "source": "lectures/lecture-05/parsing.html",
     "scenes": [
       {
-        "title": "From text to execution",
+        "title": "SQL needs an executable plan",
         "minutes": 3,
         "kind": "title",
-        "notes": "Type a short SELECT into the visual gap between the user and the engine. Ask which existing layer can interpret its characters. None can yet. Reveal an intent object and then the executable tree, establishing the lecture’s three transformations: lex, parse, plan. Ask which transformation actually runs the query; constructing the plan is still separate from pulling its rows. The scheduled quiz is additional to this sixty-minute teaching deck.",
         "id": "lecture-05-scene-01",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#try-it"
+        ],
+        "teaching": {
+          "idea": "The front end turns a SQL request into scan objects that execution can use.",
+          "builds": [
+            "Read the SQL aloud: return names from students whose GPA exceeds 35. SQL states the requested result. The Lab 4 scan operators need objects and settings before they can produce it.",
+            "Advance once. QueryData records the fields, tables, and condition. The lexer and parser create this description from the typed text. We will examine that work next.",
+            "Advance again. The planner uses QueryData to build a scan tree. The runner then initializes the tree and calls next() to request rows. Building a plan and executing it are separate actions."
+          ],
+          "question": "Has creating QueryData read any student rows?",
+          "answer": "No. QueryData only describes the request. The execution loop later asks the scan tree for rows.",
+          "context": "The scheduled quiz is separate from these 60 teaching minutes. Lab 5 supplies the front end so students can study it and measure queries."
+        }
       },
       {
-        "title": "The unopened envelope",
+        "title": "Parsing records the request",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Ask which existing engine layer could interpret SELECT as characters. None can: operators need structured requests. Reveal an intent object with fields, tables and predicate, followed by an executable TableScan. Keep parsing separate from execution. Syntax errors concern legal token order; unknown tables and fields concern semantic validation. A parser may recognize a grammatical statement before the engine knows whether its referenced objects exist. This boundary makes the frontend manageable.",
         "id": "lecture-05-scene-02",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#query-data"
+        ],
+        "teaching": {
+          "idea": "QueryData stores the SELECT list, FROM list, and WHERE condition.",
+          "builds": [
+            "Point to SELECT name, then fields = [\"name\"]. The list records which output fields the user requested.",
+            "Point to FROM students, then tables = [\"students\"]. These are table names. They are not open TableScan objects.",
+            "Point to WHERE gpa > 35, then the Predicate object. Its term stores the field name gpa, operator >, and integer 35. No comparison runs while this object is built.",
+            "Read the completed object as one sentence: return name from students when gpa is greater than 35. Explain that the planner can now read these parts without inspecting SQL characters."
+          ],
+          "question": "What would change for SELECT * FROM students?",
+          "answer": "fields would be [\"*\"], tables would stay [\"students\"], and predicate would be None.",
+          "context": "The reading shows this exact QueryData constructor. GPA values use integer tenths, so 35 represents 3.5."
+        }
       },
       {
-        "title": "One word, two meanings",
+        "title": "Quotes change a token’s meaning",
         "minutes": 4,
         "kind": "activity",
-        "notes": "Read the example aloud and ask students to point to the keyword FROM. The second from is inside quotes and is a value, so the lexer makes it one STR token. A raw substring search loses that distinction. Regular expressions can be useful for token recognition; this is not a claim that every regex is slow or unsuitable. The important design choice is to separate lexical units from grammar. Mention that the teaching lexer has narrow escaping rules.",
         "id": "lecture-05-scene-03",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#pipeline"
+        ],
+        "teaching": {
+          "idea": "The lexer uses quoting to distinguish a keyword from a string value.",
+          "builds": [
+            "Point out both occurrences of from. Ask students to predict whether they play the same role. Pause before revealing token kinds.",
+            "The unquoted FROM becomes (KEYWORD, \"from\"). It introduces the table list. The lexer normalizes unquoted words to lowercase.",
+            "The quoted text becomes (STR, \"from\"). Its value is the four letters from. The lexer consumes the surrounding quotes, so the parser receives one string token."
+          ],
+          "question": "Why can a search for the word from alone misread this statement?",
+          "answer": "It does not tell us which occurrence is a keyword and which is inside a string. Token kinds preserve that distinction.",
+          "context": "This is the reading’s lexical example. nick illustrates quoting and is not a column in the Lab 5 measurement fixture. The reading separately shows PostgreSQL quoted identifiers with double quotes."
+        }
       },
       {
-        "title": "Five token families",
+        "title": "Tokens have a kind and a value",
         "minutes": 4,
         "kind": "definition",
-        "notes": "Classify SELECT, name, 35, a quoted string and the greater-than symbol before revealing their five families. The lexer handles spelling, quoting and normalization of unquoted words. It does not decide whether FROM appears in the right place. Ask why a field called select is rejected in the teaching language: the fixed keyword set classifies it as a keyword. Production SQL supports richer identifier and keyword rules. This definition gives the parser a cleaner input stream. Explain that ANTLR can generate lexer and parser code from a grammar. The grammar and code that interprets parsed input are still application responsibilities. ANTLR can produce a parse tree; building an AST or QueryData is a separate application step. Lexer internals and ANTLR are optional reading: students need the token contract, then trace the supplied parser and planner before writing and measuring queries.",
         "id": "lecture-05-scene-04",
-        "definition": "A classified unit of input, such as a keyword, identifier, number or string.",
+        "definition": "A token pairs a kind, such as NUM, with a value, such as 35.",
         "term": "Token",
-        "demo": "viz-sql",
         "sources": [
-          "lectures/lecture-05/parsing.html#viz-sql"
-        ]
+          "lectures/lecture-05/parsing.html#token-kinds"
+        ],
+        "teaching": {
+          "idea": "A token pairs a category with the value the parser needs.",
+          "builds": [
+            "Read the first two rows across. SELECT becomes a KEYWORD whose value is \"select\". name becomes an ID whose value is \"name\". The fixed keyword list determines the difference.",
+            "Advance to the values. NUM 35 contains an integer. STR \"ada\" contains a string without its surrounding SQL quotes. String capitalization is preserved.",
+            "Advance to punctuation. The greater-than symbol becomes PUNCT with value \">\". These five kinds cover the teaching grammar. The parser checks both kind and value when it expects a particular keyword or symbol."
+          ],
+          "question": "What token does the text 35 produce, and how does that differ from the text '35'?",
+          "answer": "35 produces (NUM, 35). The quoted version produces (STR, \"35\"). One value is an integer and the other is text.",
+          "context": "Lexer code is provided and optional to study. As the reading notes, tools such as ANTLR can generate lexers and parsers. Students only need the token contract here."
+        }
       },
       {
-        "title": "The full pipeline",
+        "title": "An AST shows query structure",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Trace SELECT name FROM students WHERE gpa > 35 through five views. The AST and QueryData views show two representations of the same parsed request, not an extra required transformation in the lab. First show the SQL text, then all eight tokens. In the conceptual AST, name is the requested field, students is the source table, and GreaterThan has Field(gpa) and Number(35) children. Ask whether 35 is a column name or a literal; it is the integer literal. These node classes are illustrative, not required student code. Next show the actual QueryData constructor with field and table lists and Predicate((gpa, >, 35)). Finally show ProjectScan above SelectScan above TableScan. The AST records what was requested; the planner chooses operators for producing it. Constructing either description does not run the query. Calling next() on the scan root starts execution.",
         "id": "lecture-05-scene-05",
-        "demo": "viz-sql",
         "sources": [
           "lectures/lecture-05/parsing.html#ast-example"
-        ]
+        ],
+        "teaching": {
+          "idea": "An abstract syntax tree shows the parts of a parsed request and how they relate.",
+          "builds": [
+            "Expand AST as abstract syntax tree. The root represents one SELECT statement. The node labels here are illustrative, as they are in the reading.",
+            "Reveal the requested field and source table. Connect each branch to the matching part of SELECT name FROM students.",
+            "Reveal GreaterThan. This node represents the WHERE comparison. The tree places the condition under the statement it belongs to.",
+            "Reveal Field(\"gpa\") and Number(35). The left child names a value to read from a row later. The right child holds a numeric constant. Neither child evaluates the comparison during parsing."
+          ],
+          "question": "Why does the AST need no node for the final semicolon?",
+          "answer": "The semicolon helps delimit the SQL text but adds no requested field, source table, or condition. The AST keeps the statement’s meaning and structure.",
+          "context": "Lab 5 stores this structure in QueryData. It does not build classes named SelectQuery or GreaterThan. This diagram is another view of the same request, not an extra lab processing stage."
+        }
       },
       {
-        "title": "Grammar as a railway",
+        "title": "Grammar defines legal token sequences",
         "minutes": 4,
         "kind": "definition",
-        "notes": "Follow the required SELECT–fields–FROM–tables track. Add the optional WHERE branch, then show a list repeating through a comma. Ask for two legal paths: SELECT name FROM students and the same statement with a predicate. BNF stands for Backus–Naur form; EBNF stands for Extended Backus–Naur form. In EBNF, brackets mean optional and braces mean zero or more repetitions. Read fieldlist := * | field { , field } aloud: choose either a literal star, or one field followed by zero or more comma-and-field pairs. The star is typed in SQL and requests all columns. The vertical bar separates grammar alternatives and is not typed in the query. Compare SELECT * FROM students, SELECT name FROM students and SELECT name, gpa FROM students. Likewise, (= | < | >) chooses one comparison operator. The supported microSQL subset omits many SQL constructs. A small grammar is a deliberate teaching constraint, not a limitation of the iterator interface.",
         "id": "lecture-05-scene-06",
-        "definition": "Rules describing which sequences of tokens form valid statements.",
+        "definition": "Rules that describe legal sequences of tokens.",
         "term": "Grammar",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#grammar"
+        ],
+        "teaching": {
+          "idea": "Grammar rules describe required parts, optional parts, and allowed repetitions.",
+          "builds": [
+            "Read the required rule from left to right: SELECT, a field list, FROM, and a table list. Match it to the example below.",
+            "Reveal [ WHERE predicate ]. Square brackets mean this part may be absent. The example now includes a condition.",
+            "Reveal the field-list rule. The star is a literal SQL token requesting all columns. The vertical bar means choose an alternative. Students type the star in SQL, but do not type the bar.",
+            "Read { , field } as zero or more comma-and-field pairs. The example selects name and gpa by using the repetition once. A single name uses it zero times."
+          ],
+          "question": "Does the star mean repetition in this grammar?",
+          "answer": "No. Here * is SQL for all columns. Braces express repetition, and square brackets express an optional part.",
+          "context": "BNF expands to Backus–Naur form. The brackets and braces used here belong to Extended Backus–Naur form, or EBNF. The reading lists the remaining rules for predicates and INSERT."
+        }
       },
       {
-        "title": "The four token moves",
+        "title": "Token helpers either inspect or consume",
         "minutes": 4,
         "kind": "activity",
-        "notes": "For each token helper, ask whether the cursor moves. peek and match inspect without advancing. next consumes one token. expect first validates, then consumes or raises ParseError. The individual examples in this visual are separate operations, not one running parse. Open the linked INSERT walkthrough to connect the insert grammar rule to parse_insert and the literal rule to _parse_literal. Step through the first value, then the comma loop. Ask why match leaves the comma unread and next must consume it before the next literal call. Switch to Missing comma to see expect fail without moving the cursor, and Missing value to see peek prepare an error message. The returned InsertData describes the insert; parsing writes no rows. Use the same patterns to understand the supplied SELECT implementation in Lab 5.",
         "id": "lecture-05-scene-07",
-        "demo": "viz-insert",
         "sources": [
-          "lectures/lecture-05/parsing.html#viz-insert"
-        ]
+          "lectures/lecture-05/parsing.html#descent"
+        ],
+        "teaching": {
+          "idea": "peek and match leave the cursor in place. next and a successful expect advance it.",
+          "builds": [
+            "Each example starts at the select token. Compare Before and After: peek returns (\"KEYWORD\", \"select\") and leaves select unread.",
+            "Reset mentally to the same starting token. match(\"KEYWORD\", \"select\") returns True and leaves select unread. It tests a condition without consuming input.",
+            "Start at select again. next returns the current (kind, value) pair and moves the cursor to name.",
+            "Start at select again. expect checks the required kind and value, then returns the value \"select\" and moves to name. A mismatch raises ParseError and leaves the cursor in place."
+          ],
+          "question": "After a comma test with match succeeds, why does the parser still call next?",
+          "answer": "match only inspected the comma. next must consume it before the parser can read the following list item.",
+          "context": "The four builds are independent examples, not four successive calls. Green always identifies the next unread token. The linked INSERT walkthrough shows these helpers inside real parser methods."
+        },
+        "demo": "viz-insert"
       },
       {
-        "title": "Watch the call stack",
+        "title": "A parser call returns data to its caller",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Trace a WHERE clause. parse_query calls the predicate rule; the predicate calls the term rule; the term consumes a field, comparison and value. Show the result returning as plain data into QueryData. Ask when the call stack grows: grammar nesting, not every token. Repeated lists commonly use loops. The stack visual is an illustrative execution of this fixed query, not a universal parser trace. Students should follow the Python implementation’s actual token calls while debugging.",
         "id": "lecture-05-scene-08",
-        "demo": "viz-trace",
         "sources": [
-          "lectures/lecture-05/parsing.html#viz-trace"
-        ]
+          "lectures/lecture-05/parsing.html#parser-calls"
+        ],
+        "teaching": {
+          "idea": "Nested grammar rules create nested calls. Each completed call returns data and leaves the stack.",
+          "builds": [
+            "We join parse_query just before WHERE. It has already read SELECT name FROM students. The cursor points to where.",
+            "parse_query consumes WHERE and calls _parse_predicate. The cursor now points to gpa. Both grammar methods are active.",
+            "_parse_predicate calls _parse_term. All three grammar methods are active. Entering a method alone has not consumed gpa.",
+            "_parse_term consumes gpa, >, and 35. It returns (\"gpa\", \">\", 35) and disappears from the stack. _parse_predicate resumes with the cursor at the end of input.",
+            "There is no AND, so _parse_predicate wraps the term in Predicate and returns. Only parse_query remains active.",
+            "parse_query combines the field list, table list, and predicate into QueryData, then returns. None of these three grammar methods remains active."
+          ],
+          "question": "Does the call stack retain the complete AST after parsing finishes?",
+          "answer": "No. Completed calls have returned and left the stack. The returned QueryData object keeps the parsed request.",
+          "context": "This diagram tracks only grammar methods. It omits short calls to lexer helpers and _parse_literal. The reading’s interactive trace uses a two-field SELECT but follows the same WHERE calls."
+        },
+        "demo": "viz-trace"
       },
       {
-        "title": "A literal or a field",
+        "title": "F marks a value to read from a field",
         "minutes": 4,
         "kind": "activity",
-        "notes": "Compare gpa > 35 with mid = mid2. Ask what lets the parser tell that 35 is a constant while mid2 names another field. NUM versus ID token kinds choose the branch. The field reference is wrapped as F(mid2), and the predicate later reads that field from a combined row. It is not compared during parsing. The shared product row supplies both values. An unwrapped identifier would accidentally behave like a literal string, producing incorrect join results.",
         "id": "lecture-05-scene-09",
-        "demo": "viz-sql",
         "sources": [
-          "lectures/lecture-05/parsing.html#viz-sql"
-        ]
+          "lectures/lecture-05/parsing.html#field-reference"
+        ],
+        "teaching": {
+          "idea": "The predicate must distinguish a constant from the name of another field.",
+          "builds": [
+            "For gpa > 35, _parse_term sees a NUM token on the right. It stores the integer 35 directly in the term.",
+            "For mid = mid2, the right token is an ID. The parser stores F(\"mid2\"). Explain F as a field reference: execution must read that field’s value from the current row.",
+            "Use the combined row shown below. mid and mid2 both contain 2, so execution tests 2 = 2 and keeps the pair. The comparison happens while scanning rows."
+          ],
+          "question": "What would the plain string \"mid2\" mean as the right-hand value?",
+          "answer": "It would be a constant string, like SQL 'mid2'. It would not look up the mid2 field. F is what requests that lookup.",
+          "context": "mid is the student’s major ID and mid2 is the major table’s ID. Distinct field names let the teaching ProductScan find the correct input. A field comparison can also compare two columns from one table."
+        }
       },
       {
-        "title": "Data between stages",
+        "title": "Parsing produces a statement description",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Introduce three plain descriptions of intent: QueryData for a read, InsertData for rows to store, and CreateData for a new schema. Ask which description records a schema and which carries only a list of values. Syntax recognition can succeed while later type, value-count or catalog validation fails. The data object is the seam between stages. Reveal the planner-swap arrow: a different planner can use the same parsed request without rewriting the lexer or grammar.",
         "id": "lecture-05-scene-10",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#statement-data"
+        ],
+        "teaching": {
+          "idea": "The statement type determines which plain data object the parser returns.",
+          "builds": [
+            "Read SELECT name FROM students. QueryData records its field list, table list, and optional predicate. No table scan exists yet.",
+            "Read INSERT INTO majors VALUES (1, 'cs'). InsertData records the table name and the values. Parsing the statement does not insert the row.",
+            "Read CREATE TABLE t (id INT). CreateData records the table name and a Schema describing the column. Execution later uses the catalog to create the table."
+          ],
+          "question": "At what stage does an INSERT actually change a table?",
+          "answer": "During execution. Parser.parse_insert only returns InsertData. Database.execute sends that object to the insertion code.",
+          "context": "These examples illustrate object types. They are not a sequence to execute against the populated demo database. The reading’s statement table lists the same three object types."
+        }
       },
       {
-        "title": "Plan from the leaves",
+        "title": "The planner wraps scans to implement SQL",
         "minutes": 4,
         "kind": "activity",
-        "notes": "Have the class direct the naive planner from the leaves upward. Open one TableScan per FROM table using catalog layouts; combine products left to right; wrap the result in Select for a predicate; project the named fields unless the query uses star. The three-table picture demonstrates left association. The separate SELECT * FROM t example needs no useless Product, Select or Project wrapper. Building a correct tree and choosing an efficient tree are different responsibilities.",
         "id": "lecture-05-scene-11",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#planner"
+        ],
+        "teaching": {
+          "idea": "The simple planner builds its scan tree from the FROM tables upward.",
+          "builds": [
+            "Read the two-table query. The planner asks the catalog for each layout and opens students and majors as TableScans.",
+            "Add ProductScan above the two inputs. It pairs every student with every major. The planner preserves FROM order. With more tables, it combines them from left to right.",
+            "Add SelectScan for mid = mid2. It keeps only matching major IDs. This condition needs the combined row from both tables.",
+            "Add ProjectScan for name and dept. It exposes only the requested fields after selection has used mid and mid2."
+          ],
+          "question": "Why would putting this projection below the selection cause trouble?",
+          "answer": "Projecting only name and dept hides mid and mid2. The selection still needs those fields to test the join.",
+          "context": "Arrows show the direction rows will flow during execution. Building the tree does not enumerate pairs. A single table needs no ProductScan, no WHERE needs no SelectScan, and SELECT * needs no ProjectScan."
+        }
       },
       {
-        "title": "Correct can be expensive",
+        "title": "Earlier filters reduce candidate pairs",
         "minutes": 3,
         "kind": "visual",
-        "notes": "Return to the 300-student, three-major measurement with both local predicates. The naive tree enumerates 900 pairs; a pushdown plan enumerates 60; both return 20 rows. Ask which stage must change to choose the second tree. The planner changes while QueryData and the parser can remain unchanged. Lecture9 discusses the statistics and transformations an optimizer needs. Lab 5 supplies the simple planner and a separate early-filter comparison plan. Students predict row visits, pairs, comparisons, and output work before measuring repeated execution times. Fifteen times fewer pairs does not guarantee a fifteen-fold speedup. Do not confuse this workload with the six-row widget.",
         "id": "lecture-05-scene-12",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#plan-comparison"
+        ],
+        "teaching": {
+          "idea": "Removing rows before ProductScan reduces how many candidate pairs it produces.",
+          "builds": [
+            "Read the full query. Both plans use the Lab 5 measurement fixture: 300 students and three majors. Only CS students with gpa > 35 belong in the result.",
+            "The simple plan forms 300 × 3 = 900 pairs before testing the WHERE terms. Pause and ask what changes if each table’s local condition runs first.",
+            "The student filter keeps 60 students and the department filter keeps one major. The product therefore forms 60 × 1 = 60 pairs. The mid = mid2 join test still runs above that product.",
+            "Both plans return the same 20 rows. The rewrite reduced candidate pairs by a factor of 15. Runtime also includes scans, comparisons, and output work, so measure it separately."
+          ],
+          "question": "Does the early-filter plan read only 60 student rows?",
+          "answer": "No. It visits all 300 students to find the 60 that qualify. Its right-hand filter also runs again for each qualifying left row.",
+          "context": "For i = 0…299, gpa = 20 + i % 20 and mid = 1 + i % 3. GPA > 35 keeps 60 students, including 20 with major 1 (CS). The simple planner and the separate early-filter plan are both supplied in Lab 5."
+        }
       },
       {
-        "title": "An error at the boundary",
+        "title": "expect identifies the grammar mismatch",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Let the class inspect SELECT name students before revealing the error. The parser expects FROM but finds students. A useful error identifies both the expected boundary and the observed token; source location would improve it further. The separate FORM misspelling is reported as form because this lexer lowercases unquoted words. Centralizing failures in expect keeps rules readable. Do not claim this tiny helper handles every semantic error or that production errors are uniformly worse.",
         "id": "lecture-05-scene-13",
-        "demo": "viz-sql",
         "sources": [
-          "lectures/lecture-05/parsing.html#viz-sql"
-        ]
+          "lectures/lecture-05/parsing.html#errors"
+        ],
+        "teaching": {
+          "idea": "A useful parse error names the token required by the rule and the token actually present.",
+          "builds": [
+            "Read SELECT name FORM students. After consuming SELECT and name, parse_query calls expect(\"KEYWORD\", \"from\").",
+            "The lexer classified the misspelling FORM as ID with value \"form\". It does not match the required token. Unquoted words are lowercase in the token stream.",
+            "Show the exact error text. expect raises ParseError before advancing, so the current token remains form. The terminal reports the error and lets the user try another query."
+          ],
+          "question": "Which edit fixes this syntax error?",
+          "answer": "Replace FORM with FROM. Whether the table and fields exist is a later catalog and planning check.",
+          "context": "This is the same misspelling and error message as the reading. It illustrates expect’s contract, not every kind of SQL error."
+        }
       },
       {
-        "title": "Values are not syntax",
+        "title": "Parameter binding keeps values separate",
         "minutes": 4,
         "kind": "visual",
-        "notes": "Draw a firm boundary between SQL structure and a separately supplied value. Bind the value into its parameter position without concatenating it into the SQL string. Explain why the parser cannot infer which valid tokens an application intended if untrusted text was already pasted into the statement. Parameter binding preserves the distinction. This is a conceptual production practice and an optional frontend extension, not a feature promised by the required microdb parser. Keep the focus on representation.",
         "id": "lecture-05-scene-14",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#parameter-binding"
+        ],
+        "teaching": {
+          "idea": "A bound value fills a parameter position without becoming new SQL syntax.",
+          "builds": [
+            "Point to the question mark as a parameter position. Explain that this is a production concept and an optional extension. The supplied microSQL parser does not support it.",
+            "Reveal 42 as a separately supplied value. The application sends the statement structure and the value separately.",
+            "Follow the binding arrow to the parameter position. The value supplies the comparison input. Concatenating arbitrary user text into SQL would instead let that text become part of the statement."
+          ],
+          "question": "Can we run this question-mark query in the supplied microdb terminal?",
+          "answer": "No. Parameter binding needs additional support. The reading presents it as an optional extension, and Lab 5 does not require it.",
+          "context": "This slide explains the FAQ’s SQL injection distinction. Database libraries expose their own parameter APIs and placeholder conventions. Keep the focus on the separation between structure and value."
+        }
       },
       {
-        "title": "The whole engine answers",
+        "title": "Execution pulls rows through the scan tree",
         "minutes": 3,
         "kind": "visual",
-        "notes": "Ask students to narrate one boundary each as a query moves through all seven icons. The lexer recognizes units, the parser records intent, the planner creates operators, the scans use layouts, the pool provides pages, and the file manager transfers blocks. Answers flow back after execution begins. Thursday is a guided reading of the complete parse_query, _parse_predicate, _parse_term and plan_query implementations. Students then write six SQL queries, predict work, measure the simple and early-filter plans, and explain the results from the operators. The completed engine is supplied.",
         "id": "lecture-05-scene-15",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#execution"
+        ],
+        "teaching": {
+          "idea": "The runner requests rows at the root, and each scan asks its input for the work it needs.",
+          "builds": [
+            "Start with the completed honors-query plan. The runner first calls before_first() to initialize scan positions. The drawing now shows a tree ready to produce rows.",
+            "The runner calls next() on ProjectScan. That call reaches SelectScan, which asks TableScan for candidate rows. Point down the tree with the blue arrow.",
+            "Use the toy row name = ada, gpa = 39. TableScan reads it, and SelectScan accepts it because 39 > 35. The successful next() result travels back toward the root.",
+            "The runner calls get_val(\"name\") and obtains ada. ProjectScan exposes the requested field. The runner repeats next() until there are no more qualifying rows, then closes the plan."
+          ],
+          "question": "When a row fails gpa > 35, does SelectScan immediately return False?",
+          "answer": "No. It keeps asking its input for rows until it finds a match or exhausts the input. False means no more qualifying rows remain.",
+          "context": "ada is one illustrative row from the six-row teaching example, not a name in the 300-student fixture. The arrows summarize pull calls and successful row access. Scans expose a current row rather than copying a row object at every edge."
+        }
       },
       {
-        "title": "Read, describe, execute",
+        "title": "Fewer results can still require a full scan",
         "minutes": 3,
         "kind": "recap",
-        "notes": "Use the final three-panel reconstruction as an exit check. Which stage handles quotes? Lexer. Which checks SELECT–FROM ordering? Parser. Which chooses scan objects? Planner. Why can optimization evolve independently? The intermediate intent object decouples syntax from execution. The supplied Lab 5 code should pass all twelve setup tests immediately. The assignment is SQL, predictions, measurements, and explanations. Ask whether fewer result rows must mean fewer source-row visits; with this heap scan, no. Compare 300 and 600 students and separate logical counts from noisy timings. Next Tuesday B+trees provide an alternative to touching every table block.",
         "id": "lecture-05-scene-16",
         "sources": [
-          "lectures/lecture-05/parsing.html"
-        ]
+          "lectures/lecture-05/parsing.html#thursday"
+        ],
+        "teaching": {
+          "idea": "Returned rows measure the answer size. Table row visits measure one part of the work.",
+          "builds": [
+            "Compare the two queries on the 300-student fixture. Before advancing, ask students to predict table row visits and returned rows for each query.",
+            "Reveal 300 visits for both. TableScan has no index that can skip students based on GPA. The filtered query must read each candidate row to test it.",
+            "Reveal 300 results without WHERE and 60 with WHERE. SelectScan rejects rows after reading them. Use this difference as the model for Lab 5 explanations."
+          ],
+          "question": "Does returning one fifth as many rows prove the filtered query runs five times faster?",
+          "answer": "No. It still scans all 300 rows and evaluates a predicate. It materializes fewer output rows. Repeated timings determine how those costs combine.",
+          "context": "Lab 5 is a guided walkthrough of supplied code, followed by six SQL experiments. Run python3 microdb.py --demo to explore results. Use measure_sql.py for work counts and repeated timings. Students submit SQL, original predictions, measurement outputs, and explanations. The 12 setup tests already pass."
+        }
       }
     ]
   }
 ];
   window.COURSE_DECKS = window.COURSE_DECKS || {};
   for (const deck of metadata) {
-    deck.scenes = deck.scenes.map((scene, index) => ({ ...scene, ...art[deck.id][index] }));
+    deck.scenes = deck.scenes.map((scene, index) => {
+      const t = scene.teaching;
+      const notes = t ? [
+        'Main idea: ' + t.idea,
+        ...t.builds.map((value, i) => `Step ${i + 1}: ${value}`),
+        'Ask: ' + t.question,
+        'Expected answer: ' + t.answer,
+        ...(t.context ? ['Teaching context: ' + t.context] : [])
+      ].join('\n\n') : scene.notes;
+      return { ...scene, notes, ...art[deck.id][index] };
+    });
     window.COURSE_DECKS[deck.id] = deck;
   }
 })();

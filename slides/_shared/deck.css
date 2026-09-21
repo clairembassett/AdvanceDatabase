@@ -16,3 +16,11 @@
 /* Keep a comfortable touch target even when a tablet reports a connected mouse. */
 @media(min-width:651px){.toolbar button,.toolbar a{min-width:44px;min-height:44px}#ink-tools button{min-width:40px;min-height:40px}#ink-tools .ink-swatch{min-width:34px;min-height:34px}}
 .presenter #slide-surface{position:relative;width:100%;height:auto;aspect-ratio:16/9}.presenter #slide-surface #presenter-canvas{width:100%;height:100%;display:block}.presenter #ink-tools{position:static;transform:none;margin-top:14px;max-width:100%;width:auto;flex-wrap:wrap;justify-content:flex-start}.presenter #ink-tools button{min-width:38px;min-height:38px}.presenter .speaker-tools button[aria-pressed=true]{background:#d4e3cc}
+/* Structured teaching notes are opt-in per scene. */
+.presenter #notes .teaching-idea{font-size:18px}
+.presenter .teaching-current{border-left:3px solid var(--accent);padding-left:16px;margin:20px 0}
+.presenter #notes .teaching-current .build{margin-bottom:6px}
+.presenter #notes .teaching-current p:last-child{margin-top:6px}
+.presenter #notes details{border-top:1px solid var(--rule);padding:12px 0}
+.presenter #notes summary{font-size:16px;font-weight:600;cursor:pointer}
+.presenter #notes .teaching-context{font-size:14px;color:var(--muted)}

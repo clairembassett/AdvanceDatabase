@@ -91,7 +91,7 @@ Hover or tap an underlined term like <span class="gloss-demo">this one</span> to
   <p>Tools such as <a href="https://www.antlr.org/">ANTLR</a> can generate lexer and parser code from a grammar. You supply the language rules and the code that interprets the parsed input.<sup class="src"><a href="#src-16" title="ANTLR v4: Getting Started (generating lexer and parser code)">16</a></sup> In this course, the lexer is provided. You need to understand its output tokens and how the parser consumes them; you do not need to study its implementation or learn ANTLR. We focus on building a query description and connecting it to database operators.</p>
 </div>
 
-<h3 class="new-slide" data-kicker="Two simple machines">Five token kinds cover all of microSQL</h3>
+<h3 id="token-kinds" class="new-slide" data-kicker="Two simple machines">Five token kinds cover all of microSQL</h3>
 
 <pre class="equation"><code>"SELECT name FROM students WHERE gpa > 35"
 
@@ -178,7 +178,7 @@ SELECT 'select' FROM demo;  -- returns the literal text: select</code></pre>
 
 <p class="keep-in-present">The tree keeps the requested field, source table, and comparison. It does not need nodes for spaces or the semicolon. <code>Number(35)</code> records a numeric value, while <code>Field("gpa")</code> names a value to read later from a row. Building this description does not read any student rows.</p>
 
-<h3 class="new-slide" data-kicker="Structure to execution">QueryData stores the request; the planner chooses operators</h3>
+<h3 id="query-data" class="new-slide" data-kicker="Structure to execution">QueryData stores the request; the planner chooses operators</h3>
 
 <p class="keep-in-present">Lab 5 stores the same structure in a compact object. For this query, the parser returns the equivalent of:</p>
 
@@ -204,7 +204,7 @@ fieldlist := * | field { , field }
 tablelist := table { , table }
 predicate := term { AND term }
 term    :=  field ( = | < | > ) value
-value   :=  number | 'string' | field          ← field here means: a join!
+value   :=  number | 'string' | field          ← a field reference reads another column
 insert  :=  INSERT INTO table VALUES ( literal { , literal } )
 literal :=  number | 'string'</code></pre>
 
@@ -314,7 +314,7 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
 </div>
 </details>
 
-<h3 class="new-slide" data-kicker="Recursive descent">The call stack shows the grammar rules currently being parsed</h3>
+<h3 id="parser-calls" class="new-slide" data-kicker="Recursive descent">The call stack shows the grammar rules currently being parsed</h3>
 
 <table>
   <thead><tr><th>Method running</th><th>Called by</th><th>Consuming</th></tr></thead>
@@ -348,7 +348,13 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
   <p class="viz-caption">When the parser reaches WHERE, <code>parse_query</code> calls <code>_parse_predicate</code>, which calls <code>_parse_term</code>. Returning from each method passes the parsed data back to its caller. Lab 5 walks through all three supplied parsing methods.</p>
 </div>
 
-<h3 class="new-slide" data-kicker="Recursive descent">The parser returns data, not scans</h3>
+<h3 id="field-reference" class="new-slide" data-kicker="Values and field names">F marks a value to read from another field</h3>
+<p class="keep-in-present">For <code>gpa &gt; 35</code>, the parser stores the numeric constant directly. For <code>mid = mid2</code>, it wraps the right-hand identifier in <code>F</code>, a field reference. The predicate will read that field's value from the current row during execution:</p>
+<pre><code class="language-python">("gpa", "&gt;", 35)          # compare with a numeric constant
+("mid", "=", F("mid2"))   # compare with the current row's mid2 value</code></pre>
+<p class="keep-in-present">For a combined row with <code>mid=2</code> and <code>mid2=2</code>, the second term tests <code>2 = 2</code>. A plain string <code>"mid2"</code> would instead mean a constant text value. The fields may come from different tables, as in this join, or from the same table.</p>
+
+<h3 id="statement-data" class="new-slide" data-kicker="Recursive descent">The parser returns data, not scans</h3>
 
 <table>
   <thead><tr><th>Statement</th><th>Parses into</th><th>Holding</th></tr></thead>
@@ -371,9 +377,13 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
   <div class="lc-row"><span class="lc-k">4 · project</span><span>one ProjectScan with the field list, unless it was <code>*</code>. For <code>SELECT * FROM t</code>, the plan is just a TableScan.</span></div>
 </div>
 
-<h3 class="new-slide" data-kicker="The naive planner">Compare the simple planner with an equivalent filtered plan</h3>
+<h3 id="plan-comparison" class="new-slide" data-kicker="The naive planner">Compare the simple planner with an equivalent filtered plan</h3>
 
 <p>Lab 5 supplies both the simple plan and an early-filter alternative. Predict their work, then compare actual source-row visits, candidate pairs, predicate comparisons, output cells, and repeated execution timings:</p>
+
+<pre><code class="language-sql">SELECT name, dept FROM students, majors
+WHERE mid = mid2 AND gpa &gt; 35 AND dept = 'cs';</code></pre>
+<p class="keep-in-present">The Lab 5 fixture has 300 students and three majors. Sixty students pass the GPA filter, and one major passes the department filter. Forming the product first produces <code>300 × 3 = 900</code> pairs. Filtering those inputs first produces <code>60 × 1 = 60</code> pairs. Both plans then return the same 20 matching students. The early filter still visits every student to decide which ones qualify.</p>
 
 <pre class="equation"><code>simple planner:    SelectScan[everything] ← Product        900 pairs examined
 early-filter plan: Select[join] ← Product(σ(s) × σ(m))      60 pairs examined</code></pre>
@@ -382,7 +392,7 @@ early-filter plan: Select[join] ← Product(σ(s) × σ(m))      60 pairs examin
 
 <p class="keep-in-present">Lecture 9 explains how an optimizer chooses among plans using statistics. Lab 5 compares two supplied plans so you can reason about their work first. The 15× reduction counts candidate pairs; it does not promise a 15× runtime improvement.</p>
 
-<h3 class="new-slide" data-kicker="The naive planner">Trace a SQL query through the completed layers</h3>
+<h3 id="execution" class="new-slide" data-kicker="The naive planner">Trace a SQL query through the completed layers</h3>
 
 <table>
   <thead><tr><th>Layer</th><th>Week</th><th>What it does for this one query</th></tr></thead>
@@ -434,6 +444,7 @@ early-filter plan: Select[join] ← Product(σ(s) × σ(m))      60 pairs examin
 <tr><td>Reversed FROM order</td><td>which input is restarted</td></tr>
 <tr><td>More selective predicates and larger tables</td><td>surviving rows, pair counts, comparisons, and repeated timings</td></tr>
 </tbody></table>
+<p class="keep-in-present">For example, <code>SELECT name FROM students</code> returns all 300 students in the measurement fixture. Adding <code>WHERE gpa &gt; 35</code> reduces the output to 60 rows, but both queries still visit all 300 source rows. The filter tests each row after TableScan reads it. Fewer results therefore do not establish a proportional reduction in execution time.</p>
 <h3 class="new-slide" data-kicker="Thursday's investigation">Before class checklist</h3>
 <ul class="checklist">
   <li>☐ Download or pull the complete Lab 5 files and query/report templates.</li>
@@ -475,8 +486,9 @@ million without scanning. Quiz 5 opens class: parsing &amp; planning.</p>
 <h3 class="keep-in-present">Why does microSQL forbid naming a column <code>select</code>?</h3>
 <p class="keep-in-present">microdb labels an unquoted word in its keyword set as <code>KEYWORD</code> before parsing. It therefore cannot use that token where an <code>ID</code> is required. PostgreSQL supports quoted identifiers and distinguishes reserved from non-reserved keywords, which requires more detailed naming and grammar rules<sup class="src"><a href="#src-14" title="PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)">14</a></sup>.</p>
 
-<h3 class="keep-in-present">What about SQL injection? Is that a parsing thing?</h3>
+<h3 id="parameter-binding" class="keep-in-present">What about SQL injection? Is that a parsing thing?</h3>
 <p class="keep-in-present">SQL injection can occur when untrusted input is concatenated into SQL text and interpreted as part of the statement. Parameterized queries keep bound values separate from SQL syntax, so a value cannot introduce a new clause or statement. Parameter binding would be a useful optional extension to microdb; it is not part of the required parser<sup class="src"><a href="#src-12" title="OWASP SQL Injection Prevention Cheat Sheet">12</a></sup>.</p>
+<p class="keep-in-present">The visual slide illustrates <code>SELECT name FROM students WHERE sid = ?</code> with the value <code>42</code> supplied separately. Here <code>?</code> marks a parameter position. Actual database libraries have their own binding APIs and placeholder conventions. The supplied microSQL terminal does not support this syntax.</p>
 
 <h3 class="keep-in-present">Could the planner cache plans for repeated queries?</h3>
 <p class="keep-in-present">Yes. Prepared statements and other plan caches can reuse parsing or planning work. microdb plans each query again to keep the implementation simple. A production cache must also handle changes to schemas, statistics, and other assumptions on which a plan depends<sup class="src"><a href="#src-13" title="PostgreSQL Documentation, PREPARE">13</a></sup>.</p>

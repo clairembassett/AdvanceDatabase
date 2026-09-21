@@ -19,6 +19,11 @@ for(const id of lectureIds){
     const name=`L${id}/${i+1} ${sc.title}`;assert(!ids.has(sc.id),name+' unique scene id');ids.add(sc.id);
     assert(Number.isInteger(sc.steps)&&sc.steps>=1,name+' states');assert(sc.minutes>0,name+' time');assert(sc.notes.length>=180,name+' useful presenter notes');
     if(sc.states)assert.equal(sc.states.length,sc.steps,name+' labeled states');
+    if(sc.teaching){
+      assert.equal(sc.teaching.builds.length,sc.steps,name+' one teaching instruction per build');
+      for(const field of ['idea','question','answer'])assert(sc.teaching[field]?.trim(),name+' teaching '+field);
+      assert(sc.teaching.builds.every(step=>step.trim()),name+' nonempty teaching steps');
+    }
     if(sc.kind==='definition'){assert(sc.definition&&sc.term,name+' definition');assert(sc.definition.trim().split(/\s+/).length<=18,name+' brief definition');}
     let prev=null,changed=false;
     for(let step=0;step<sc.steps;step++){

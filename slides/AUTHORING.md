@@ -9,6 +9,13 @@ A scene has a stable `id`, an instructor-only `title`, `minutes`, `kind`,
 a lecture must total 60, excluding any quiz. `steps` counts states starting
 at zero. `states` gives the presenter a brief description of each build.
 
+Scenes may also provide `teaching` with `idea`, `builds`, `question`, `answer`,
+and optional `context`. Each `builds` entry explains the matching animation
+state. The presenter shows the current instruction first, with expandable
+answers and a list of all steps. The printable guide includes every step and
+answer. Lecture 5 uses this format and derives the plain-text `notes` property
+from it when registering the deck, so the two versions stay consistent.
+
 Keep explanations, prediction questions, expected answers, caveats, and
 source citations in the notes. On the projected canvas, use brief definitions,
 necessary diagram labels, values, and formulas. The `definition` scene kind

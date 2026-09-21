@@ -33,6 +33,10 @@ fullscreen API where supported.
 Tap the presenter icon (or press **N**) to open a separate instructor window.
 Keep that window off the projector. It shows the current build, next scene,
 planned minute range, a lecture clock, source links, and teaching notes.
+Lecture 5 shows one main idea and the instruction for the current animation
+step. Expand **Expected answer** after asking the class, or **All animation
+steps** to see the full sequence. Its reading-section links point to the
+matching explanation in the lecture text.
 Its navigation controls also operate the audience window. You can draw or use
 the laser pointer on the presenter preview and see the marks on the audience
 slide in real time. Both views must run in the same browser on the same device.

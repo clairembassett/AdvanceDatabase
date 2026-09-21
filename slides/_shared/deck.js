@@ -13,7 +13,10 @@
   let presenterWindow=null,auto=null,clockStart=0,quietTimer,toastTimer,hashWrite=false;
   document.title=deck.title+' · Visual lecture '+id;
   const scene=()=>deck.scenes[state.slide];
-  const origin=location.origin==='null'?'*':location.origin;
+  // Chromium reports file:// here, but local-file message recipients have an
+  // opaque origin. Messages still go only to the stored peer window, and the
+  // receive handlers verify event.source before accepting them.
+  const origin=location.protocol==='file:'||location.origin==='null'?'*':location.origin;
   const pad=n=>String(n).padStart(2,'0');
   const index=(value,max)=>Number.isFinite(Number(value))?Math.max(0,Math.min(max,Math.floor(Number(value)))):0;
   const elapsed=()=>state.elapsed+(state.running?(Date.now()-clockStart)/1000:0);
@@ -57,11 +60,33 @@
   function sourceList(sc,target){
     const links=[{url:sourceLink(deck.source),text:'Lecture reading'}];
     if(sc.demo)links.push({url:sourceLink(deck.source)+'#'+sc.demo,text:'Original interactive demo'});
-    (sc.sources||[]).filter(s=>s!==deck.source).forEach((s,i)=>links.push({url:sourceLink(s),text:'Source '+(i+1)}));
+    (sc.sources||[]).filter(s=>s!==deck.source).forEach((s,i)=>links.push({url:sourceLink(s),text:s.startsWith(deck.source+'#')?'Reading section':'Source '+(i+1)}));
     links.forEach((l,i)=>{if(i)target.append(document.createTextNode(' · '));const a=el('a','',l.text);a.href=l.url;a.target='_blank';a.rel='noopener';target.append(a);});
   }
   function notesParagraphs(target,text){
     String(text).split(/\n\s*\n|\n/).filter(Boolean).forEach(p=>target.append(el('p','',p)));
+  }
+  function teachingNotes(target,sc,step=null){
+    if(!sc.teaching){notesParagraphs(target,sc.notes);return;}
+    const t=sc.teaching;
+    const paragraph=(parent,label,value,cls='')=>{
+      const p=el('p',cls);p.append(el('strong','',label+' '),document.createTextNode(value));parent.append(p);
+    };
+    paragraph(target,'Main idea:',t.idea,'teaching-idea');
+    const build=(parent,i)=>paragraph(parent,`Step ${i+1}:`,t.builds[i]);
+    if(step===null){t.builds.forEach((_,i)=>build(target,i));}
+    else{
+      const current=el('div','teaching-current');
+      current.append(el('p','build',`Step ${step+1} of ${sc.steps}: ${sc.states[step]}`));
+      current.append(el('p','',t.builds[step]));target.append(current);
+    }
+    paragraph(target,'Ask the class:',t.question);
+    if(step===null)paragraph(target,'Expected answer:',t.answer);
+    else{
+      const answer=el('details','teaching-answer');answer.append(el('summary','','Expected answer'),el('p','',t.answer));target.append(answer);
+      const all=el('details','teaching-all');all.append(el('summary','','All animation steps'));t.builds.forEach((_,i)=>build(all,i));target.append(all);
+    }
+    if(t.context)paragraph(target,'Teaching context:',t.context,'teaching-context');
   }
   function presenter(){
     document.body.className='presenter';document.body.innerHTML='<header><div><h1></h1><p>Presenter view · 60 teaching minutes · quizzes separate</p><span class="connection" id="connection"></span></div><div><span class="clock" id="clock">0:00</span> <button id="clock-button">Start clock</button> <button id="reset-clock">↺</button></div></header><div class="workspace"><section><div class="preview" id="preview"></div><div class="timing"><span id="scene-time"></span><span id="pace"></span></div><div class="speaker-tools" id="speaker-tools"></div><div class="timeline"><span id="timeline-progress"></span></div><label for="jump">Slide </label><select id="jump"></select><p class="next" id="next-scene"></p><a class="guide-link" id="guide-link" target="_blank">Full teaching guide</a></section><section id="notes" aria-live="polite"></section></div>';
@@ -82,11 +107,11 @@
     $('pace').textContent=`Build ${state.step+1} / ${sc.steps}`;
     $('timeline-progress').style.width=Math.min(100,elapsed()/60/total*100)+'%';$('jump').value=state.slide;
     $('next-scene').textContent=state.slide+1<deck.scenes.length?'Next: '+deck.scenes[state.slide+1].title:'Final scene';
-    const notes=$('notes');if(changed||!notes.childElementCount){notes.replaceChildren(el('h2','',sc.title));notes.append(el('p','build',sc.states?.[state.step]||`Build ${state.step+1}`));notesParagraphs(notes,sc.notes);const sources=el('p','sources');sourceList(sc,sources);notes.append(sources);notes.scrollTop=0;}
+    const notes=$('notes');if(changed||!notes.childElementCount){notes.replaceChildren(el('h2','',sc.title));if(!sc.teaching)notes.append(el('p','build',sc.states?.[state.step]||`Build ${state.step+1}`));teachingNotes(notes,sc,state.step);const sources=el('p','sources');sourceList(sc,sources);notes.append(sources);notes.scrollTop=0;}
   }
   function guide(){
     document.body.className='guide';const tools=el('div','guide-tools');const a=el('a','','← Lecture deck');a.href=location.pathname.split('/').pop();tools.append(a,button('Print teaching guide','Print teaching guide',()=>window.print()));document.body.append(tools,el('h1','',deck.title));document.body.append(el('p','intro',`${deck.date} · ${deck.scenes.length} scenes · ${total} teaching minutes. Scheduled quizzes are separate. Advance each animation with the right arrow or Space. Pause at the prediction prompts before revealing the next build.`));
-    deck.scenes.forEach((sc,i)=>{const article=el('article');article.append(el('div','meta',`${pad(i+1)} · ${starts[i]}–${starts[i]+sc.minutes} min · ${sc.steps} builds`),el('h2','',sc.title));const row=el('div','guide-row'),preview=svg(),notes=el('div');render(preview,sc,sc.steps-1);row.append(preview,notes);if(sc.definition)notes.append(el('p','',`${sc.term}: ${sc.definition}`));notesParagraphs(notes,sc.notes);if(sc.states)notes.append(el('p','meta','Builds: '+sc.states.join(' / ')));const sources=el('p','sources');sourceList(sc,sources);notes.append(sources);article.append(row);document.body.append(article);});
+    deck.scenes.forEach((sc,i)=>{const article=el('article');article.append(el('div','meta',`${pad(i+1)} · ${starts[i]}–${starts[i]+sc.minutes} min · ${sc.steps} builds`),el('h2','',sc.title));const row=el('div','guide-row'),preview=svg(),notes=el('div');render(preview,sc,sc.steps-1);row.append(preview,notes);if(sc.definition)notes.append(el('p','',`${sc.term}: ${sc.definition}`));teachingNotes(notes,sc);if(sc.states&&!sc.teaching)notes.append(el('p','meta','Builds: '+sc.states.join(' / ')));const sources=el('p','sources');sourceList(sc,sources);notes.append(sources);article.append(row);document.body.append(article);});
   }
   function openPresenter(){if(channel){$('presenter').click();return;}if(presenterWindow&&!presenterWindow.closed){presenterWindow.focus();publish();return;}const url=location.pathname.split('/').pop()+'?presenter=1&session='+encodeURIComponent(session);presenterWindow=window.open(url,'course-presenter-'+id,'popup,width=1300,height=850');if(!presenterWindow)announce('Allow pop-ups to open presenter view.');}
   function fullscreen(){if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>announce('Use your browser’s full-screen command.'));else announce('Use your browser’s full-screen command.');}
