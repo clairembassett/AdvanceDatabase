@@ -494,9 +494,27 @@ million without scanning. Quiz 5 opens class: parsing &amp; planning.</p>
 <h3 class="keep-in-present">Why does microSQL forbid naming a column <code>select</code>?</h3>
 <p class="keep-in-present">microdb labels an unquoted word in its keyword set as <code>KEYWORD</code> before parsing. It therefore cannot use that token where an <code>ID</code> is required. PostgreSQL supports quoted identifiers and distinguishes reserved from non-reserved keywords, which requires more detailed naming and grammar rules<sup class="src"><a href="#src-14" title="PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)">14</a></sup>.</p>
 
-<h3 id="parameter-binding" class="keep-in-present">What about SQL injection? Is that a parsing thing?</h3>
+<h3 id="parameter-binding" class="keep-in-present">How does parameter binding keep input out of SQL syntax?</h3>
 <p class="keep-in-present">SQL injection can occur when untrusted input is concatenated into SQL text and interpreted as part of the statement. Parameterized queries keep bound values separate from SQL syntax, so a value cannot introduce a new clause or statement. Parameter binding would be a useful optional extension to microdb; it is not part of the required parser<sup class="src"><a href="#src-12" title="OWASP SQL Injection Prevention Cheat Sheet">12</a></sup>.</p>
-<p class="keep-in-present">The visual slide illustrates <code>SELECT name FROM students WHERE sid = ?</code> with the value <code>42</code> supplied separately. Here <code>?</code> marks a parameter position. Actual database libraries have their own binding APIs and placeholder conventions. The supplied microSQL terminal does not support this syntax.</p>
+<p class="keep-in-present"><strong>The task:</strong> an application wants the name of the student whose ID a user enters. In this small example, student 42 is ada and student 43 is ben. The SQL text says which table, field, and comparison to use. The <code>?</code> marks one value the application will supply separately. Associating that value with the placeholder is called <strong>parameter binding</strong>.</p>
+
+<p>This complete example runs in Python using its <code>sqlite3</code> library<sup class="src"><a href="#src-17" title="Python sqlite3 documentation: placeholders and parameter binding">17</a></sup>:</p>
+<pre><code class="language-python">import sqlite3
+
+connection = sqlite3.connect(":memory:")
+connection.execute("CREATE TABLE students (sid INTEGER, name TEXT)")
+connection.executemany("INSERT INTO students VALUES (?, ?)",
+                       [(42, "ada"), (43, "ben")])
+
+sql = "SELECT name FROM students WHERE sid = ?"
+print(connection.execute(sql, [42]).fetchall())  # [('ada',)]
+print(connection.execute(sql, [43]).fetchall())  # [('ben',)]
+print(connection.execute(sql, ["42 OR 1=1"]).fetchall())  # []
+connection.close()</code></pre>
+
+<p class="keep-in-present"><code>execute(sql, [42])</code> has two arguments: the SQL text and a list containing one value. SQLite compares <code>sid</code> with 42 and returns ada. Changing the list to <code>[43]</code> returns ben. The SQL string still contains <code>?</code> in both calls.</p>
+<p class="keep-in-present"><strong>Why this matters:</strong> the final call passes <code>"42 OR 1=1"</code> as one string value. It never becomes an extra SQL condition. Neither integer ID matches that string, so this SQLite example returns no rows. Binding supplies data for the comparison; it does not paste user input into the statement.</p>
+<p class="keep-in-present">The supplied microSQL terminal does not support placeholders or this two-argument call. This is an optional extension. Other database libraries use their own binding APIs and placeholder conventions, and may reject an incompatible value instead of returning no rows. Parameters supply values, not table names, column names, or arbitrary SQL fragments.</p>
 
 <h3 class="keep-in-present">Could the planner cache plans for repeated queries?</h3>
 <p class="keep-in-present">Yes. Prepared statements and other plan caches can reuse parsing or planning work. microdb plans each query again to keep the implementation simple. A production cache must also handle changes to schemas, statistics, and other assumptions on which a plan depends<sup class="src"><a href="#src-13" title="PostgreSQL Documentation, PREPARE">13</a></sup>.</p>
@@ -526,6 +544,7 @@ document that supports the claim it is attached to.</p>
   <li id="src-14"><a href="https://github.com/postgres/postgres/blob/REL_17_STABLE/src/backend/parser/gram.y">PostgreSQL source: src/backend/parser/gram.y (REL_17_STABLE, about 19,500 lines)</a></li>
   <li id="src-15"><a href="https://www.postgresql.org/docs/current/sql-syntax-lexical.html">PostgreSQL Documentation, 4.1. Lexical Structure (quoted identifiers and string constants)</a></li>
   <li id="src-16"><a href="https://github.com/antlr/antlr4/blob/master/doc/getting-started.md">ANTLR v4: Getting Started (generating lexer and parser code)</a></li>
+  <li id="src-17"><a href="https://docs.python.org/3/library/sqlite3.html#how-to-use-placeholders-to-bind-values-in-sql-queries">Python sqlite3 documentation: placeholders and parameter binding</a></li>
 </ol>
 
 </main>

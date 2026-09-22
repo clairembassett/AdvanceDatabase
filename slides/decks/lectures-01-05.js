@@ -659,13 +659,24 @@
     if(s>=1){text(d,'found-heading',940,360,'Current token',29,P.red);box(d,'found',710,405,460,80,'(ID, "form")',P.redLight,P.red,31);}
     if(s>=2){text(d,'error',640,580,"expected 'from', found 'form'",36,P.red);text(d,'cursor',640,650,'The failing expect call leaves the token unread.',28,P.muted);}
   });
-  add(5,13,['A statement with a parameter','A separately supplied value','The value fills one parameter'],(d,s)=>{
-    l5title(d,'Parameter binding keeps values separate');
-    text(d,'scope',640,155,'Optional extension beyond microSQL',28,P.muted);
-    box(d,'sql',100,260,1080,85,'SELECT name FROM students WHERE sid = ?',P.blueLight,P.blue,34);
-    text(d,'structure',640,225,'Statement structure',28,P.blue);
-    if(s>=1){box(d,'value',470,465,220,85,'42',P.orangeLight,P.orange,43);text(d,'value-heading',580,590,'Bound value',29,P.orange);}
-    if(s>=2){d.arrow('bind',710,505,1110,365,P.orange,4);text(d,'meaning',640,665,'The value occupies a parameter position in the statement.',29);}
+  add(5,13,['The question mark marks a value to supply','Supply ID 42 and return ada','Supply ID 43 with the same SQL','SQL-looking input remains one value'],(d,s)=>{
+    l5title(d,'Parameters keep input separate from SQL');
+    text(d,'goal',640,150,'Example: look up a student using an ID from the app.',29,P.muted);
+    text(d,'structure',640,210,'Fixed SQL text (sql)',28,P.blue);
+    box(d,'sql',100,245,1080,75,'SELECT name FROM students WHERE sid = ?',P.blueLight,P.blue,34);
+    text(d,'placeholder',640,355,'? marks one value that the application supplies separately.',28,P.blue);
+    text(d,'data-heading',265,415,'Example students',27,P.muted);
+    d.table('students',100,450,[130,200],[['sid','name'],['42','ada'],['43','ben']],{rowHeight:48,fontSize:27,header:true,highlightRows:s===1?[1]:s===2?[2]:[]});
+    if(s>=1){
+      const value=s===1?'42':s===2?'43':'"42 OR 1=1"';
+      text(d,'call-heading',825,415,'Python passes SQL and values as two arguments',26,P.orange);
+      text(d,'call',825,470,`connection.execute(sql, [${value}])`,31);
+      text(d,'binding',825,525,s===3?'The entire string is one parameter value.':`[${value}] supplies ${value} for the one ? placeholder.`,27,P.orange);
+      text(d,'result',825,578,s===1?'Result: name = ada':s===2?'Result: name = ben':'Result: 0 rows',32,s===3?P.orange:P.green);
+    }
+    const meanings=['Parameter = a value supplied when the query runs.','The database compares sid with the supplied value 42.','The supplied ID changes. The SQL text stays the same.','OR 1=1 stays inside the value. It adds no SQL condition.'];
+    text(d,'meaning',640,643,meanings[s],29);
+    text(d,'scope',640,692,'Python + SQLite example. Parameter binding is optional beyond microSQL.',24,P.muted);
   });
   add(5,14,['A plan ready for execution','next calls travel down the tree','A qualifying row moves upward','The runner reads the requested field'],(d,s)=>{
     l5title(d,'Execution pulls rows through the scan tree');
@@ -1724,23 +1735,43 @@
         }
       },
       {
-        "title": "Parameter binding keeps values separate",
+        "title": "Parameters keep input separate from SQL",
         "minutes": 4,
         "kind": "visual",
         "id": "lecture-05-scene-14",
         "sources": [
-          "lectures/lecture-05/parsing.html#parameter-binding"
+          "lectures/lecture-05/parsing.html#parameter-binding",
+          "https://docs.python.org/3/library/sqlite3.html#how-to-use-placeholders-to-bind-values-in-sql-queries"
         ],
         "teaching": {
-          "idea": "A bound value fills a parameter position without becoming new SQL syntax.",
+          "idea": "The application supplies a fixed SQL statement and a separate value. Binding associates that value with ? without letting it change the statement’s structure.",
           "builds": [
-            "Point to the question mark as a parameter position. Explain that this is a production concept and an optional extension. The supplied microSQL parser does not support it.",
-            "Reveal 42 as a separately supplied value. The application sends the statement structure and the value separately.",
-            "Follow the binding arrow to the parameter position. The value supplies the comparison input. Concatenating arbitrary user text into SQL would instead let that text become part of the statement."
+            "Start with the task: an app wants the name of the student whose ID a user enters. Read the two example rows: ID 42 belongs to ada and ID 43 belongs to ben. The variable sql holds the statement shown above. The question mark is a placeholder for one comparison value. It is neither a wildcard nor an instruction to return every student.",
+            "Read the call aloud: execute the statement in sql with a list containing one value, 42. These are two Python arguments. The database associates 42 with the single question mark, compares each sid against 42, and returns the name ada. This association is called parameter binding. The SQL text still contains ?.",
+            "Now change the value list to [43]. The statement above stays exactly the same. The database compares sid against 43 and returns ben. Only the comparison value and the matching row change. We are showing a value supplied through the API, not Python replacing characters in a SQL string.",
+            "Now supply the string \"42 OR 1=1\" as the one value. SQLite does not parse that string as an extra OR condition. Neither integer ID equals it, so this example returns zero rows. This is the security reason for binding: user input cannot add SQL structure through this parameter. Pasting that text directly into SQL would cross the boundary between data and syntax."
           ],
-          "question": "Can we run this question-mark query in the supplied microdb terminal?",
-          "answer": "No. Parameter binding needs additional support. The reading presents it as an optional extension, and Lab 5 does not require it.",
-          "context": "This slide explains the FAQ’s SQL injection distinction. Database libraries expose their own parameter APIs and placeholder conventions. Keep the focus on the separation between structure and value."
+          "question": "What does parameter binding keep separate, and why does it matter?",
+          "answer": "It keeps the SQL statement and its input values separate. The value supplies the comparison input for ?, so even text that looks like SQL cannot add a condition through that parameter.",
+          "checks": [
+            {
+              "question": "What does the question mark in WHERE sid = ? represent?",
+              "answer": "One comparison value will be supplied separately when the statement executes. The database will compare sid against that value."
+            },
+            {
+              "question": "Where does 42 come from, and why does the query return ada?",
+              "answer": "The application passes 42 in the second argument, [42]. The row with sid 42 has name ada, and SELECT name returns that field."
+            },
+            {
+              "question": "What changed when we looked up ben instead of ada?",
+              "answer": "The separate value changed from 42 to 43. The SQL text, including its one question mark, stayed the same."
+            },
+            {
+              "question": "Why does the input \"42 OR 1=1\" not return both students?",
+              "answer": "Binding treats the whole string as one value. OR 1=1 never becomes a SQL condition, and neither example sid matches that string."
+            }
+          ],
+          "context": "This is a runnable Python sqlite3 example with an INTEGER sid column and two illustrative rows (42, ada) and (43, ben). The reading includes the complete setup. The provided microSQL terminal does not support placeholders or this two-argument execute call; parameter binding is an optional extension. Other database APIs use different placeholder conventions and may reject an incompatible value rather than return zero rows. Parameters represent values, not table names, column names, or arbitrary SQL fragments. Keep the lesson about separating input from SQL syntax, not query performance or plan reuse."
         }
       },
       {
