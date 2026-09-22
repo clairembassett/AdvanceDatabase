@@ -238,6 +238,8 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
 
 <p class="key-fact keep-in-present"><strong>4 verbs</strong> peek, next, match, expect: the supplied parsing methods use these token-stream helpers</p>
 
+<p class="keep-in-present">The <strong>token cursor</strong> identifies the next token to process. <code>peek()</code> reads that token without advancing. <code>match(...)</code> checks it without advancing. <code>next()</code> returns the current token and advances to the following one. A successful <code>expect(...)</code> checks and consumes the token, returning its value; a mismatch raises an error without advancing. <strong>Consuming</strong> means moving past a token, not deleting it from the list.</p>
+
 <div class="viz rd-viz" id="viz-insert" role="region" aria-labelledby="rd-title">
   <div class="viz-title" id="rd-title">Grammar → Python → token cursor</div>
   <p class="viz-description">Step advances one parser action. Click a grammar fragment to jump to its first use. Watch the literal method return to its caller, then run again for the next value.</p>
@@ -352,7 +354,13 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
 <p class="keep-in-present">For <code>gpa &gt; 35</code>, the parser stores the numeric constant directly. For <code>mid = mid2</code>, it wraps the right-hand identifier in <code>F</code>, a field reference. The predicate will read that field's value from the current row during execution:</p>
 <pre><code class="language-python">("gpa", "&gt;", 35)          # compare with a numeric constant
 ("mid", "=", F("mid2"))   # compare with the current row's mid2 value</code></pre>
-<p class="keep-in-present">For a combined row with <code>mid=2</code> and <code>mid2=2</code>, the second term tests <code>2 = 2</code>. A plain string <code>"mid2"</code> would instead mean a constant text value. The fields may come from different tables, as in this join, or from the same table.</p>
+<p class="keep-in-present">Consider an example student, <code>name='ben', mid=2</code>. Here <code>mid</code> is the student's <strong>chosen major ID</strong>. A statistics row has <code>mid2=2, dept='stat'</code>, where <code>mid2</code> is that major's <strong>own ID</strong>. The two column names are different so ProductScan can identify which input supplies each field.</p>
+<p class="keep-in-present">ProductScan pairs those two rows and exposes their fields together: <code>{name: 'ben', mid: 2, mid2: 2, dept: 'stat'}</code>. This is the <strong>combined row</strong>: one candidate student–major pair. The predicate reads the student's <code>mid</code> value, and <code>F("mid2")</code> reads the major's <code>mid2</code> value.</p>
+<table><thead><tr><th>Candidate pair</th><th>Student's chosen major ID</th><th>Major's own ID</th><th>Result of mid = mid2</th></tr></thead><tbody>
+<tr><td>ben and statistics</td><td>2, read from mid</td><td>2, read through F("mid2")</td><td>2 = 2: keep (ben, stat)</td></tr>
+<tr><td>ben and data science</td><td>2, read from mid</td><td>1, read through F("mid2")</td><td>2 ≠ 1: reject this pair</td></tr>
+</tbody></table>
+<p class="keep-in-present">The <code>2</code> in the name <code>mid2</code> does not determine the stored value. The statistics row stores 2 there; the data-science row stores 1. <code>F("mid2")</code> means “read that field from the current row.” A plain string <code>"mid2"</code> would instead mean fixed text. A field comparison can also compare columns from the same table.</p>
 
 <h3 id="statement-data" class="new-slide" data-kicker="Recursive descent">The parser returns data, not scans</h3>
 
@@ -382,7 +390,7 @@ SELECT name, gpa FROM students;  -- one field, then one comma-and-field pair</co
 <p>Lab 5 supplies both the simple plan and an early-filter alternative. Predict their work, then compare actual source-row visits, candidate pairs, predicate comparisons, output cells, and repeated execution timings:</p>
 
 <pre><code class="language-sql">SELECT name, dept FROM students, majors
-WHERE mid = mid2 AND gpa &gt; 35 AND dept = 'cs';</code></pre>
+WHERE mid = mid2 AND gpa &gt; 35 AND dept = 'ds';</code></pre>
 <p class="keep-in-present">The Lab 5 fixture has 300 students and three majors. Sixty students pass the GPA filter, and one major passes the department filter. Forming the product first produces <code>300 × 3 = 900</code> pairs. Filtering those inputs first produces <code>60 × 1 = 60</code> pairs. Both plans then return the same 20 matching students. The early filter still visits every student to decide which ones qualify.</p>
 
 <pre class="equation"><code>simple planner:    SelectScan[everything] ← Product        900 pairs examined

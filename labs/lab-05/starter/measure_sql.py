@@ -33,7 +33,7 @@ N_STUDENTS = 300
 QUERIES = [
     "SELECT name FROM students WHERE gpa > 35",
     "SELECT * FROM majors",
-    "SELECT name, dept FROM students, majors WHERE mid = mid2 AND gpa > 35 AND dept = 'cs'",
+    "SELECT name, dept FROM students, majors WHERE mid = mid2 AND gpa > 35 AND dept = 'ds'",
 ]
 
 
@@ -49,7 +49,7 @@ def school(students=N_STUDENTS):
             db.execute("CREATE TABLE majors (mid2 INT, dept VARCHAR(8))")
             for i in range(students):
                 db.execute(f"INSERT INTO students VALUES ({i}, 's{i}', {20 + i % 20}, {1 + i % 3})")
-            for mid, dept in [(1, "cs"), (2, "stat"), (3, "econ")]:
+            for mid, dept in [(1, "ds"), (2, "stat"), (3, "econ")]:
                 db.execute(f"INSERT INTO majors VALUES ({mid}, '{dept}')")
             bm.flush_all()
             yield db

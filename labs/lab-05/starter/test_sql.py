@@ -73,7 +73,7 @@ def load_school(db):
     db.execute("CREATE TABLE majors (mid2 INT, dept VARCHAR(8))")
     for sid, name, gpa, mid in PINNED:
         db.execute(f"INSERT INTO students VALUES ({sid}, '{name}', {gpa}, {mid})")
-    for mid, dept in [(1, "cs"), (2, "stat"), (3, "econ")]:
+    for mid, dept in [(1, "ds"), (2, "stat"), (3, "econ")]:
         db.execute(f"INSERT INTO majors VALUES ({mid}, '{dept}')")
 
 
@@ -180,7 +180,7 @@ def test_sql_star():
     try:
         load_school(db)
         rows = db.execute("SELECT * FROM majors")
-        expect(rows == [{"mid2": 1, "dept": "cs"}, {"mid2": 2, "dept": "stat"},
+        expect(rows == [{"mid2": 1, "dept": "ds"}, {"mid2": 2, "dept": "stat"},
                         {"mid2": 3, "dept": "econ"}],
                f"SELECT * should return every field of every row: {rows}")
     finally:
@@ -193,8 +193,8 @@ def test_sql_join():
         load_school(db)
         rows = db.execute("SELECT name, dept FROM students, majors "
                           "WHERE mid = mid2 AND gpa > 35")
-        expect(rows == [{"name": "ada", "dept": "cs"},
-                        {"name": "cyd", "dept": "cs"},
+        expect(rows == [{"name": "ada", "dept": "ds"},
+                        {"name": "cyd", "dept": "ds"},
                         {"name": "eli", "dept": "stat"}],
                f"the SQL join must match Lab 4's hand-built one: {rows}")
     finally:

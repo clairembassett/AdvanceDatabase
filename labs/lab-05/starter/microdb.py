@@ -40,7 +40,7 @@ Normal mode saves changes in ./mydb; --demo discards them on exit.
 Try these queries in --demo mode:
   SELECT * FROM majors;
   SELECT name, gpa FROM students WHERE gpa > 35;
-  SELECT name, dept FROM students, majors WHERE mid = mid2 AND dept = 'cs';
+  SELECT name, dept FROM students, majors WHERE mid = mid2 AND dept = 'ds';
 
 Create your own data in either mode:
   CREATE TABLE readings (rid INT, label VARCHAR(12), value INT);

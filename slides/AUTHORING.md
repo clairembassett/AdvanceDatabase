@@ -15,6 +15,9 @@ state. The presenter shows the current instruction first, with expandable
 answers and a list of all steps. The printable guide includes every step and
 answer. Lecture 5 uses this format and derives the plain-text `notes` property
 from it when registering the deck, so the two versions stay consistent.
+An optional `checks` array supplies a `question` and `answer` for each build.
+The presenter shows the current build's question, and the guide includes them
+alongside their steps. Keep the scene-level question as a final recap.
 
 Keep explanations, prediction questions, expected answers, caveats, and
 source citations in the notes. On the projected canvas, use brief definitions,

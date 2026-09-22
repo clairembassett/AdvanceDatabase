@@ -48,7 +48,7 @@ with school(6) as db:
     def test_required_comparisons_have_explainable_counts(self):
         self.run_code('''
 from measure_sql import school, compare
-join = "SELECT name, dept FROM students, majors WHERE mid = mid2 AND gpa > 35 AND dept = 'cs'"
+join = "SELECT name, dept FROM students, majors WHERE mid = mid2 AND gpa > 35 AND dept = 'ds'"
 with school(300) as db:
     def run(sql):
         result = compare(db, sql, repeats=2)
@@ -80,7 +80,7 @@ with school(300) as db:
     empty_simple, empty_early = run(join.replace('> 35','> 39'))
     assert empty_simple['candidate_pairs'] == 900 and empty_early['candidate_pairs'] == 0
     assert empty_early['table_row_visits'] == {'students':300,'majors':0}
-    reordered, _ = run(join.replace("mid = mid2 AND gpa > 35 AND dept = 'cs'", "gpa > 35 AND dept = 'cs' AND mid = mid2"))
+    reordered, _ = run(join.replace("mid = mid2 AND gpa > 35 AND dept = 'ds'", "gpa > 35 AND dept = 'ds' AND mid = mid2"))
     assert reordered['candidate_pairs'] == 900 and reordered['predicate_comparisons'] == 1140
     # Projection can create duplicate result rows. Equivalence must preserve them.
     duplicates, _ = run('SELECT dept FROM students, majors WHERE mid = mid2')

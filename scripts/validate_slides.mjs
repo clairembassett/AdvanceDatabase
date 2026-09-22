@@ -23,6 +23,10 @@ for(const id of lectureIds){
       assert.equal(sc.teaching.builds.length,sc.steps,name+' one teaching instruction per build');
       for(const field of ['idea','question','answer'])assert(sc.teaching[field]?.trim(),name+' teaching '+field);
       assert(sc.teaching.builds.every(step=>step.trim()),name+' nonempty teaching steps');
+      if(sc.teaching.checks){
+        assert.equal(sc.teaching.checks.length,sc.steps,name+' one question per build');
+        assert(sc.teaching.checks.every(check=>check.question?.trim()&&check.answer?.trim()),name+' complete build questions');
+      }
     }
     if(sc.kind==='definition'){assert(sc.definition&&sc.term,name+' definition');assert(sc.definition.trim().split(/\s+/).length<=18,name+' brief definition');}
     let prev=null,changed=false;

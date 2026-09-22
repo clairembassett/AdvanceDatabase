@@ -8,7 +8,7 @@ Commands used, student count, and timing repetitions:
 
 - Trace `SELECT name FROM students WHERE gpa > 35`: what does each of
   `parse_query`, `_parse_predicate`, and `_parse_term` return?
-- Why is `mid2` represented as `F("mid2")`, but `'cs'` is a string literal?
+- Why is `mid2` represented as `F("mid2")`, but `'ds'` is a string literal?
 - Why must selection happen before projection for this query?
 - Which call starts reading result rows? Why does the runner use `finally`?
 

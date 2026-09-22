@@ -9,7 +9,7 @@
 
 -- S3: Return all student columns for exactly the same rows as S2.
 
--- J1: Return name and dept for students with gpa > 35 in the 'cs' department.
+-- J1: Return name and dept for students with gpa > 35 in the 'ds' department.
 -- Join students.mid to majors.mid2; put students first in FROM.
 
 -- J2: Return the same fields and rows as J1, but put majors first in FROM.

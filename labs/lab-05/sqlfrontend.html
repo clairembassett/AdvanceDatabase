@@ -113,7 +113,7 @@ python3 microdb.py --demo</code></pre>
 <pre class="terminal"><code>microdb&gt; SELECT * FROM majors;
 mid2  dept
 ----  ----
-1     cs
+1     ds
 2     stat
 3     econ
 (3 rows)
@@ -215,7 +215,7 @@ value     := number | 'string' | field</code></pre>
         rhs = self._parse_literal()
     return field, op, rhs</code></pre>
 <pre><code>("gpa", "&gt;", 35)           # numeric literal
-("dept", "=", "cs")        # string literal from 'cs'
+("dept", "=", "ds")        # string literal from 'ds'
 ("mid", "=", F("mid2"))    # value of the other field in this pair</code></pre>
 <p><code>_parse_literal</code> is the number/string helper you just traced in INSERT. A term such as <code>mid = mid2</code> needs a combined row from both tables; <code>gpa &gt; 35</code> needs only the student row. That difference will determine where a filter may safely run.</p>
 
@@ -281,12 +281,12 @@ ProjectScan[name]
 <!-- ============================================================ -->
 <h2 id="build">Part 3 · Write queries and predict <span class="part-time">20 min</span></h2>
 <p>Complete <a href="starter/queries.sql" download><code>queries.sql</code></a> from these English requests. Save your predictions in the <a href="starter/lab5_report.md" download>report template</a> <strong>before</strong> running the measurement script.</p>
-<p>The measurement fixture has 300 students and three majors. Student <code>i</code>, for <code>i=0…299</code>, has <code>sid=i</code>, <code>name='s'+str(i)</code>, <code>gpa=20+i%20</code>, and <code>mid=1+i%3</code>. The major rows are <code>(1,'cs'), (2,'stat'), (3,'econ')</code>. GPA 35 represents 3.5. Use the distinct join fields <code>students.mid</code> and <code>majors.mid2</code>; microSQL queries spell them as <code>mid</code> and <code>mid2</code>.</p>
+<p>The measurement fixture has 300 students and three majors. Student <code>i</code>, for <code>i=0…299</code>, has <code>sid=i</code>, <code>name='s'+str(i)</code>, <code>gpa=20+i%20</code>, and <code>mid=1+i%3</code>. The major rows are <code>(1,'ds'), (2,'stat'), (3,'econ')</code>. GPA 35 represents 3.5. Use the distinct join fields <code>students.mid</code> and <code>majors.mid2</code>; microSQL queries spell them as <code>mid</code> and <code>mid2</code>.</p>
 <table><thead><tr><th>Query</th><th>Write a SELECT that…</th></tr></thead><tbody>
 <tr><td>S1</td><td>returns every student's name</td></tr>
 <tr><td>S2</td><td>returns names where gpa &gt; 35</td></tr>
 <tr><td>S3</td><td>returns all student columns for exactly the same rows as S2</td></tr>
-<tr><td>J1</td><td>returns name and dept for students with gpa &gt; 35 in 'cs'; join mid to mid2, with students first in FROM</td></tr>
+<tr><td>J1</td><td>returns name and dept for students with gpa &gt; 35 in 'ds'; join mid to mid2, with students first in FROM</td></tr>
 <tr><td>J2</td><td>returns J1's fields and rows, with majors first in FROM</td></tr>
 <tr><td>J3</td><td>uses J1's table order and department, but requires gpa &gt; 38</td></tr>
 </tbody></table>
@@ -316,18 +316,18 @@ python3 measure_sql.py --queries queries.sql --students 600 --repeat 7 --json &g
 
 <h3>Why the supplied early-filter alternative is valid</h3>
 <p>Read <code>early_filter_plan</code> in the measurement script. It finds which table owns each field used by a term. A term referring to one table goes just above that table's scan. A term referring to both tables stays above the product. It preserves FROM order, then adds projection. This is a supplied comparison plan, not a cost-based optimizer.</p>
-<p>For this inner join with AND predicates, a student that fails <code>gpa &gt; 35</code> cannot appear in any final answer, whichever major it is paired with. A major that fails <code>dept = 'cs'</code> cannot appear either. Removing those rows before pairing them therefore preserves the answer. The equality <code>mid = mid2</code> needs both rows and stays above the product. Field ownership establishes that the rewrite is valid; row counts help predict how much work it saves.</p>
+<p>For this inner join with AND predicates, a student that fails <code>gpa &gt; 35</code> cannot appear in any final answer, whichever major it is paired with. A major that fails <code>dept = 'ds'</code> cannot appear either. Removing those rows before pairing them therefore preserves the answer. The equality <code>mid = mid2</code> needs both rows and stays above the product. Field ownership establishes that the rewrite is valid; row counts help predict how much work it saves.</p>
 <pre><code>Simple                            Early filter
 Project[name, dept]                Project[name, dept]
 └─ Select[all three terms]         └─ Select[mid = mid2]
    └─ Product                        └─ Product
       ├─ students                       ├─ Select[gpa &gt; 35] → students
-      └─ majors                         └─ Select[dept = 'cs'] → majors</code></pre>
+      └─ majors                         └─ Select[dept = 'ds'] → majors</code></pre>
 
 <details class="exercise"><summary>Worked check for J1: reveal after making your prediction</summary>
 <pre><code>SELECT name, dept FROM students, majors
-WHERE mid = mid2 AND gpa &gt; 35 AND dept = 'cs';</code></pre>
-<p>With 300 students, 60 pass <code>gpa &gt; 35</code>, one major passes <code>dept = 'cs'</code>, and 20 students satisfy the full join. The simple plan produces <code>300 × 3 = 900</code> candidate pairs; the early-filter plan produces <code>60 × 1 = 60</code>. Both return 20 rows and 40 output cells.</p>
+WHERE mid = mid2 AND gpa &gt; 35 AND dept = 'ds';</code></pre>
+<p>With 300 students, 60 pass <code>gpa &gt; 35</code>, one major passes <code>dept = 'ds'</code>, and 20 students satisfy the full join. The simple plan produces <code>300 × 3 = 900</code> candidate pairs; the early-filter plan produces <code>60 × 1 = 60</code>. Both return 20 rows and 40 output cells.</p>
 <p>The early plan still visits all 300 student rows. Its right-hand filter is restarted for each of 60 qualifying students, so it visits <code>60 × 3 = 180</code> major rows. It does not materialize and reuse the one matching major. With predicates written in J1's illustrated order, the simple plan evaluates <code>900 + 300 + 60 = 1260</code> comparisons; the early plan evaluates <code>300 + 180 + 60 = 540</code>. Reordering AND terms can change comparison counts without changing the pairs or result.</p>
 </details>
 

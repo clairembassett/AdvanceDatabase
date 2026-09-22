@@ -183,7 +183,7 @@
     [[1, 'ada', 39, 1], [2, 'ben', 31, 2], [3, 'cyd', 37, 1],
      [4, 'dee', 28, 3], [5, 'eli', 36, 2], [6, 'fay', 34, 1]].forEach(([s, n, g, m]) =>
       run(`INSERT INTO students VALUES (${s}, '${n}', ${g}, ${m})`));
-    [[1, 'cs'], [2, 'stat'], [3, 'econ']].forEach(([m, d]) =>
+    [[1, 'ds'], [2, 'stat'], [3, 'econ']].forEach(([m, d]) =>
       run(`INSERT INTO majors VALUES (${m}, '${d}')`));
   });
   $('rp-p2').addEventListener('click', () => run("SELECT name FROM students WHERE gpa > 35"));

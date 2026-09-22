@@ -73,17 +73,24 @@
       const p=el('p',cls);p.append(el('strong','',label+' '),document.createTextNode(value));parent.append(p);
     };
     paragraph(target,'Main idea:',t.idea,'teaching-idea');
-    const build=(parent,i)=>paragraph(parent,`Step ${i+1}:`,t.builds[i]);
+    const build=(parent,i)=>{
+      paragraph(parent,`Step ${i+1}:`,t.builds[i]);
+      if(step===null&&t.checks?.[i]){
+        paragraph(parent,'Ask:',t.checks[i].question);
+        paragraph(parent,'Expected answer:',t.checks[i].answer);
+      }
+    };
     if(step===null){t.builds.forEach((_,i)=>build(target,i));}
     else{
       const current=el('div','teaching-current');
       current.append(el('p','build',`Step ${step+1} of ${sc.steps}: ${sc.states[step]}`));
       current.append(el('p','',t.builds[step]));target.append(current);
     }
-    paragraph(target,'Ask the class:',t.question);
+    const check=step===null?t:t.checks?.[step]||t;
+    paragraph(target,step===null&&t.checks?'Recap question:':'Ask the class:',check.question);
     if(step===null)paragraph(target,'Expected answer:',t.answer);
     else{
-      const answer=el('details','teaching-answer');answer.append(el('summary','','Expected answer'),el('p','',t.answer));target.append(answer);
+      const answer=el('details','teaching-answer');answer.append(el('summary','','Expected answer'),el('p','',check.answer));target.append(answer);
       const all=el('details','teaching-all');all.append(el('summary','','All animation steps'));t.builds.forEach((_,i)=>build(all,i));target.append(all);
     }
     if(t.context)paragraph(target,'Teaching context:',t.context,'teaching-context');

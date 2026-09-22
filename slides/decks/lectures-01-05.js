@@ -555,21 +555,33 @@
     text(d,'meaning',640,465,meanings[s],27,P.muted);
     text(d,'ebnf',640,640,'EBNF: Extended Backus–Naur form',28,P.muted);
   });
-  add(5,6,['peek leaves the cursor in place','match leaves the cursor in place','next advances the cursor','expect checks and then advances'],(d,s)=>{
-    l5title(d,'Token helpers either inspect or consume');
-    const calls=['peek()','match("KEYWORD", "select")','next()','expect("KEYWORD", "select")'];
-    text(d,'call',640,175,calls[s],35,P.blue);
-    text(d,'before-label',135,300,'Before',28);text(d,'after-label',135,465,'After',28);
-    ['select','name','from','students'].forEach((v,i)=>{
-      box(d,'before'+i,270+i*225,265,205,65,v,i===0?P.greenLight:P.white,i===0?P.green:P.line,30);
-      const active=i===(s>=2?1:0);
-      box(d,'after'+i,270+i*225,430,205,65,v,active?P.greenLight:P.white,active?P.green:P.line,30);
+  add(5,6,['Start at the first token','peek looks at select','match checks select','next consumes select','expect consumes name'],(d,s)=>{
+    l5title(d,'Consuming a token moves the cursor');
+    l5sql(d,'SELECT name FROM students',155);
+    const cursor=s<3?0:s===3?1:2;
+    const tokens=[['select','KEYWORD'],['name','ID'],['from','KEYWORD'],['students','ID']];
+    tokens.forEach(([value,kind],i)=>{
+      const x=100+i*280,active=i===cursor;
+      d.rect('token'+i,x,250,240,95,active?P.greenLight:P.white,active?P.green:P.line,8,active?3:2);
+      text(d,'value'+i,x+120,285,value,35,i<cursor?P.muted:P.ink);
+      text(d,'kind'+i,x+120,323,kind,23,P.muted);
+      if(i<cursor)text(d,'consumed'+i,x+120,220,'consumed',25,P.muted);
     });
-    d.arrow('cursor-before',372,380,372,345,P.green,4);
-    d.arrow('cursor-after',s>=2?597:372,545,s>=2?597:372,510,P.green,4);
-    const returned=['("KEYWORD", "select")','True','("KEYWORD", "select")','"select"'];
-    text(d,'result',640,600,'Returns: '+returned[s],32);
-    text(d,'independent',640,660,'Each example starts at the same token. Green marks the next unread token.',25,P.muted);
+    const x=220+cursor*280;
+    d.arrow('cursor',x,395,x,355,P.green,4);
+    text(d,'cursor-caption',x,425,'Cursor: next token',25,P.green);
+    if(s===0){
+      text(d,'start',640,530,'The cursor starts at select.',36);
+      text(d,'meaning',640,605,'Consume means move past a token. The token remains in the list.',29,P.muted);
+    }else{
+      const calls=['','peek()','match("KEYWORD", "select")','next()','expect("ID")'];
+      const returns=['','("KEYWORD", "select")','True','("KEYWORD", "select")','"name"'];
+      text(d,'call-heading',355,490,'Call',25,P.muted);text(d,'return-heading',935,490,'Returned value',25,P.muted);
+      text(d,'call',355,540,calls[s],32,P.blue);text(d,'result',935,540,returns[s],30);
+      const effects=['','The cursor stays on “select”.','The test is True. The cursor stays on “select”.','Consume “select”. The cursor moves to “name”.','Consume “name”. The cursor moves to “from”.'];
+      text(d,'effect',640,620,effects[s],33,P.green);
+    }
+    text(d,'sequence',640,680,'One token stream. Each call continues where the previous call stopped.',25,P.muted);
   });
   add(5,7,['parse_query is about to consume WHERE','It calls _parse_predicate','That calls _parse_term','The term returns its tuple','The predicate returns its object','The query returns QueryData'],(d,s)=>{
     l5title(d,'A parser call returns data to its caller');
@@ -585,17 +597,35 @@
     if(s>=3&&s<5)d.arrow('return',650,440,595,s===3?490:585,P.blue,4);
     if(s===5)text(d,'contents',925,545,'fields, tables, predicate',27);
   });
-  add(5,8,['A constant keeps its value','An identifier becomes a field reference','Execution reads that field from the row'],(d,s)=>{
-    l5title(d,'F marks a value to read from a field');
-    text(d,'literal',350,200,'gpa > 35',38,P.blue);
-    box(d,'constant',120,280,460,95,'("gpa", ">", 35)',P.blueLight,P.blue,34);
-    text(d,'constant-meaning',350,435,'35 is a numeric constant',28);
-    if(s>=1){text(d,'field-query',945,200,'mid = mid2',38,P.orange);box(d,'field-value',675,280,535,95,'("mid", "=", F("mid2"))',P.orangeLight,P.orange,30);text(d,'field-meaning',945,435,'mid2 names another field',28);}
-    if(s>=2){text(d,'row',640,550,'Combined row: mid = 2, mid2 = 2',32);text(d,'comparison',640,620,'The predicate reads both values and tests 2 = 2.',30,P.green);}
+  add(5,8,['Identify the two major-ID fields','ProductScan pairs the student with a major','Read mid2 and keep the matching pair','Read a different mid2 and reject that pair'],(d,s)=>{
+    l5title(d,'F("mid2") reads the major row’s ID');
+    l5sql(d,'WHERE mid = mid2',155);
+    const majorId=s===3?1:2,department=s===3?'ds':'stat';
+    text(d,'student-heading',335,220,'Student row',32,P.green);
+    text(d,'major-heading',945,220,'Major row',32,P.blue);
+    d.table('student',110,250,[225,225],[['name','mid'],['ben','2']],{rowHeight:54,fontSize:30,header:true});
+    d.table('major',720,250,[225,225],[['mid2','dept'],[String(majorId),department]],{rowHeight:54,fontSize:30,header:true,highlightCols:s>=2?[0]:[]});
+    text(d,'student-id-meaning',335,387,'mid: the student’s chosen major ID',26,P.green);
+    text(d,'major-id-meaning',945,387,'mid2: this major’s own ID',26,P.blue);
+    if(s===0){
+      text(d,'question',640,515,'Do these rows refer to the same major?',36);
+      text(d,'names',640,600,'mid and mid2 are column names. The cells contain their values.',28,P.muted);
+    }
+    if(s>=1){
+      d.arrow('student-input',335,415,335,470,P.green,3);
+      d.arrow('major-input',945,415,945,470,P.blue,3);
+      text(d,'pair-heading',640,440,'ProductScan: one candidate pair',28);
+      d.table('pair',180,485,[230,230,230,230],[['name','mid','mid2','dept'],['ben','2',String(majorId),department]],{rowHeight:48,fontSize:29,header:true,highlightCols:s>=2?[2]:[]});
+      if(s===1)text(d,'pair-meaning',640,640,'“Combined row” means we can read fields from both rows in this pair.',28,P.muted);
+    }
+    if(s>=2){
+      text(d,'lookup',640,615,`F("mid2") reads ${majorId} from the highlighted column.`,30,P.orange);
+      text(d,'comparison',640,672,s===2?'Student’s major ID 2 = this major’s ID 2: keep (ben, stat).':'Student’s major ID 2 ≠ this major’s ID 1: reject (ben, ds).',29,s===2?P.green:P.red);
+    }
   });
   add(5,9,['SELECT returns QueryData','INSERT returns InsertData','CREATE TABLE returns CreateData'],(d,s)=>{
     l5title(d,'Parsing produces a description of a statement');
-    const examples=[['SELECT name FROM students','QueryData','fields, tables, predicate'],["INSERT INTO majors VALUES (1, 'cs')",'InsertData','table, values'],['CREATE TABLE t (id INT)','CreateData','table, schema']];
+    const examples=[['SELECT name FROM students','QueryData','fields, tables, predicate'],["INSERT INTO majors VALUES (1, 'ds')",'InsertData','table, values'],['CREATE TABLE t (id INT)','CreateData','table, schema']];
     examples.forEach(([sql,kind,fields],i)=>{if(i<=s){const y=195+i*155;d.text('sql'+i,90,y,sql,29,P.blue,'start');d.arrow('arrow'+i,740,y,820,y,P.green,3);d.text('kind'+i,860,y,kind,33,P.green,'start');d.text('fields'+i,860,y+50,fields,25,P.muted,'start');}});
     text(d,'later',640,665,'Execution uses the description after parsing finishes.',29,P.muted);
   });
@@ -613,7 +643,7 @@
   add(5,11,['The same SQL and data','Product first: 900 pairs','Filter inputs first: 60 pairs','Both plans return 20 rows'],(d,s)=>{
     l5title(d,'Earlier filters reduce candidate pairs');
     l5sql(d,'SELECT name, dept FROM students, majors',150);
-    text(d,'predicate',640,200,"WHERE mid = mid2 AND gpa > 35 AND dept = 'cs'",29,P.blue);
+    text(d,'predicate',640,200,"WHERE mid = mid2 AND gpa > 35 AND dept = 'ds'",29,P.blue);
     text(d,'fixture',640,275,'Lab 5 data: 300 students and 3 majors',30,P.muted);
     text(d,'simple-label',335,355,'Product first',33,P.orange);text(d,'early-label',945,355,'Filter inputs first',33,P.green);
     if(s>=1){text(d,'simple',335,440,'300 × 3 = 900 pairs',39,P.orange);text(d,'late',335,510,'Then test all WHERE terms',26);}
@@ -1504,7 +1534,7 @@
         }
       },
       {
-        "title": "Token helpers either inspect or consume",
+        "title": "Consuming a token moves the cursor",
         "minutes": 4,
         "kind": "activity",
         "id": "lecture-05-scene-07",
@@ -1512,16 +1542,39 @@
           "lectures/lecture-05/parsing.html#descent"
         ],
         "teaching": {
-          "idea": "peek and match leave the cursor in place. next and a successful expect advance it.",
+          "idea": "The cursor marks the next token to process. Looking at a token leaves the cursor in place. Consuming it moves the cursor forward.",
           "builds": [
-            "Each example starts at the select token. Compare Before and After: peek returns (\"KEYWORD\", \"select\") and leaves select unread.",
-            "Reset mentally to the same starting token. match(\"KEYWORD\", \"select\") returns True and leaves select unread. It tests a condition without consuming input.",
-            "Start at select again. next returns the current (kind, value) pair and moves the cursor to name.",
-            "Start at select again. expect checks the required kind and value, then returns the value \"select\" and moves to name. A mismatch raises ParseError and leaves the cursor in place."
+            "Point to the arrow under select. This is the cursor: it identifies the next token a helper will use. The token boxes will stay on screen throughout this example. Consuming a token means moving past it, not deleting it.",
+            "Call peek(). It returns the kind and value of select: (\"KEYWORD\", \"select\"). The arrow stays under select. We have looked at the token, but the next helper will still see it.",
+            "Now call match(\"KEYWORD\", \"select\") on the same stream. It asks whether the current token has that kind and value. The answer is True. The arrow still stays under select.",
+            "Now call next(). It returns (\"KEYWORD\", \"select\") and moves the arrow to name. select remains visible as a consumed token. The returned token is select, but the next unread token is now name.",
+            "Now call expect(\"ID\"). The current token, name, is an identifier, so the check succeeds. expect returns just the value \"name\" and moves the arrow to from. If the kind did not match, expect would raise ParseError without moving the cursor."
           ],
-          "question": "After a comma test with match succeeds, why does the parser still call next?",
-          "answer": "match only inspected the comma. next must consume it before the parser can read the following list item.",
-          "context": "The four builds are independent examples, not four successive calls. Green always identifies the next unread token. The linked INSERT walkthrough shows these helpers inside real parser methods."
+          "question": "Which helpers move the cursor, and which leave it in place?",
+          "answer": "peek and match leave it in place. next and a successful expect move it to the following token.",
+          "checks": [
+            {
+              "question": "Which token will the first helper see?",
+              "answer": "select, because the cursor points to it."
+            },
+            {
+              "question": "If we call peek again now, what will it return?",
+              "answer": "It returns (\"KEYWORD\", \"select\") again. The first peek did not move the cursor."
+            },
+            {
+              "question": "Does True mean that match consumed select?",
+              "answer": "No. True only reports that the token matched. The cursor still points to select."
+            },
+            {
+              "question": "next returned select. Which token will peek see now?",
+              "answer": "name. next returned the old token and then advanced the cursor."
+            },
+            {
+              "question": "Why does expect(\"ID\") succeed here, and what is unread next?",
+              "answer": "The current token name has kind ID. expect consumes it and returns \"name\". The next unread token is from."
+            }
+          ],
+          "context": "These are consecutive calls on one Lexer for SELECT name FROM students. There are no resets between steps. They demonstrate the helper contracts, not the exact call sequence inside parse_query. Token kinds appear beneath their values. The linked INSERT walkthrough applies the same helpers in a parser."
         },
         "demo": "viz-insert"
       },
@@ -1550,7 +1603,7 @@
         "demo": "viz-trace"
       },
       {
-        "title": "F marks a value to read from a field",
+        "title": "F(\"mid2\") reads the major row’s ID",
         "minutes": 4,
         "kind": "activity",
         "id": "lecture-05-scene-09",
@@ -1558,15 +1611,34 @@
           "lectures/lecture-05/parsing.html#field-reference"
         ],
         "teaching": {
-          "idea": "The predicate must distinguish a constant from the name of another field.",
+          "idea": "The student row says which major the student chose. The major row has its own ID. The join keeps a pair when those two IDs match.",
           "builds": [
-            "For gpa > 35, _parse_term sees a NUM token on the right. It stores the integer 35 directly in the term.",
-            "For mid = mid2, the right token is an ID. The parser stores F(\"mid2\"). Explain F as a field reference: execution must read that field’s value from the current row.",
-            "Use the combined row shown below. mid and mid2 both contain 2, so execution tests 2 = 2 and keeps the pair. The comparison happens while scanning rows."
+            "Introduce the two example rows. ben has mid = 2, meaning his chosen major has ID 2. The statistics row has mid2 = 2, meaning statistics is major 2. mid and mid2 are column names in different tables. Neither is the student’s own ID.",
+            "ProductScan pairs ben with the statistics row and makes both rows’ fields available. That is all “combined row” means here. Point to name and mid from the student, then mid2 and dept from the major. The predicate has not decided whether to keep the pair yet.",
+            "For WHERE mid = mid2, the parser stored (\"mid\", \"=\", F(\"mid2\")). The predicate reads 2 from the student’s mid field. F(\"mid2\") tells it to read 2 from the major’s mid2 field. These are the two sides of 2 = 2. They name the same major, so keep the pair and return ben with stat.",
+            "Now pair the same student with the data-science row. ben still has mid = 2, but this major has mid2 = 1. F(\"mid2\") now reads 1. The predicate compares 2 with 1 and rejects the pair. The field name stayed mid2 while the value changed."
           ],
-          "question": "What would the plain string \"mid2\" mean as the right-hand value?",
-          "answer": "It would be a constant string, like SQL 'mid2'. It would not look up the mid2 field. F is what requests that lookup.",
-          "context": "mid is the student’s major ID and mid2 is the major table’s ID. Distinct field names let the teaching ProductScan find the correct input. A field comparison can also compare two columns from one table."
+          "question": "What does F(\"mid2\") tell execution to do?",
+          "answer": "Read the value of the mid2 field from the current candidate pair. That value is the ID of whichever major row is currently paired with the student.",
+          "checks": [
+            {
+              "question": "Where does each 2 come from?",
+              "answer": "The left 2 is the student’s chosen major ID in mid. The right 2 is the statistics major’s own ID in mid2."
+            },
+            {
+              "question": "Does ProductScan already know that statistics is the right major for ben?",
+              "answer": "No. ProductScan creates candidate pairs. The mid = mid2 predicate decides which pairs match."
+            },
+            {
+              "question": "Why do we keep (ben, stat)?",
+              "answer": "ben’s chosen major ID is 2 and the statistics row’s ID is also 2. They refer to the same major."
+            },
+            {
+              "question": "Does the 2 in the column name mid2 force its value to be 2?",
+              "answer": "No. mid2 is just a distinct column name. The data-science row stores 1 there, so this pair fails the comparison."
+            }
+          ],
+          "context": "These are illustrative rows using the lab’s major IDs: 1 is ds and 2 is stat. ben is a readable example name, not a row name in the generated 300-student fixture. ProductScan exposes fields from its two current inputs; it need not copy them into a new stored row. F means field reference. By contrast, 35 in gpa > 35 is a fixed number, and a plain string \"mid2\" would be fixed text."
         }
       },
       {
@@ -1581,7 +1653,7 @@
           "idea": "The statement type determines which plain data object the parser returns.",
           "builds": [
             "Read SELECT name FROM students. QueryData records its field list, table list, and optional predicate. No table scan exists yet.",
-            "Read INSERT INTO majors VALUES (1, 'cs'). InsertData records the table name and the values. Parsing the statement does not insert the row.",
+            "Read INSERT INTO majors VALUES (1, 'ds'). InsertData records the table name and the values. Parsing the statement does not insert the row.",
             "Read CREATE TABLE t (id INT). CreateData records the table name and a Schema describing the column. Execution later uses the catalog to create the table."
           ],
           "question": "At what stage does an INSERT actually change a table?",
@@ -1621,14 +1693,14 @@
         "teaching": {
           "idea": "Removing rows before ProductScan reduces how many candidate pairs it produces.",
           "builds": [
-            "Read the full query. Both plans use the Lab 5 measurement fixture: 300 students and three majors. Only CS students with gpa > 35 belong in the result.",
+            "Read the full query. Both plans use the Lab 5 measurement fixture: 300 students and three majors. Only DS students with gpa > 35 belong in the result.",
             "The simple plan forms 300 × 3 = 900 pairs before testing the WHERE terms. Pause and ask what changes if each table’s local condition runs first.",
             "The student filter keeps 60 students and the department filter keeps one major. The product therefore forms 60 × 1 = 60 pairs. The mid = mid2 join test still runs above that product.",
             "Both plans return the same 20 rows. The rewrite reduced candidate pairs by a factor of 15. Runtime also includes scans, comparisons, and output work, so measure it separately."
           ],
           "question": "Does the early-filter plan read only 60 student rows?",
           "answer": "No. It visits all 300 students to find the 60 that qualify. Its right-hand filter also runs again for each qualifying left row.",
-          "context": "For i = 0…299, gpa = 20 + i % 20 and mid = 1 + i % 3. GPA > 35 keeps 60 students, including 20 with major 1 (CS). The simple planner and the separate early-filter plan are both supplied in Lab 5."
+          "context": "For i = 0…299, gpa = 20 + i % 20 and mid = 1 + i % 3. GPA > 35 keeps 60 students, including 20 with major 1 (DS). The simple planner and the separate early-filter plan are both supplied in Lab 5."
         }
       },
       {
@@ -1721,7 +1793,10 @@
       const t = scene.teaching;
       const notes = t ? [
         'Main idea: ' + t.idea,
-        ...t.builds.map((value, i) => `Step ${i + 1}: ${value}`),
+        ...t.builds.flatMap((value, i) => [
+          `Step ${i + 1}: ${value}`,
+          ...(t.checks?.[i] ? ['Ask: ' + t.checks[i].question, 'Expected answer: ' + t.checks[i].answer] : [])
+        ]),
         'Ask: ' + t.question,
         'Expected answer: ' + t.answer,
         ...(t.context ? ['Teaching context: ' + t.context] : [])
