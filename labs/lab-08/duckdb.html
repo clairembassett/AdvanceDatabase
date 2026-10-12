@@ -112,7 +112,7 @@ hover or tap for a plain-language explainer that opens right below the sentence 
 <table>
   <thead><tr><th>Construct</th><th>What it means</th><th>Connection to query execution</th></tr></thead>
   <tbody>
-    <tr><td><code>GROUP BY month</code></td><td>partition rows by value; aggregate each group</td><td>a materializing operator (Lecture 4's pipeline-breaker); hash aggregation usually consumes all input before emitting; ordered aggregation can stream groups</td></tr>
+    <tr><td><code>GROUP BY month</code></td><td>partition rows by value; aggregate each group</td><td>hash aggregation usually consumes all input before emitting; ordered aggregation can stream groups</td></tr>
     <tr><td><code>SUM(...) OVER (ORDER BY month)</code></td><td>after grouping to one row per month, add a running total beside each monthly row</td><td>an operator with memory: sort if needed, then compute the running total</td></tr>
     <tr><td><code>ORDER BY fare DESC LIMIT 5</code></td><td>top-k</td><td>the engine may use a bounded top-k structure instead of sorting every row; inspect EXPLAIN to see the chosen plan</td></tr>
   </tbody>
