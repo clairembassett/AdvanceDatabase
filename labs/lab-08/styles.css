@@ -42,3 +42,43 @@
 body.presentation-mode .repl { font-size: 0.55em; max-height: 12em; }
 body.presentation-mode .repl-input-row input,
 body.presentation-mode .repl-prompt { font-size: 0.55em; }
+
+/* Window-function walkthrough: keep input and output aligned. */
+.window-demo { font-family: var(--sans); color: var(--ink); }
+.window-demo h4 { font-family: var(--sans); font-size: 20px; margin: 0 0 8px; }
+.window-intro, .window-takeaway { font-size: 14px; line-height: 1.5; }
+.window-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.window-controls[hidden] { display: none; }
+.window-legend { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 12px; margin-bottom: 12px; }
+.window-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.window-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+.frame-swatch { background: #dcece3; border: 2px solid #2b795b; }
+.current-swatch { background: #fff0e6; border: 2px solid var(--accent); }
+.window-tables { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); gap: 8px; align-items: center; }
+.window-table-label { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.window-demo table { width: 100%; table-layout: fixed; font-size: 13px; background: white; }
+.window-demo th, .window-demo td { padding: 10px 5px; height: 44px; text-align: left; white-space: nowrap; }
+.window-demo thead { background: var(--bg-code); }
+.window-demo tbody th { border-bottom: 1px solid var(--rule); }
+.window-input th:first-child { border-left: 4px solid transparent; }
+.window-input .in-frame { background: #dcece3; }
+.window-input .in-frame th { border-left-color: #2b795b; }
+.window-demo .is-current { outline: 2px solid var(--accent); outline-offset: -2px; }
+.window-output .is-current { background: #fff0e6; }
+.window-output .is-current td:last-child { font-weight: 800; color: #8e3a22; }
+.window-input button { font: inherit; font-weight: 700; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.window-input button:disabled { cursor: default; text-decoration: none; }
+.window-demo button:focus-visible { outline: 3px solid #326b92; outline-offset: 3px; }
+.window-use { font-size: 12px; }
+.window-arrow { font-size: 26px; color: #2b795b; text-align: center; }
+.window-calculation { padding: 14px 16px; background: #eaf2ed; border-left: 4px solid #2b795b; border-radius: 4px; }
+.window-calculation strong { font-size: 14px; }
+#window-equation { font-size: clamp(19px, 3vw, 25px); font-weight: 700; color: #245f49; margin: 4px 0; }
+.window-calculation p { font-size: 14px; line-height: 1.5; margin: 0; min-height: 3em; }
+.window-takeaway { margin: 14px 0 0; }
+.window-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .window-tables { grid-template-columns: 1fr; gap: 0; }
+  .window-arrow { transform: rotate(90deg); margin: -8px 0 4px; }
+  .window-demo { padding: 16px 12px; }
+}

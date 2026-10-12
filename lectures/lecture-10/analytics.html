@@ -297,7 +297,8 @@ Nearby numbers → store the first value and the changes
 <!-- ============================================================ -->
 <h2 id="worked-example">From trips to running totals</h2>
 
-<p>Start with one row per trip. <code>GROUP BY month</code> produces one row per month. A running total then shows how much revenue we have collected by the end of each month. For each calculation, the <strong>window</strong> includes the rows from the first month through the current month: January alone, then January plus February.</p>
+<p>A <strong>window function</strong> lets each row use other rows in its calculation while keeping a result for each row. <a href="../../labs/lab-08/duckdb.html#window-explainer">Move through a four-ride visual to see which rows contribute →</a></p>
+<p>Here, start with one row per trip. <code>GROUP BY month</code> produces one row per month. A running total then shows how much revenue we have collected by the end of each month. Its <strong>frame</strong> includes the rows from the first month through the current month: January alone, then January plus February.</p>
 <p>At each step, ask: <strong>what does one row represent now?</strong> This is the table's <em>grain</em>. The <code>WITH</code> clause names the monthly result so the next step can use it; that named result is a common table expression (CTE).</p>
 <div data-teaching-trace="analytics">
   <p><strong>Worked result:</strong> Four toy trips become monthly revenues 20 and 30. The window preserves two monthly rows and adds running totals 20 and 50.</p>

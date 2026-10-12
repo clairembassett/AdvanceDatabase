@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="styles.css?v=2">
 <link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 </head>
 <body>
@@ -16,6 +16,7 @@
   <ul>
     <li><a href="#try-it">Try analytical queries on a browser sample</a></li>
     <li><a href="#big-idea">Connect GROUP BY, windows, and LIMIT to query operators</a></li>
+    <li><a href="#window-explainer">See what a SQL window does</a></li>
     <li><a href="#the-data">Understand the sample and cleaning rules</a></li>
     <li><a href="#the-api">Write one SQL statement for each of eight questions</a></li>
     <li><a href="#worked-example">Worked example</a></li>
@@ -112,10 +113,92 @@ hover or tap for a plain-language explainer that opens right below the sentence 
   <thead><tr><th>Construct</th><th>What it means</th><th>Connection to query execution</th></tr></thead>
   <tbody>
     <tr><td><code>GROUP BY month</code></td><td>partition rows by value; aggregate each group</td><td>a materializing operator (Lecture 4's pipeline-breaker); hash aggregation usually consumes all input before emitting; ordered aggregation can stream groups</td></tr>
-    <tr><td><code>SUM(...) OVER (ORDER BY month)</code></td><td>a running total: each row sees an aggregate over a moving frame</td><td>an operator with memory: sort if needed, then compute the running total</td></tr>
+    <tr><td><code>SUM(...) OVER (ORDER BY month)</code></td><td>after grouping to one row per month, add a running total beside each monthly row</td><td>an operator with memory: sort if needed, then compute the running total</td></tr>
     <tr><td><code>ORDER BY fare DESC LIMIT 5</code></td><td>top-k</td><td>the engine may use a bounded top-k structure instead of sorting every row; inspect EXPLAIN to see the chosen plan</td></tr>
   </tbody>
 </table>
+
+<h3 id="window-explainer" class="new-slide" data-kicker="SQL windows">A window lets one row look at other rows</h3>
+
+<p class="keep-in-present">Suppose we want to follow changes in taxi fares. For each trip, calculate the <strong>average fare of that trip and the two trips just before it</strong>. A SQL window function can add that average beside each trip. It keeps the individual trips in the result.</p>
+
+<div class="viz window-demo" id="viz-window">
+  <h4>Which fares contribute to this ride’s average?</h4>
+  <p class="window-intro">Four made-up rides, in <code>ride_id</code> order. Select a ride or step through them.</p>
+  <div class="window-controls" hidden>
+    <button type="button" class="btn" id="window-prev">Previous ride</button>
+    <button type="button" class="btn primary" id="window-next">Next ride</button>
+    <button type="button" class="btn" id="window-reset">Start over</button>
+  </div>
+  <div class="window-legend"><span><i class="window-swatch frame-swatch" aria-hidden="true"></i>Included in this average</span><span><i class="window-swatch current-swatch" aria-hidden="true"></i>Current ride</span></div>
+  <div class="window-tables">
+    <div>
+      <div class="window-table-label">Input · four rides</div>
+      <table class="window-input">
+        <caption class="window-sr-only">Fares used for the current ride’s average</caption>
+        <thead><tr><th scope="col">Ride</th><th scope="col">Fare</th><th scope="col">Used?</th></tr></thead>
+        <tbody>
+          <tr class="in-frame" data-window-row="0" data-fare="12"><th scope="row"><button type="button" data-window-select="0" disabled aria-pressed="false">Ride 1</button></th><td>$12</td><td class="window-use">Included</td></tr>
+          <tr class="in-frame" data-window-row="1" data-fare="18"><th scope="row"><button type="button" data-window-select="1" disabled aria-pressed="false">Ride 2</button></th><td>$18</td><td class="window-use">Included</td></tr>
+          <tr class="in-frame is-current" data-window-row="2" data-fare="30"><th scope="row"><button type="button" data-window-select="2" disabled aria-pressed="true">Ride 3</button></th><td>$30</td><td class="window-use">Current</td></tr>
+          <tr data-window-row="3" data-fare="24"><th scope="row"><button type="button" data-window-select="3" disabled aria-pressed="false">Ride 4</button></th><td>$24</td><td class="window-use">Outside</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <span class="window-arrow" aria-hidden="true">→</span>
+    <div>
+      <div class="window-table-label">Result · still four rides</div>
+      <table class="window-output">
+        <caption class="window-sr-only">Each ride keeps its fare and gains a recent average</caption>
+        <thead><tr><th scope="col">Ride</th><th scope="col">Fare</th><th scope="col">Recent avg.</th></tr></thead>
+        <tbody>
+          <tr data-window-result="0"><th scope="row">Ride 1</th><td>$12</td><td>$12</td></tr>
+          <tr data-window-result="1"><th scope="row">Ride 2</th><td>$18</td><td>$15</td></tr>
+          <tr class="is-current" data-window-result="2"><th scope="row">Ride 3</th><td>$30</td><td>$20</td></tr>
+          <tr data-window-result="3"><th scope="row">Ride 4</th><td>$24</td><td>$24</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="window-calculation" role="status" aria-live="polite" aria-atomic="true">
+    <strong id="window-current-label">Calculate the average for ride 3</strong>
+    <div id="window-equation">($12 + $18 + $30) ÷ 3 = $20</div>
+    <p id="window-explanation">Use rides 1, 2, and 3. Ride 4 comes later, so it is outside this frame.</p>
+  </div>
+  <p class="window-takeaway"><strong>The frame moves; the rows stay.</strong> Moving from ride 3 to ride 4 drops ride 1 from the calculation and brings ride 4 in. Both trips still appear in the result.</p>
+  <noscript><p>Enable JavaScript to choose a ride. This snapshot shows the calculation for ride 3.</p></noscript>
+</div>
+
+<h4>Read the SQL as instructions for choosing rows</h4>
+<pre><code class="language-sql">SELECT ride_id, fare,
+       AVG(fare) OVER (
+         ORDER BY ride_id
+         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+       ) AS recent_avg
+FROM example_rides
+ORDER BY ride_id;</code></pre>
+<p><code>OVER (...)</code> defines the window. Here, <code>ORDER BY ride_id</code> puts the rides in order. <code>ROWS BETWEEN 2 PRECEDING AND CURRENT ROW</code> chooses the current ride and up to two earlier rides. Those selected rows are the <strong>frame</strong> used by <code>AVG</code>. At the beginning, use the rows available: ride 1 averages one fare; ride 2 averages two.</p>
+<p>The final <code>ORDER BY ride_id</code>, outside <code>OVER</code>, puts the displayed results in ride order. The controls above let us inspect each calculation; they do not prescribe how the database physically executes the query.</p>
+
+<details>
+  <summary>Run this four-ride example in DuckDB</summary>
+  <p>Create the tiny example table below, then run the query above. Its invented fares keep the arithmetic easy; they are not measurements from the NYC sample.</p>
+  <pre><code class="language-sql">CREATE OR REPLACE TEMP TABLE example_rides AS
+SELECT * FROM (VALUES (1, 12), (2, 18), (3, 30), (4, 24))
+AS t(ride_id, fare);</code></pre>
+</details>
+
+<div class="callout note">
+  <span class="label">How is this different from GROUP BY?</span>
+  <p><code>SELECT AVG(fare) FROM example_rides</code> returns one summary row: <strong>$21</strong>. Adding <code>GROUP BY payment</code> to a table with payment types would return one summary per payment type. A window function instead adds a result to each row it receives: our four trips stay four trips.</p>
+  <p><strong>For Q6:</strong> first group the rides into one row per month. Then apply a window sum to those monthly rows, from the first month through the current month. The window adds a running total and keeps one result per month. <a href="#worked-example">See the Q6 worked example →</a></p>
+</div>
+
+<details>
+  <summary>What does PARTITION BY add?</summary>
+  <p><code>PARTITION BY payment</code> makes separate sets of rows for card and cash rides. Within each set, <code>ORDER BY ride_id</code> orders the rides and <code>ROWS</code> chooses the frame. A card ride’s average would use only card rides; the frame cannot cross into the cash set. Omitting <code>PARTITION BY</code>, as above, uses all input rows as one set. These are logical groups inside the query, not Parquet folders.</p>
+  <p>A window need not move: <code>AVG(fare) OVER ()</code> uses the whole input and repeats its $21 average beside all four rides. <code>OVER</code> also supports rankings and comparisons with earlier rows. See <a href="https://duckdb.org/docs/stable/sql/functions/window_functions.html">DuckDB’s window function examples</a>.</p>
+</details>
 
 <!-- ============================================================ -->
 <h2 id="the-data">Understand the sample and cleaning rules</h2>
@@ -524,6 +607,7 @@ GROUP BY distance_group ORDER BY distance_group;</code></pre>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
 <script src="../_shared/lab-base.js?v=13"></script>
 <script src="viz.js?v=2"></script>
+<script src="window-demo.js?v=1"></script>
 <script src="../_shared/teaching-traces.js?v=3"></script>
 <script src="../_shared/teaching-trace.js?v=1"></script>
 </body>
