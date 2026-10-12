@@ -193,10 +193,34 @@ AS t(ride_id, fare);</code></pre>
   <p><code>SELECT AVG(fare) FROM example_rides</code> returns one summary row: <strong>$21</strong>. Adding <code>GROUP BY payment</code> to a table with payment types would return one summary per payment type. A window function instead adds a result to each row it receives: our four trips stay four trips.</p>
 </div>
 
-<details>
-  <summary>What does PARTITION BY add?</summary>
-  <p><code>PARTITION BY payment</code> makes separate sets of rows for card and cash rides. Within each set, <code>ORDER BY ride_id</code> orders the rides and <code>ROWS</code> chooses the frame. A card ride’s average would use only card rides; the frame cannot cross into the cash set. Omitting <code>PARTITION BY</code>, as above, uses all input rows as one set. These are logical groups inside the query, not Parquet folders.</p>
-  <p>A window need not move: <code>AVG(fare) OVER ()</code> uses the whole input and repeats its $21 average beside all four rides. <code>OVER</code> also supports rankings and comparisons with earlier rows. See <a href="https://duckdb.org/docs/stable/sql/functions/window_functions.html">DuckDB’s window function examples</a>.</p>
+<details id="window-partitions">
+  <summary>Optional: separate card and cash averages with PARTITION BY</summary>
+  <p><strong>The query above does not use <code>PARTITION BY</code>.</strong> It treats all four rides as one set. Add this clause when you want a separate calculation for each category. For example: <strong>what is the recent average fare for rides paid the same way as this ride?</strong></p>
+  <p>This variation gives our four made-up rides a payment type. The <code>WITH</code> clause supplies that tiny table so you can run the whole example on its own.</p>
+  <pre><code class="language-sql">WITH payment_rides(ride_id, payment, fare) AS (
+  VALUES (1, 'card', 12), (2, 'card', 18),
+         (3, 'cash', 30), (4, 'card', 24)
+)
+SELECT ride_id, payment, fare,
+       AVG(fare) OVER (
+         PARTITION BY payment
+         ORDER BY ride_id
+         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+       ) AS recent_avg
+FROM payment_rides
+ORDER BY ride_id;</code></pre>
+  <table>
+    <caption>Result: each ride keeps its row and gets an average within its payment group.</caption>
+    <thead><tr><th scope="col">Ride</th><th scope="col">Payment</th><th scope="col">Fare</th><th scope="col">Recent average</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>card</td><td>$12</td><td>$12</td></tr>
+      <tr><td>2</td><td>card</td><td>$18</td><td>$15</td></tr>
+      <tr><td>3</td><td>cash</td><td>$30</td><td>$30</td></tr>
+      <tr><td>4</td><td>card</td><td>$24</td><td>$18</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Follow ride 4:</strong> its two preceding <em>card</em> rides are 1 and 2. The average is ($12 + $18 + $24) ÷ 3 = <strong>$18</strong>. Ride 3 is cash, so it does not contribute. Without <code>PARTITION BY</code>, ride 4 uses rides 2, 3, and 4, giving the <strong>$24</strong> average shown above.</p>
+  <p><code>PARTITION BY</code> chooses the group; <code>ORDER BY</code> orders rows within that group; <code>ROWS</code> chooses the frame within it. These are groups inside the query, not Parquet folders. See <a href="https://duckdb.org/docs/stable/sql/functions/window_functions.html">DuckDB’s window function examples</a>.</p>
 </details>
 
 <!-- ============================================================ -->
