@@ -46,6 +46,12 @@
   <div class="byline">Follows Lecture 10 (The Analytics Stack) · in class: 75 min · aim to finish Build + Verify · due Tue Oct 20 at class start</div>
 </header>
 
+<nav class="callout note" id="ml-shortcuts" aria-label="Jump to machine learning">
+  <span class="label">Jump to machine learning · optional walkthroughs</span>
+  <p><a href="#going-further"><strong>Train and predict with SQL →</strong></a> Fit a straight-line model inside DuckDB.</p>
+  <p><a href="#pytorch"><strong>DuckDB + PyTorch →</strong></a> Train a neural network, then call it from a SQL query.</p>
+</nav>
+
 <p class="lede">microSQL supports SELECT-FROM-WHERE, but not grouped revenue, running totals, or top-k results. In this lab you use DuckDB to answer those questions over 60,000 sampled NYC yellow-taxi trips from 2024. You then compare CSV and Parquet, inspect column projection and partition pruning, and use EXPLAIN to understand slow queries. Treat the reference timings as examples, not performance targets.</p>
 
 <div class="callout note" id="database-ml-intro">
