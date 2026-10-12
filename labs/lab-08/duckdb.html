@@ -15,7 +15,6 @@
   <div class="toc-title">Lab 8 · analytics</div>
   <ul>
     <li><a href="#try-it">Try analytical queries on a browser sample</a></li>
-    <li><a href="#big-idea">Connect GROUP BY, windows, and LIMIT to query operators</a></li>
     <li><a href="#window-explainer">See what a SQL window does</a></li>
     <li><a href="#the-data">Understand the sample and cleaning rules</a></li>
     <li><a href="#the-api">Write one SQL statement for each of eight questions</a></li>
@@ -105,20 +104,7 @@ hover or tap for a plain-language explainer that opens right below the sentence 
 </div>
 
 <!-- ============================================================ -->
-<h2 id="big-idea">Connect GROUP BY, windows, and LIMIT to query operators</h2>
-
-<p>microSQL supports SELECT-FROM-WHERE. DuckDB adds grouping, window functions, and top-k queries. Relate each construct below to the query-execution ideas from the first part of the course:</p>
-
-<table>
-  <thead><tr><th>Construct</th><th>What it means</th><th>Connection to query execution</th></tr></thead>
-  <tbody>
-    <tr><td><code>GROUP BY month</code></td><td>partition rows by value; aggregate each group</td><td>hash aggregation usually consumes all input before emitting; ordered aggregation can stream groups</td></tr>
-    <tr><td><code>SUM(...) OVER (ORDER BY month)</code></td><td>after grouping to one row per month, add a running total beside each monthly row</td><td>an operator with memory: sort if needed, then compute the running total</td></tr>
-    <tr><td><code>ORDER BY fare DESC LIMIT 5</code></td><td>top-k</td><td>the engine may use a bounded top-k structure instead of sorting every row; inspect EXPLAIN to see the chosen plan</td></tr>
-  </tbody>
-</table>
-
-<h3 id="window-explainer" class="new-slide" data-kicker="SQL windows">A window lets one row look at other rows</h3>
+<h2 id="window-explainer">A window lets one row look at other rows</h2>
 
 <p class="keep-in-present">Suppose we want to follow changes in taxi fares. For each trip, calculate the <strong>average fare of that trip and the two trips just before it</strong>. A SQL window function can add that average beside each trip. It keeps the individual trips in the result.</p>
 
