@@ -191,7 +191,6 @@ AS t(ride_id, fare);</code></pre>
 <div class="callout note">
   <span class="label">How is this different from GROUP BY?</span>
   <p><code>SELECT AVG(fare) FROM example_rides</code> returns one summary row: <strong>$21</strong>. Adding <code>GROUP BY payment</code> to a table with payment types would return one summary per payment type. A window function instead adds a result to each row it receives: our four trips stay four trips.</p>
-  <p><strong>For Q6:</strong> first group the rides into one row per month. Then apply a window sum to those monthly rows, from the first month through the current month. The window adds a running total and keeps one result per month. <a href="#worked-example">See the Q6 worked example →</a></p>
 </div>
 
 <details>
