@@ -48,9 +48,17 @@
 
 <p class="lede">microSQL supports SELECT-FROM-WHERE, but not grouped revenue, running totals, or top-k results. In this lab you use DuckDB to answer those questions over 60,000 sampled NYC yellow-taxi trips from 2024. You then compare CSV and Parquet, inspect column projection and partition pruning, and use EXPLAIN to understand slow queries. Treat the reference timings as examples, not performance targets.</p>
 
+<div class="callout note" id="database-ml-intro">
+  <span class="label">SQL and machine learning in one Python program</span>
+  <p><strong>DuckDB is an in-process database.</strong> When you use it from Python, the database engine runs inside your Python program. You do not need a separate database server. SQL can prepare the data, and Python libraries can work with the results in the same program.</p>
+  <p><strong>In-database machine learning</strong> means training or applying a model through the database. In the optional <a href="#going-further">SQL example</a>, DuckDB fits a straight line to predict fare from distance. In the <a href="#pytorch">neural-network example</a>, DuckDB selects the rides, PyTorch trains the network, and a SQL query calls the trained network to make predictions. PyTorch does the neural-network training; it runs alongside DuckDB in the same Python process.</p>
+  <p><strong>The question:</strong> can distance help predict a taxi fare, and does a curve work better than a straight line? Test both models on rides they did not train on. These machine-learning activities are optional and need no cloud account.</p>
+</div>
+
 <div class="cite">
-  Companion reading: Lecture 10's <a href="../../lectures/lecture-10/analytics.html">slides</a> ·
+  Companion reading: Lecture 10's <a href="../../lectures/lecture-10/analytics.html">lecture notes</a> ·
   DuckDB's <a href="https://duckdb.org/docs/sql/introduction">SQL introduction</a> ·
+  <a href="https://duckdb.org/2023/07/07/python-udf#predicting-taxi-fare-costs-ibis--pyarrow-udf">calling a PyTorch model from DuckDB</a> ·
   Parquet <a href="https://parquet.apache.org/docs/file-format/">format docs</a>.
 </div>
 
@@ -189,7 +197,8 @@ AS t(ride_id, fare);</code></pre>
 <!-- ============================================================ -->
 <h2 id="the-data">Understand the sample and cleaning rules</h2>
 
-<p>Earlier labs used small student tables and generated benchmarks. This lab uses 60,000 sampled NYC yellow-taxi trips from 2024. The Taxi and Limousine Commission publishes monthly Parquet files containing millions of trip records. The supplied sample contains 5,000 trips per month, selected after cleaning with a fixed seed. <code>gen_data.py</code> unpacks that prepared sample into the files used by the lab. Review the cleaning rules below: excluding particular trips changes the population represented by your results.</p>
+<p>This lab uses 60,000 NYC yellow-taxi trips from 2024. The Taxi and Limousine Commission publishes monthly Parquet files containing millions of trip records. We first removed trips that failed the cleaning rules below. Then we randomly selected <strong>5,000 trips from each month</strong>. We saved this sample so everyone uses the same 60,000 trips.</p>
+<p>The selection used a <strong>fixed seed</strong>: a starting value for the random-number generator that makes the selection repeatable with the same input data and sampling code. You do not need to repeat that selection. <code>gen_data.py</code> unpacks the saved sample into the files used by the lab. Review the cleaning rules below: removing particular trips changes which rides your results describe.</p>
 
 <table>
   <thead><tr><th>Rule</th><th>What it drops</th><th>Share of a raw month</th></tr></thead>
