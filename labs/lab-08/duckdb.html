@@ -323,7 +323,9 @@ are called <strong>query execution plans</strong>.</p>
 </div>
 
 <h3>2. Follow a batch from SQL into the network</h3>
-<p>The script uses 50,000 January–October rides for training. This query selects only the two columns training needs. Arrow carries the query result in batches of up to 1,024 rows. A tensor is a numeric array: each input batch becomes one column of distances, and its targets become one column of fares.</p>
+<h4 id="pytorch-arrow-format">What is Arrow?</h4>
+<p><strong>Apache Arrow</strong> is a format for storing columns of values in memory. In this lab, it carries the distance and fare columns from DuckDB to Python. A <strong>batch</strong> is a group of rows passed together.</p>
+<p>The script uses 50,000 January–October rides for training. This query selects only the two columns training needs. Arrow carries the query result in batches of up to 1,024 rows.</p>
 <pre><code class="language-python">reader = con.execute("""
     SELECT distance, fare FROM features
     WHERE month &lt;= 10 ORDER BY hash(ride_id)
@@ -332,13 +334,27 @@ are called <strong>query execution plans</strong>.</p>
 model = nn.Sequential(
     nn.Linear(1, 16), nn.ReLU(), nn.Linear(16, 1)
 )</code></pre>
-<p>The network takes one distance, passes it through 16 hidden units, and returns one fare prediction. <code>ReLU</code> keeps positive intermediate values and replaces negative ones with zero, allowing the fitted curve to bend. PyTorch compares predictions with training fares and updates the weights. One <strong>epoch</strong> is one pass through all training rides; the example uses 30.</p>
-<p>Find <code>loss.backward()</code> and <code>optimizer.step()</code> in the script: these are the PyTorch operations that calculate gradients and update weights. DuckDB does the selection and ordering. Converting Arrow values to tensors allocates memory, so this handoff is not free. The script also learns the scaling of distances and fares from training rows only.</p>
+<div class="callout" id="pytorch-hash-order">
+  <h4>Why <code>ORDER BY hash(ride_id)</code>?</h4>
+  <p><strong>It mixes the rides before we form training batches.</strong> The saved sample groups rides by month. The network updates its weights after each batch, so mixing lets those updates learn from rides across the training months instead of working through January, then February, and so on.</p>
+  <ol>
+    <li><code>WHERE month &lt;= 10</code> keeps only the training rides.</li>
+    <li><code>hash(ride_id)</code> calculates a scrambled numeric value from each ride's ID.</li>
+    <li><code>ORDER BY</code> sorts the rides by those values. Arrow then divides that mixed result into batches.</li>
+  </ol>
+  <p>The whole row moves together, so each distance stays paired with its fare. Hashing is a convenient way to mix the rows; training can run without it. This script reuses the same mixed order on every pass through the training rides. The month filter still keeps the test rides out. See <a href="https://duckdb.org/docs/stable/sql/functions/utility.html#hashvalue">DuckDB's hash documentation</a>.</p>
+</div>
+<p>The network takes one distance, passes it through 16 hidden units, and returns one fare prediction. <code>ReLU</code> keeps positive intermediate values and replaces negative ones with zero, allowing the fitted curve to bend. PyTorch compares predictions with training fares and updates the weights.</p>
+<p>One <strong>epoch</strong> is one pass through all training rides. In <a href="starter/pytorch_fares.py"><code>pytorch_fares.py</code></a>, find this line in <code>main()</code>:</p>
+<pre><code class="language-python">parser.add_argument("--epochs", type=int, default=30)</code></pre>
+<p><code>default=30</code> sets the number of passes when you run the script without an <code>--epochs</code> option. <code>main()</code> passes that value to <code>fit()</code>, where <code>for epoch in range(epochs):</code> repeats the loop over all training batches 30 times.</p>
+<p>Find <code>loss.backward()</code> and <code>optimizer.step()</code> in the script: these are the PyTorch operations that calculate gradients and update weights. DuckDB does the selection and ordering. The script also learns the scaling of distances and fares from training rows only.</p>
 
 <h4 id="pytorch-scaling">What do the prediction and loss lines mean?</h4>
+<p>Before making predictions, the script converts each Arrow batch into two <strong>tensors</strong>, the numeric arrays PyTorch uses. <code>x</code> holds the distances and <code>y</code> holds the matching fares, each arranged as one column. This conversion allocates memory.</p>
 <pre><code class="language-python">prediction = model((x - x_mean) / x_std)
 loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
-<p><code>x</code> contains the distances in one training batch. <code>y</code> contains the recorded fares for those same rides. Each distance gets one prediction. The <code>mean</code> variables hold training averages; the <code>std</code> variables hold standard deviations, which measure spread. Distance and fare each have their own mean and std. The script calculates these statistics once using <strong>all training rows</strong>, then reuses them for every batch and for later predictions.</p>
+<p>The <code>mean</code> variables hold training averages; the <code>std</code> variables hold standard deviations, which measure spread. Distance and fare each have their own mean and std. The script calculates these statistics once using <strong>all training rows</strong>, then reuses them for every batch and for later predictions.</p>
 <ol>
   <li><strong>Scale each distance, then predict.</strong> <code>(x - x_mean) / x_std</code> subtracts the average distance and divides by its spread. A value of 0 means an average distance; 1 means one standard deviation above average. Keeping typical values near 0 can help training. <code>model(...)</code> uses the current network weights to predict a <em>scaled fare</em>. It receives distances, not recorded fares.</li>
   <li><strong>Put the recorded fares on the same scale.</strong> <code>(y - y_mean) / y_std</code> scales the training targets. We can now compare each prediction with its target using matching units. The model's output is not yet a dollar amount. A negative scaled value simply means below the training average.</li>
@@ -359,7 +375,7 @@ loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
 
 <h3>3. Call the trained network from SQL</h3>
 <h4 id="pytorch-arrow">What is an Arrow function?</h4>
-<p>Here, <strong>Arrow</strong> means <strong>Apache Arrow</strong>, a format for storing columns of values in memory. An <strong>Arrow Python UDF</strong> is a function we provide to DuckDB that accepts and returns batches in this format. UDF means <em>user-defined function</em>.</p>
+<p>An <strong>Arrow Python UDF</strong> is a function we provide to DuckDB that accepts and returns batches in Arrow format. UDF means <em>user-defined function</em>.</p>
 <p>We register the lab's prediction function like this:</p>
 <pre><code class="language-python">con.create_function(
     "predict_fare_nn", predict_fare,
