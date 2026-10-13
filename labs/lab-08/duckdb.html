@@ -135,8 +135,9 @@ python gen_data.py</code></pre>
 <p class="keep-in-present"><strong>Train and apply a model in SQL.</strong> Run Lecture 10’s
 <a href="../../lectures/lecture-10/analytics.html#in-database-ml">in-database machine learning example</a>
 with the same DuckDB installation. It fits a line on synthetic training rides, stores its coefficients,
-and scores separate test rides. Use <code>--explain</code>
-to find the scan, filter, aggregate, and cross product in the plans. Change only a test fare:
+and scores separate test rides. Run with <code>--explain</code> to see how DuckDB reads the rides,
+selects training or test rows, fits the line, and applies it to each test ride. The diagrams it prints
+are called <strong>query execution plans</strong>. Change only a test fare:
 which changes, the fitted coefficients or the evaluation error? Explain why. Record what changes in your lab report.</p>
 
 <p>The six-ride demo is already included in your cloned repository at <code>lectures/lecture-10/in_database_ml.py</code>. From <code>labs/lab-08/starter</code>, run:</p>
