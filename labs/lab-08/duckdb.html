@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 <link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 <link rel="stylesheet" href="../_shared/paragraph-speech.css?v=2">
 </head>
@@ -441,6 +441,8 @@ loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
 <pre><code class="language-python">fares = model((x - x_mean) / x_std) * y_std + y_mean</code></pre>
 <p>Here, 0.2 × $10 + $20 = <strong>$22</strong>, and 0.8 × $10 + $20 = <strong>$28</strong>. Each toy prediction is $2 away from its recorded fare, so their mean absolute error is $2. Converting a new prediction needs only the saved training statistics, not that ride's actual fare.</p>
 
+<p>Working through two rides helps us see what each step does. The results below show the same process applied to the taxi data. For more detail on how the training loss is calculated, see <a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html">PyTorch's MSELoss explanation</a>.</p>
+
 <h3>3. Call the trained network from SQL</h3>
 <h4 id="pytorch-arrow">What is an Arrow function?</h4>
 <p>An <strong>Arrow Python UDF</strong> is a function we provide to DuckDB that accepts and returns batches in Arrow format. UDF means <em>user-defined function</em>.</p>
@@ -466,6 +468,55 @@ loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
     with torch.inference_mode():
         fares = model((x - x_mean) / x_std) * y_std + y_mean
     return pa.array(fares.flatten().numpy().astype(np.float64))</code></pre>
+<figure class="viz prediction-demo" id="prediction-batch-demo" aria-labelledby="prediction-demo-title">
+  <figcaption class="prediction-heading">
+    <span class="prediction-eyebrow">Follow one function call</span>
+    <h4 id="prediction-demo-title">Two rides in. Two fares out.</h4>
+    <p>Follow the earlier two-ride example through the callback. The model outputs shown here are invented.</p>
+  </figcaption>
+  <div class="prediction-controls" role="group" aria-label="Step through fare prediction" hidden>
+    <button class="btn" type="button" data-prediction-prev aria-controls="prediction-stage">Previous</button>
+    <button class="btn primary" type="button" data-prediction-next aria-controls="prediction-stage">Next step →</button>
+    <button class="btn" type="button" data-prediction-reset aria-controls="prediction-stage">Reset</button>
+    <span id="prediction-step" role="status">Step 7 of 7</span>
+  </div>
+  <div class="prediction-route" aria-label="Where the work happens">
+    <div data-prediction-place><b>DuckDB</b><span>Send distances</span></div>
+    <span aria-hidden="true">→</span>
+    <div data-prediction-place><b>Python + PyTorch</b><span>Use the saved model</span></div>
+    <span aria-hidden="true">→</span>
+    <div data-prediction-place class="is-current" aria-current="step"><b>DuckDB</b><span>Receive fares</span></div>
+  </div>
+  <section id="prediction-stage" aria-labelledby="prediction-stage-title">
+    <h5 id="prediction-stage-title">DuckDB gives each ride its prediction</h5>
+    <table class="prediction-values">
+      <thead><tr><th scope="col">Input ride</th><th scope="col" id="prediction-format">Returned Arrow column</th><th scope="col">SQL result<br><code>predicted_fare</code></th></tr></thead>
+      <tbody>
+        <tr data-prediction-row class="is-returned">
+          <th scope="row"><span class="prediction-ride">A</span><span>3 miles</span></th>
+          <td><code data-prediction-value>22.0</code><small data-prediction-label>Position 1 → ride A</small></td>
+          <td><strong data-prediction-output>$22</strong><small data-prediction-result>Correct ride</small></td>
+        </tr>
+        <tr data-prediction-row class="is-returned">
+          <th scope="row"><span class="prediction-ride">B</span><span>5 miles</span></th>
+          <td><code data-prediction-value>28.0</code><small data-prediction-label>Position 2 → ride B</small></td>
+          <td><strong data-prediction-output>$28</strong><small data-prediction-result>Correct ride</small></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="prediction-code-label">Code for this step</div>
+    <pre class="prediction-code"><code id="prediction-code">predict_fare_nn(distance) AS predicted_fare</code></pre>
+    <div class="prediction-order-check" hidden>
+      <span>What if we change only the returned order?</span>
+      <button class="btn" type="button" data-prediction-sort aria-pressed="false" aria-controls="prediction-stage">Sort fares: high to low</button>
+    </div>
+    <div class="prediction-explanation" aria-live="polite" aria-atomic="true">
+      <p id="prediction-explanation">DuckDB matches by position: the first returned fare goes to the first input ride. Python received only distances, so there is no ride ID in the returned column to repair a changed order.</p>
+    </div>
+  </section>
+  <div class="prediction-invariants"><span><b>2</b> inputs → <b>2</b> outputs</span><span>Same model · no weight updates</span></div>
+  <p class="prediction-footnote">A and B identify the rides for this illustration; only distances enter Python. We show two single-value Arrow chunks. Real batches can have different chunk sizes.</p>
+</figure>
 <h4 id="predict-fare-walkthrough">Read the function line by line</h4>
 <ol>
   <li>
@@ -960,6 +1011,7 @@ how useful that partitioning is for these queries (consider the two folder sizes
 <script src="viz.js?v=2"></script>
 <script src="window-demo.js?v=1"></script>
 <script src="arrow-batches.js?v=1"></script>
+<script src="prediction-batch.js?v=1"></script>
 <script src="plan-matching.js?v=2"></script>
 <script src="../_shared/teaching-traces.js?v=3"></script>
 <script src="../_shared/teaching-trace.js?v=1"></script>
