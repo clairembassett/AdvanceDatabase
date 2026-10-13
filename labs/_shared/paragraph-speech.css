@@ -1,0 +1,34 @@
+/* Opt-in, inline read-aloud controls that preserve paragraph text and links. */
+.paragraph-speech-help { margin: 16px 0; font-family: var(--sans); font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.paragraph-speech {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  margin: 0 7px 0 0;
+  vertical-align: -5px;
+  border: 1px solid #c2d5c8;
+  border-radius: 50%;
+  color: #28573f;
+  background: #edf4ef;
+  cursor: pointer;
+  flex: 0 0 26px;
+}
+.paragraph-speech:hover { background: #dcece3; border-color: #30785b; }
+.paragraph-speech:focus-visible { outline: 3px solid #356885; outline-offset: 3px; }
+.paragraph-speech svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.paragraph-speech .speech-stop { display: none; }
+.paragraph-speech[aria-pressed="true"] { color: white; background: #28573f; border-color: #28573f; }
+.paragraph-speech[aria-pressed="true"] .speech-speaker { display: none; }
+.paragraph-speech[aria-pressed="true"] .speech-stop { display: block; fill: currentColor; stroke: none; }
+p.is-reading-aloud { background-color: #edf4ef; border-radius: 4px; box-shadow: -4px 0 #30785b; }
+.paragraph-speech-notice { position: fixed; z-index: 200; bottom: 18px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 36px); display: flex; align-items: center; gap: 16px; padding: 14px 18px; border: 1px solid #cfbca6; border-radius: 8px; background: #fffaf1; color: #473828; box-shadow: 0 4px 20px #0002; font: 14px/1.5 var(--sans); }
+.paragraph-speech-notice[hidden] { display: none; }
+.paragraph-speech-notice button { flex-shrink: 0; font: inherit; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 4px; background: white; cursor: pointer; }
+.paragraph-speech-notice button:focus-visible { outline: 3px solid #356885; outline-offset: 3px; }
+@media print {
+  .paragraph-speech, .paragraph-speech-help, .paragraph-speech-notice { display: none; }
+  p.is-reading-aloud { background: none; box-shadow: none; }
+}

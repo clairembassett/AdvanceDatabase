@@ -6,8 +6,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 <link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
+<link rel="stylesheet" href="../_shared/paragraph-speech.css?v=2">
 </head>
 <body>
 
@@ -42,7 +43,7 @@
   <span class="present-label">Present</span>
 </button>
 
-<main>
+<main data-paragraph-speech>
 
 <header class="hero">
   <div class="eyebrow">DS 6XXX · Lab 8 · Tuesday October 13, 2026 · Act II, lab 1 of 4</div>
@@ -50,6 +51,8 @@
   <div class="subtitle">Use SQL to prepare taxi trips, train a model, and discover where its predictions fail.</div>
   <div class="byline">Follows Lecture 10 (The Analytics Stack) · in class: 75 min · train, predict, and investigate errors · due Tue Oct 20 at class start</div>
 </header>
+
+<div class="paragraph-speech-help">Select a paragraph’s speaker button to listen. Select it again, or press Escape, to stop.</div>
 
 <nav class="callout note" id="ml-shortcuts" aria-label="Jump to machine learning">
   <span class="label">Start the lab · machine learning with SQL and Python</span>
@@ -325,6 +328,70 @@ are called <strong>query execution plans</strong>.</p>
 <h3>2. Follow a batch from SQL into the network</h3>
 <h4 id="pytorch-arrow-format">What is Arrow?</h4>
 <p><strong>Apache Arrow</strong> is a format for storing columns of values in memory. In this lab, it carries the distance and fare columns from DuckDB to Python. A <strong>batch</strong> is a group of rows passed together.</p>
+<figure class="viz arrow-demo" id="arrow-batch-demo" aria-labelledby="arrow-demo-title">
+  <figcaption class="arrow-demo-heading">
+    <span class="arrow-eyebrow">Apache Arrow · data in memory</span>
+    <h4 id="arrow-demo-title">Two columns. One batch.</h4>
+    <p>Follow six invented rides, three at a time.</p>
+  </figcaption>
+  <div class="arrow-controls" role="group" aria-label="Choose a batch to follow" hidden>
+    <button class="btn" type="button" data-arrow-batch="0" aria-pressed="true" aria-controls="arrow-batch-output">Batch 1 <span>· A, B, C</span></button>
+    <button class="btn" type="button" data-arrow-batch="1" aria-pressed="false" aria-controls="arrow-batch-output">Batch 2 <span>· D, E, F</span></button>
+  </div>
+  <div class="arrow-flow">
+    <section class="arrow-source" aria-labelledby="arrow-source-title">
+      <div class="arrow-stage-label"><span>01</span> DuckDB</div>
+      <h5 id="arrow-source-title">The query result</h5>
+      <table class="arrow-rides">
+        <thead><tr><th scope="col">Ride</th><th scope="col">distance<small>miles</small></th><th scope="col">fare<small>dollars</small></th></tr></thead>
+        <tbody>
+          <tr class="is-in-batch" data-arrow-ride="A" data-distance="3.0" data-fare="20"><th scope="row">A</th><td>3.0</td><td>20</td></tr>
+          <tr class="is-in-batch" data-arrow-ride="B" data-distance="5.0" data-fare="30"><th scope="row">B</th><td>5.0</td><td>30</td></tr>
+          <tr class="is-in-batch" data-arrow-ride="C" data-distance="2.0" data-fare="14"><th scope="row">C</th><td>2.0</td><td>14</td></tr>
+          <tr data-arrow-ride="D" data-distance="4.0" data-fare="26"><th scope="row">D</th><td>4.0</td><td>26</td></tr>
+          <tr data-arrow-ride="E" data-distance="6.0" data-fare="35"><th scope="row">E</th><td>6.0</td><td>35</td></tr>
+          <tr data-arrow-ride="F" data-distance="1.0" data-fare="9"><th scope="row">F</th><td>1.0</td><td>9</td></tr>
+        </tbody>
+      </table>
+      <p class="arrow-source-note"><span aria-hidden="true"></span> Highlighted rows form this batch.</p>
+    </section>
+    <div class="arrow-bridge" aria-hidden="true">
+      <svg viewBox="0 0 40 28" focusable="false"><path d="M2 14H34M25 5L34 14L25 23" /></svg>
+    </div>
+    <section class="arrow-destination" aria-labelledby="arrow-destination-title">
+      <div class="arrow-stage-label"><span>02</span> Python</div>
+      <h5 id="arrow-destination-title">Receives an Arrow batch</h5>
+      <div class="arrow-packet" id="arrow-batch-output">
+        <div class="arrow-packet-heading"><strong id="arrow-batch-label">Batch 1</strong><span>3 rows × 2 columns</span></div>
+        <div class="arrow-memory">
+          <div class="arrow-row-labels" aria-hidden="true"><span>Ride</span><b data-arrow-label>A</b><b data-arrow-label>B</b><b data-arrow-label>C</b></div>
+          <div class="arrow-column arrow-distance">
+            <h6>distance<small>miles</small></h6>
+            <ol aria-label="Distance column">
+              <li><span class="arrow-sr-only" data-arrow-ride-name>Ride A: </span><span data-arrow-distance>3.0</span></li>
+              <li><span class="arrow-sr-only" data-arrow-ride-name>Ride B: </span><span data-arrow-distance>5.0</span></li>
+              <li><span class="arrow-sr-only" data-arrow-ride-name>Ride C: </span><span data-arrow-distance>2.0</span></li>
+            </ol>
+          </div>
+          <div class="arrow-column arrow-fare">
+            <h6>fare<small>dollars</small></h6>
+            <ol aria-label="Fare column">
+              <li><span class="arrow-sr-only" data-arrow-ride-name>Ride A: </span><span data-arrow-fare>20</span></li>
+              <li><span class="arrow-sr-only" data-arrow-ride-name>Ride B: </span><span data-arrow-fare>30</span></li>
+              <li><span class="arrow-sr-only" data-arrow-ride-name>Ride C: </span><span data-arrow-fare>14</span></li>
+            </ol>
+          </div>
+        </div>
+        <p class="arrow-packet-note">Each column keeps its values together.</p>
+      </div>
+    </section>
+  </div>
+  <div class="arrow-pairing" role="status" aria-live="polite" aria-atomic="true">
+    <strong>Same position, same ride.</strong>
+    <span id="arrow-pairing-detail">In batch 1, the first distance (3.0 miles) and first fare ($20) both belong to ride A.</span>
+  </div>
+  <p class="arrow-footnote">We show 3 rows per batch; the lab uses up to 1,024. The letters help you follow the rides; only distance and fare are sent. This happens inside one Python program.</p>
+</figure>
 <p>The script uses 50,000 January–October rides for training. This query selects only the two columns training needs. Arrow carries the query result in batches of up to 1,024 rows.</p>
 <pre><code class="language-python">reader = con.execute("""
     SELECT distance, fare FROM features
@@ -354,7 +421,8 @@ model = nn.Sequential(
 <p>Before making predictions, the script converts each Arrow batch into two <strong>tensors</strong>, the numeric arrays PyTorch uses. <code>x</code> holds the distances and <code>y</code> holds the matching fares, each arranged as one column. This conversion allocates memory.</p>
 <pre><code class="language-python">prediction = model((x - x_mean) / x_std)
 loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
-<p>The <code>mean</code> variables hold training averages; the <code>std</code> variables hold standard deviations, which measure spread. Distance and fare each have their own mean and std. The script calculates these statistics once using <strong>all training rows</strong>, then reuses them for every batch and for later predictions.</p>
+<p>Before training starts, the script looks at <strong>all January–October training rides</strong>. It calculates the average distance (<code>x_mean</code>) and average fare (<code>y_mean</code>). It also calculates <code>x_std</code> and <code>y_std</code>: the standard deviations, which describe how much distances and fares vary around their averages.</p>
+<p>These four numbers stay fixed. The script uses them to put every training batch and every later prediction on the same scale. The November–December test rides are not used to calculate them.</p>
 <ol>
   <li><strong>Scale each distance, then predict.</strong> <code>(x - x_mean) / x_std</code> subtracts the average distance and divides by its spread. A value of 0 means an average distance; 1 means one standard deviation above average. Keeping typical values near 0 can help training. <code>model(...)</code> uses the current network weights to predict a <em>scaled fare</em>. It receives distances, not recorded fares.</li>
   <li><strong>Put the recorded fares on the same scale.</strong> <code>(y - y_mean) / y_std</code> scales the training targets. We can now compare each prediction with its target using matching units. The model's output is not yet a dollar amount. A negative scaled value simply means below the training average.</li>
@@ -870,8 +938,10 @@ how useful that partitioning is for these queries (consider the two folder sizes
 <script src="../_shared/lab-base.js?v=14"></script>
 <script src="viz.js?v=2"></script>
 <script src="window-demo.js?v=1"></script>
+<script src="arrow-batches.js?v=1"></script>
 <script src="plan-matching.js?v=2"></script>
 <script src="../_shared/teaching-traces.js?v=3"></script>
 <script src="../_shared/teaching-trace.js?v=1"></script>
+<script src="../_shared/paragraph-speech.js?v=4"></script>
 </body>
 </html>
