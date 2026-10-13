@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
 <link rel="stylesheet" href="styles.css?v=7">
 <link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
-<link rel="stylesheet" href="../_shared/paragraph-speech.css?v=2">
+<link rel="stylesheet" href="../_shared/paragraph-speech.css?v=3">
 </head>
 <body>
 
@@ -463,7 +463,7 @@ loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
     <tr><td><code>type="arrow"</code></td><td>Send column batches to Python and expect an Arrow batch back.</td></tr>
   </tbody>
 </table>
-<p><strong>SQL still gets one fare per ride.</strong> DuckDB groups distances into a batch before calling Python. The <code>distances</code> parameter receives a PyArrow <code>ChunkedArray</code>, a column that can hold multiple chunks. The lab's callback converts it to a tensor and applies the saved model:</p>
+<p><strong>Predict a fare for each ride in the batch.</strong> DuckDB groups distances into a batch before calling Python. The <code>distances</code> parameter receives a PyArrow <code>ChunkedArray</code>, a column that can hold multiple chunks. The lab's callback converts it to a tensor and applies the saved model:</p>
 <pre><code class="language-python">def predict_fare(distances):
     x = torch.tensor(
         distances.to_numpy(), dtype=torch.float32
@@ -1026,6 +1026,6 @@ how useful that partitioning is for these queries (consider the two folder sizes
 <script src="plan-matching.js?v=2"></script>
 <script src="../_shared/teaching-traces.js?v=3"></script>
 <script src="../_shared/teaching-trace.js?v=1"></script>
-<script src="../_shared/paragraph-speech.js?v=4"></script>
+<script src="../_shared/paragraph-speech.js?v=5"></script>
 </body>
 </html>

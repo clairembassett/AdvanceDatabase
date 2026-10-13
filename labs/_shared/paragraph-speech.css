@@ -28,7 +28,17 @@ p.is-reading-aloud { background-color: #edf4ef; border-radius: 4px; box-shadow: 
 .paragraph-speech-notice[hidden] { display: none; }
 .paragraph-speech-notice button { flex-shrink: 0; font: inherit; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 4px; background: white; cursor: pointer; }
 .paragraph-speech-notice button:focus-visible { outline: 3px solid #356885; outline-offset: 3px; }
+.paragraph-speech-settings { margin: 10px 0 24px; padding: 12px 16px; border: 1px solid #c2d5c8; border-radius: 8px; background: #f0f5f1; font: 14px/1.5 var(--sans); }
+.paragraph-speech-settings summary { color: #28573f; font-weight: 650; cursor: pointer; }
+.speech-options { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; }
+.speech-options label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-weight: 600; }
+.speech-options label:first-child { flex: 1 1 250px; }
+.speech-options select, .speech-preview { max-width: 100%; min-height: 40px; padding: 7px 10px; border: 1px solid #91a899; border-radius: 5px; background: #fff; color: #22352b; font: inherit; }
+.speech-preview { background: #28573f; border-color: #28573f; color: #fff; cursor: pointer; }
+.paragraph-speech-settings :is(select, button, summary):focus-visible { outline: 3px solid #356885; outline-offset: 3px; }
+.speech-voice-status { margin-top: 12px; color: #4b6255; }
+.speech-voice-help { margin-top: 8px; }
 @media print {
-  .paragraph-speech, .paragraph-speech-help, .paragraph-speech-notice { display: none; }
+  .paragraph-speech, .paragraph-speech-help, .paragraph-speech-notice, .paragraph-speech-settings { display: none; }
   p.is-reading-aloud { background: none; box-shadow: none; }
 }
