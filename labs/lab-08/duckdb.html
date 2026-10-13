@@ -21,6 +21,7 @@
     <li><a href="#ml-query-plans">Match plan operators</a></li>
     <li><a href="#pytorch">Train, predict, and investigate</a></li>
     <li><a href="#investigation">Write your discovery query</a></li>
+    <li><a href="#model-challenge">Improve predictions for 5+ miles</a></li>
     <li><a href="#assignment">What to turn in</a></li>
     <li><a href="#reference">SQL and storage reference</a></li>
     <li><a href="#try-it">Try SQL in the browser</a></li>
@@ -111,6 +112,8 @@ python gen_data.py</code></pre>
   <a class="chat-dl-btn" href="starter/explore_predictions.py" download>explore_predictions.py</a>
   <a class="chat-dl-btn" href="starter/investigation.sql" download>investigation.sql</a>
   <a class="chat-dl-btn" href="starter/ml_report.txt" download>ml_report.txt</a>
+  <a class="chat-dl-btn" href="starter/five_plus.sql" download>five_plus.sql</a>
+  <a class="chat-dl-btn" href="starter/model_challenge.txt" download>model_challenge.txt</a>
 </div>
 
 <h2 id="the-data">Understand the rides table <span class="part-time">~5 min</span></h2>
@@ -236,7 +239,7 @@ are called <strong>query execution plans</strong>.</p>
     </div>
     <p id="plan-match-status" class="plan-match-status" role="status" aria-live="polite">Choose all four matches to enable the download.</p>
   </form>
-  <p>Download your matches, then submit <code>plan_mapping.txt</code> together with your <a href="#get-fare-chart"><code>fare-models.png</code> chart</a> to the Lab 8 matching-and-chart autograder. The text file contains your selections; downloading it does not check whether they are correct.</p>
+  <p>Download your matches, then include <code>plan_mapping.txt</code> with the <a href="#assignment">four files listed under “What to turn in”</a>. The text file contains your selections; downloading it does not check whether they are correct.</p>
   <p class="viz-caption">If the controls are unavailable, download the <a href="starter/plan_mapping.txt" download>text template</a> and fill in one operator after each equals sign.</p>
 </section>
 
@@ -310,7 +313,7 @@ are called <strong>query execution plans</strong>.</p>
     <li><strong>Wait for the run to finish.</strong> The terminal prints a line beginning with <code>Open</code>, followed by the path to <code>fare-models.png</code>.</li>
     <li><strong>Find the saved image.</strong> In your <code>labs/lab-08/starter</code> folder, open <code>data</code>, then <code>pytorch-results</code>, then <code>fare-models.png</code>.</li>
     <li><strong>Check all three plots.</strong> At the top: a training-error curve. In the middle: predicted versus recorded fares, with a diagonal reference line. At the bottom: four distance groups, each with a bar for the straight line and one for the neural network. You can <a href="pytorch-fares-example.png" target="_blank" rel="noopener">view an example of the complete chart</a>.</li>
-    <li><strong>Upload the original PNG from your run.</strong> Submit <code>fare-models.png</code> and your downloaded <code>plan_mapping.txt</code> together to the Lab 8 matching-and-chart autograder. Keep the filename <code>fare-models.png</code>.</li>
+    <li><strong>Keep the original PNG.</strong> After the <a href="#model-challenge">model challenge</a>, submit the chart from your chosen trial with the other <a href="#assignment">required files</a>. Keep the filename <code>fare-models.png</code>.</li>
   </ol>
   <details>
     <summary>Open the image from your terminal</summary>
@@ -583,14 +586,37 @@ GROUP BY distance_group ORDER BY distance_group;</code></pre>
 <p>Read more: <a href="https://duckdb.org/2023/07/07/python-udf#predicting-taxi-fare-costs-ibis--pyarrow-udf">DuckDB's PyTorch taxi example</a> demonstrates the function connection using a pretrained linear model. Our exercise uses that idea with a small neural network. See also <a href="https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html">PyTorch's training-loop tutorial</a>, the <a href="https://duckdb.org/community_extensions/extensions/ml">community ML extension</a>, and <a href="https://arxiv.org/abs/2312.17355">The Duck's Brain</a>, a research paper about expressing neural-network training in SQL.</p>
 
 <!-- ============================================================ -->
+<h3 id="model-challenge">5. Challenge: improve predictions for rides of five miles or more</h3>
+<p><strong>Can you make the neural network more accurate on longer rides?</strong> Here, <strong>5+ means <code>distance &gt;= 5</code> miles</strong>. Your goal is a lower mean absolute error (MAE) on these rides than both the straight-line model and the unchanged starter network. The starter may already beat the line for this combined group, so beating your starter run shows that your change helped.</p>
+<p>Keep distance as the only input. Train and calculate scaling values using January–October rides, then compare every run on the same November–December rides. Keep the linear model, seed <code>6042</code>, <code>nn.MSELoss()</code>, and evaluation code unchanged. Change the network or optimizer inside <code>fit()</code>, or adjust the epoch and batch-size options.</p>
+<h4>Save your starting point</h4>
+<p>Before editing <code>pytorch_fares.py</code>, save an unchanged run in its own folder. Run these commands from <code>labs/lab-08/starter</code> in your activated Python environment:</p>
+<pre class="terminal"><code>python pytorch_fares.py --output data/pytorch-baseline
+python explore_predictions.py --query five_plus.sql --predictions data/pytorch-baseline/predictions.csv --output data/pytorch-baseline/five-plus.csv</code></pre>
+<p><a href="starter/five_plus.sql"><code>five_plus.sql</code></a> compares the models on all rides of at least five miles. It also reports the 5-to-under-10 and 10-or-more groups separately. Use the <strong>first row</strong> as your challenge score. It averages errors across rides, so larger groups contribute more; do not average the two subgroup MAEs yourself.</p>
+<h4>Try two changes and keep a record</h4>
+<p>Start with one change in <code>fit()</code>. You could change the number of hidden units in <code>nn.Sequential(...)</code>, add a hidden layer, or change Adam’s learning rate. If you change the hidden-layer width, make the next layer’s input width match. You can also adjust <code>--epochs</code> or <code>--batch-size</code>. More training or a larger network may help, but neither guarantees a better result.</p>
+<pre class="terminal"><code>python pytorch_fares.py --epochs 30 --output data/pytorch-trial-1
+python explore_predictions.py --query five_plus.sql --predictions data/pytorch-trial-1/predictions.csv --output data/pytorch-trial-1/five-plus.csv</code></pre>
+<p>Record your edit, command, ride count, and both MAEs in <a href="starter/model_challenge.txt" download><code>model_challenge.txt</code></a>. Try a second change and repeat the commands with <code>data/pytorch-trial-2</code> as the output folder. Keep the folders separate so each chart and set of predictions belongs to the right run.</p>
+<div class="callout">
+  <span class="label">Did your change help?</span>
+  <p>For the <strong>all rides &gt;= 5 miles</strong> row, subtract your model’s MAE from the linear model’s MAE. Then subtract it from the starter network’s MAE. <strong>Both differences must be positive to meet the challenge.</strong> Compare the unrounded values in the CSV; two values that display as $4.75 may differ.</p>
+  <p>Check the two distance groups separately and inspect the full chart. Did improving longer rides make shorter rides worse? The ride counts and linear-model MAE must stay the same across runs.</p>
+</div>
+<p>Choose one of your trials, restore its code and settings, and rerun it if needed. Submit that script, its chart, and your completed <code>model_challenge.txt</code>. If neither trial meets the goal, submit your best attempt and explain what you tried. Do not remove difficult rides or change the scoring to create a win.</p>
+<p>Because you use the November–December scores to choose changes, those rides are now a <strong>challenge benchmark</strong>. An improvement here is useful evidence about this sample. You would still need new, untouched rides to assess how well the model predicts future trips.</p>
+
 <h2 id="assignment">What to turn in <span class="part-time">~5 min to check</span></h2>
-<p class="keep-in-present"><strong>Complete the machine-learning investigation by Tuesday October 20 at class start.</strong> Use the supplied model code as a working starting point. The required work is to reproduce the comparison, write an investigation query, and explain the evidence.</p>
+<p class="keep-in-present"><strong>Complete the machine-learning challenge by Tuesday October 20 at class start.</strong> Run the starter, try two model changes, and submit one trial with its results.</p>
 <h3>Upload these two files to the matching-and-chart autograder</h3>
 <ul>
-  <li><strong><code>fare-models.png</code>:</strong> upload the comparison chart generated by your run of <code>python pytorch_fares.py</code>. Find it at <code>data/pytorch-results/fare-models.png</code> inside the <code>starter</code> folder.</li>
+  <li><strong><code>fare-models.png</code>:</strong> upload the chart from your chosen challenge trial’s output folder, such as <code>data/pytorch-trial-2/fare-models.png</code>. It must match the script and settings you submit.</li>
   <li><strong><code>plan_mapping.txt</code>:</strong> download your selections from the <a href="#ml-query-plans">operator-matching exercise</a>.</li>
 </ul>
 <p>This checkpoint has eight points: one for each of the four operator matches, one for a readable PNG, and one for each of its three plots. Image checks look for the expected structure and readable labels. They do not require an exact error value, a particular curve shape, or a match to the example image.</p>
+<h3>Include your model challenge</h3>
+<p>Upload the <strong><code>pytorch_fares.py</code></strong> used for your chosen trial and your completed <strong><code>model_challenge.txt</code></strong> alongside the chart and matching file. These two files receive instructor review. The existing eight-point autograder checks the matches and chart structure; it does not run your submitted model or score the improvement.</p>
 
 <h2 id="reference">SQL and storage reference <span class="part-time">optional practice</span></h2>
 <p>Use these worked examples when you want to explore SQL or data layout. They support the core investigation. All eight queries are provided; the storage measurements are optional.</p>
