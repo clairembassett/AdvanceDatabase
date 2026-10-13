@@ -439,7 +439,7 @@ loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
 <p>The batch loss is <strong>(0.04 + 0.04) ÷ 2 = 0.04</strong>, measured in squared scaled-fare units. It is not a $0.04 error. These two lines calculate predictions and loss without changing the weights. Next, <code>optimizer.zero_grad()</code> clears previous gradients, <code>loss.backward()</code> calculates gradients, and <code>optimizer.step()</code> updates the weights and biases.</p>
 <p><strong>Convert back to dollars for SQL.</strong> The prediction callback reverses the fare scaling:</p>
 <pre><code class="language-python">fares = model((x - x_mean) / x_std) * y_std + y_mean</code></pre>
-<p>Here, 0.2 × $10 + $20 = <strong>$22</strong>, and 0.8 × $10 + $20 = <strong>$28</strong>. Each toy prediction is $2 away from its recorded fare, so their mean absolute error is $2. Converting a new prediction needs only the saved training statistics, not that ride's actual fare. These invented numbers explain the calculation; the real lab results appear below. See <a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html">PyTorch's MSELoss definition</a> for the loss formula.</p>
+<p>Here, 0.2 × $10 + $20 = <strong>$22</strong>, and 0.8 × $10 + $20 = <strong>$28</strong>. Each toy prediction is $2 away from its recorded fare, so their mean absolute error is $2. Converting a new prediction needs only the saved training statistics, not that ride's actual fare.</p>
 
 <h3>3. Call the trained network from SQL</h3>
 <h4 id="pytorch-arrow">What is an Arrow function?</h4>
@@ -466,7 +466,28 @@ loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
     with torch.inference_mode():
         fares = model((x - x_mean) / x_std) * y_std + y_mean
     return pa.array(fares.flatten().numpy().astype(np.float64))</code></pre>
-<p><code>pa</code> is the <code>pyarrow</code> module. <code>pa.array(...)</code> packages the predictions for DuckDB. Reusing the previous made-up example, the input batch <code>[3.0, 5.0]</code> returns fares <code>[22.0, 28.0]</code>. Return the <strong>same number of values in matching positions</strong>: the first fare belongs to the first distance. Sorting the predictions would attach them to the wrong rides. No weights change during prediction.</p>
+<h4 id="predict-fare-walkthrough">Read the function line by line</h4>
+<ol>
+  <li>
+    <p><strong>Receive a batch of distances.</strong> <code>def predict_fare(distances):</code> defines the Python function DuckDB calls. For example, <code>distances</code> might contain <code>[3.0, 5.0]</code>: a 3-mile ride followed by a 5-mile ride.</p>
+  </li>
+  <li>
+    <p><strong>Turn those values into a PyTorch tensor.</strong> <code>distances.to_numpy()</code> converts the Arrow column to a NumPy array. <a href="https://docs.pytorch.org/docs/stable/generated/torch.tensor.html"><code>torch.tensor(...)</code></a> copies those numbers into a tensor. <code>dtype=torch.float32</code> stores each number as a 32-bit floating-point value, matching the model's weights.</p>
+  </li>
+  <li>
+    <p><strong>Put one ride on each row.</strong> <code>.reshape(-1, 1)</code> changes <code>[3.0, 5.0]</code> into <code>[[3.0], [5.0]]</code>. The <code>1</code> means one column: distance. The <code>-1</code> tells PyTorch to work out the number of rows from the batch size. The complete expression is assigned to <code>x</code>.</p>
+  </li>
+  <li>
+    <p><strong>Make predictions without tracking gradients.</strong> <a href="https://docs.pytorch.org/docs/stable/generated/torch.autograd.grad_mode.inference_mode.html"><code>with torch.inference_mode():</code></a> turns off the bookkeeping needed to calculate gradients for the indented code. We are using the trained weights here; this function has no training step that updates them.</p>
+  </li>
+  <li>
+    <p><strong>Predict a fare for each distance.</strong> In <code>fares = model((x - x_mean) / x_std) * y_std + y_mean</code>, first <code>(x - x_mean) / x_std</code> puts distances on the training scale. Then <code>model(...)</code> predicts scaled fares. Finally, <code>* y_std + y_mean</code> converts those predictions back to dollars. Using the earlier example, scaled predictions <code>[[0.2], [0.8]]</code> become <code>[[22.0], [28.0]]</code>.</p>
+  </li>
+  <li>
+    <p><strong>Return a column DuckDB can use.</strong> The last line reverses the data conversions. <code>fares.flatten()</code> changes <code>[[22.0], [28.0]]</code> into <code>[22.0, 28.0]</code>. <code>.numpy()</code> converts the CPU tensor to a NumPy array. <code>.astype(np.float64)</code> converts its numbers to 64-bit floats, matching the SQL return type <code>DOUBLE</code>. Finally, <code>pa.array(...)</code> wraps them in an Arrow array, and <code>return</code> sends it back to DuckDB. Here, <code>np</code> means NumPy and <code>pa</code> means PyArrow.</p>
+  </li>
+</ol>
+<p><strong>Keep each fare with its ride.</strong> The function returns the same number of values in the same order: <code>[3.0, 5.0]</code> becomes <code>[22.0, 28.0]</code> in our example. The first fare belongs to the first distance. Sorting the predictions would attach them to the wrong rides.</p>
 <p><strong>Why use batches?</strong> One Python call can process many distances, reducing call overhead. The model can also work on the whole tensor at once. This script uses <code>torch.tensor</code>, which copies data, so the conversion still has a cost. See <a href="https://duckdb.org/docs/stable/clients/python/function.html#arrow">DuckDB's Arrow function documentation</a>.</p>
 <p><strong>Two uses of Arrow in this lab:</strong> <code>to_arrow_reader(batch_size=1024)</code> sends query results to our Python <em>training loop</em>. <code>type="arrow"</code> lets a SQL query call our Python <em>prediction function</em> with batches. DuckDB controls the prediction batch sizes; the earlier 1,024 setting does not set them.</p>
 <h4>Use the registered function in SQL</h4>
