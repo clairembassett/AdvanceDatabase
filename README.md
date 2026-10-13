@@ -104,7 +104,7 @@ python3 test_records.py --unit                     # all function-level checks
 python3 test_records.py                            # full integration tests
 ```
 
-Every implementation/practice test script supports these options. Lab 8’s optional SQL worksheet uses query names such
+Every implementation/practice test script supports these options. Lab 8’s supplied SQL examples use query names such
 as `--unit Q1`; that harness does not grade the core ML report. Lab 11 also provides local unit checks for the optional Spark and
 Ray functions without starting either engine.
 

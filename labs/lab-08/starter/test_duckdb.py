@@ -1,8 +1,8 @@
-"""Lab 8 optional SQL practice harness — run: python3 test_duckdb.py
+"""Lab 8 worked SQL example checks — run: python3 test_duckdb.py
 
 These Q1-Q8 checks do not grade the core machine-learning investigation.
 
-Parses your assignment.sql (one query under each "-- Qn:" marker), runs
+Parses the supplied assignment.sql (one query under each "-- Qn:" marker), runs
 each against DuckDB, and diffs the result against the reference answer
 computed live from the same data. Ordered questions (2, 3, 4, 5, 6, 8) compare
 exactly; unordered ones compare as sets.
@@ -10,7 +10,7 @@ exactly; unordered ones compare as sets.
 Run gen_data.py once first. Requires: pip install duckdb
 
     python3 test_duckdb.py --list       # list query targets; no DuckDB needed
-    python3 test_duckdb.py --unit Q3    # test Q3 while other queries are blank
+    python3 test_duckdb.py --unit Q3    # check only the distance-by-payment example
     python3 test_duckdb.py --unit       # test every query
 """
 

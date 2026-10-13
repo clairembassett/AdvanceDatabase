@@ -23,11 +23,11 @@
     <li><a href="#reference">SQL and storage reference</a></li>
     <li><a href="#try-it">Try SQL in the browser</a></li>
     <li><a href="#window-explainer">See what a window does</a></li>
-    <li><a href="#the-api">Eight SQL practice questions</a></li>
+    <li><a href="#the-api">Eight worked SQL examples</a></li>
     <li><a href="#worked-example">Worked SQL example</a></li>
     <li><a href="#discovery">Database discovery workbench</a></li>
-    <li><a href="#build">Build the practice queries</a></li>
-    <li><a href="#verify">Check the practice queries</a></li>
+    <li><a href="#build">Run the SQL examples</a></li>
+    <li><a href="#verify">Check the SQL examples</a></li>
     <li><a href="#measure">Compare file formats</a></li>
     <li><a href="#slow">Inspect slow queries</a></li>
     <li><a href="#extensions">More experiments</a></li>
@@ -282,7 +282,7 @@ GROUP BY distance_group ORDER BY distance_group;</code></pre>
 <p>Project proposals remain due October 29; see the <a href="../../project.html">project instructions</a>.</p>
 
 <h2 id="reference">SQL and storage reference <span class="part-time">optional practice</span></h2>
-<p>Use these examples when you want more practice with SQL or data layout. They support the core investigation; completing Q1–Q8 and the storage measurements is optional.</p>
+<p>Use these worked examples when you want to explore SQL or data layout. They support the core investigation. All eight queries are provided; the storage measurements are optional.</p>
 <h2 id="try-it">Try analytical queries on a browser sample</h2>
 
 <p>The browser demonstration contains 600 rides sampled from the lab’s 60,000-row dataset. Run the presets to inspect grouping, aggregation, ordering, and limits. The browser recognizes those example patterns; use DuckDB in the starter folder to write and test your own queries.</p>
@@ -423,82 +423,135 @@ ORDER BY ride_id;</code></pre>
 </details>
 
 <!-- ============================================================ -->
-<h2 id="the-api">Eight SQL practice questions</h2>
+<h2 id="the-api">Eight worked DuckDB SQL examples</h2>
 
-<p>Each is a marker comment in <code>assignment.sql</code>; write one statement under each.
-The harness compares your results against reference answers computed live: ordered
-questions exactly, unordered ones as sets.</p>
+<p>Each question below includes a complete query you can run and explore. The same queries are supplied in <a href="starter/assignment.sql" download><code>assignment.sql</code></a>. These examples support the machine-learning investigation; there is no eight-query worksheet to complete.</p>
+<p>Run the <a href="#build">table setup</a> first so <code>rides</code> and <code>zones</code> are available. These queries use the full 60,000-trip sample. Revenue means recorded <code>fare + tip</code>; cash tips are not recorded. Monthly totals describe the sample, not all taxi trips in the city.</p>
 
-<table>
-  <thead><tr><th>Q</th><th>Asks</th><th>Exercises</th></tr></thead>
-  <tbody>
-    <tr><td>1</td><td>total rides + revenue</td><td>aggregates, ROUND</td></tr>
-    <tr><td>2</td><td>revenue by month</td><td>GROUP BY + ORDER BY</td></tr>
-    <tr><td>3</td><td>distance by payment type</td><td>grouped averages</td></tr>
-    <tr><td>4</td><td>five most expensive rides</td><td>ORDER BY ... LIMIT, with tiebreak</td></tr>
-    <tr><td>5</td><td>card share per month</td><td>CASE inside AVG: average a 1-for-card, 0-for-cash indicator</td></tr>
-    <tr><td>6</td><td>running revenue</td><td>a window over grouped rows</td></tr>
-    <tr><td>7</td><td>Q4-of-year totals from the partitioned files</td><td><code>read_parquet(..., hive_partitioning = true)</code> + pruning</td></tr>
-    <tr><td>8</td><td>revenue by pickup borough</td><td>a JOIN to the <code>zones</code> dimension table: use zone attributes to group the rides</td></tr>
-  </tbody>
-</table>
+<h3 id="sql-q1">Q1 · How many rides and how much recorded revenue?</h3>
+<p>Return one row for the whole sample. Add fares and recorded tips, then round the total to cents.</p>
+<pre><code class="language-sql">SELECT COUNT(*) AS n_rides,
+       ROUND(SUM(fare + tip), 2) AS revenue
+FROM rides;</code></pre>
+
+<h3 id="sql-q2">Q2 · How much revenue was recorded each month?</h3>
+<p>GROUP BY combines trips from the same month. ORDER BY puts the twelve monthly results in calendar order.</p>
+<pre><code class="language-sql">SELECT month,
+       ROUND(SUM(fare + tip), 2) AS revenue
+FROM rides
+GROUP BY month
+ORDER BY month;</code></pre>
+
+<h3 id="sql-q3">Q3 · Do card and cash rides differ in distance?</h3>
+<p>Return a ride count and average distance in miles for each payment type.</p>
+<pre><code class="language-sql">SELECT payment,
+       COUNT(*) AS n,
+       ROUND(AVG(distance), 2) AS avg_distance
+FROM rides
+GROUP BY payment
+ORDER BY payment;</code></pre>
+
+<h3 id="sql-q4">Q4 · Which five rides have the highest fares?</h3>
+<p>Sort fares from highest to lowest. If fares tie, the smaller ride_id comes first.</p>
+<pre><code class="language-sql">SELECT ride_id, fare
+FROM rides
+ORDER BY fare DESC, ride_id ASC
+LIMIT 5;</code></pre>
+
+<h3 id="sql-q5">Q5 · What fraction of rides were paid by card each month?</h3>
+<p>CASE turns each card payment into 1 and each cash payment into 0. Their average is the card share: 0.8 means 80%.</p>
+<pre><code class="language-sql">SELECT month,
+       ROUND(AVG(CASE WHEN payment = 'card'
+                      THEN 1.0 ELSE 0.0 END), 3) AS card_share
+FROM rides
+GROUP BY month
+ORDER BY month;</code></pre>
+
+<h3 id="sql-q6">Q6 · How does revenue accumulate through the year?</h3>
+<p>The monthly step produces one total per month. The window then adds those totals from the first month through the current month, keeping one result per month. Round only the displayed results.</p>
+<pre><code class="language-sql">WITH monthly AS (
+  SELECT month, SUM(fare + tip) AS revenue
+  FROM rides
+  GROUP BY month
+)
+SELECT month,
+       ROUND(revenue, 2) AS revenue,
+       ROUND(SUM(revenue) OVER (
+         ORDER BY month
+         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+       ), 2) AS running_revenue
+FROM monthly
+ORDER BY month;</code></pre>
+
+<h3 id="sql-q7">Q7 · What are the totals for October–December?</h3>
+<p>Read the partitioned Parquet files directly. hive_partitioning makes month available from folder names such as month=10. The month filter lets DuckDB skip files for January–September; use EXPLAIN to inspect the scan.</p>
+<pre><code class="language-sql">SELECT COUNT(*) AS n_rides,
+       ROUND(SUM(fare + tip), 2) AS revenue
+FROM read_parquet(
+  'data/rides_by_month/*/*.parquet',
+  hive_partitioning = true
+)
+WHERE month IN (10, 11, 12);</code></pre>
+
+<h3 id="sql-q8">Q8 · Which pickup boroughs have the most recorded revenue?</h3>
+<p>Join each trip to its pickup zone to find the borough. Then group by borough and show the five highest revenue totals.</p>
+<pre><code class="language-sql">SELECT z.Borough AS borough,
+       COUNT(*) AS n_rides,
+       ROUND(SUM(r.fare + r.tip), 2) AS revenue
+FROM rides AS r
+JOIN zones AS z ON r.pickup_zone = z.LocationID
+GROUP BY z.Borough
+ORDER BY revenue DESC
+LIMIT 5;</code></pre>
 
 <!-- ============================================================ -->
-<h2 id="worked-example">Work out the intermediate rows before writing Q6</h2>
+<h2 id="worked-example">Follow the intermediate rows in Q6</h2>
 
 <p>Use four toy trips to separate grouped totals from a running window. The example names the grouped result <code>monthly</code>, which makes it clear what one row represents at each stage.</p>
 <div data-teaching-trace="analytics">
   <p><strong>Worked result:</strong> Monthly rows are <code>(1,20)</code> and <code>(2,30)</code>. Adding the running window yields <code>(1,20,20)</code> and <code>(2,30,50)</code>.</p>
   <p>Enable JavaScript to step through the code and intermediate state.</p>
 </div>
-<p><strong>Implementation checkpoints:</strong> Q4 needs its specified tie-breaker, <code>ride_id ASC</code>. Q5 averages a numeric card indicator; it does not divide card fare by total fare. Q6 windows over monthly totals. Q8 joins each ride to one zone, so an accidentally duplicated dimension key would multiply revenue.</p>
+<p><strong>What to notice:</strong> Q4 uses <code>ride_id ASC</code> to break fare ties. Q5 averages a numeric card indicator. Q6 windows over monthly totals. Q8 joins each ride to one zone, so an accidentally duplicated dimension key would multiply revenue.</p>
 
 <!-- ============================================================ -->
 <h2 id="discovery">Start with a question about the city</h2>
 <p><a href="../../lectures/lecture-10/discovery.html"><strong>Open the database discovery workbench →</strong></a> Build a local DuckDB database from the bundled 60,000-trip taxi sample, then edit queries and inspect charts. Predict first: does JFK have a higher typical fare than LaGuardia, and does that comparison survive switching to fare per mile?</p>
 <p>The seven investigations cover sampling, recorded tips, airport routes, daily rhythms, trip mix, top destinations, and join cardinality. Save one finding, one limitation, and the next query you would run. These are ungraded discovery exercises; the core machine-learning investigation comes first.</p>
 
-<h2 id="build">Build the practice queries</h2>
+<h2 id="build">Run the SQL examples</h2>
 
-<p>After each query, use the <a href="#function-tests">query-level checks</a> to test it before completing the rest of the lab.</p>
+<p>After the <a href="#setup">lab setup</a>, open Python from <code>labs/lab-08/starter</code> and create a DuckDB connection with the two tables:</p>
+<pre><code class="language-python">import duckdb
 
-<ol>
-  <li><strong><code>python3 -m pip install duckdb</code></strong>, get the starter folder, run
-  <code>python3 gen_data.py</code> once. It unpacks the shipped sample into <code>data/</code>:
-  the CSV, the same rows as Parquet, twelve partition folders, the zones table, and a nested
-  JSON file for the slow-query exercises. Everyone gets the identical 60,000 rows.</li>
-  <li><strong>Work the queries in order</strong>: each adds a SQL concept. Test the query you just wrote with
-  <code>python3 test_duckdb.py --unit Q1</code> (replace Q1 with its question number). The harness creates the <code>rides</code> and <code>zones</code> tables for you. For interactive exploration, use the supplied <code>lab08_explore.ipynb</code> notebook and run its setup cells first; a new DuckDB connection does not automatically contain those tables.</li>
-  <li><strong>For Q5, average a card-payment indicator</strong>: use <code>AVG(CASE WHEN payment = 'card' THEN
-  1.0 ELSE 0.0 END)</code>. The CASE expression assigns 1 to a card payment and 0 otherwise, so the average is the fraction paid by card.</li>
-  <li><strong>Q6 stacks a window on a group</strong>: <code>SUM(SUM(fare + tip)) OVER
-  (ORDER BY month)</code> uses the inner SUM to calculate each month’s revenue, then the outer window SUM to accumulate those monthly totals in order.</li>
-  <li><strong>Q8 is your first join since Lab 4</strong>, and reuses the join reasoning from Lab 4. The optional Lecture 9 explains cost-based join selection. A hash join can build a table from the 265 zones and probe it with rides. Read the
-  plan with <code>EXPLAIN</code> and find the build and probe sides.</li>
-</ol>
-
-<div class="callout note">
-  <span class="label">Check rounding, aliases, and partition columns</span>
-  <p>Round <em>exactly</em> where the question says: <code>round(sum(...), 2)</code> and
-  <code>sum(round(..., 2))</code> differ by pennies and the harness notices. Column
-  aliases must match the question's names (<code>n_rides</code>, not <code>count</code>).
-  And Q7 needs <span class="gloss" data-gloss="hive-partitioning"><code>hive_partitioning = true</code></span> or <code>month</code> won't exist as a
-  column; it lives in the folder names.</p>
-</div>
+con = duckdb.connect()
+con.execute("""
+    CREATE TABLE rides AS
+    SELECT * FROM read_parquet('data/rides.parquet');
+    CREATE TABLE zones AS
+    SELECT * FROM read_csv_auto('data/zones.csv');
+""")</code></pre>
+<p>Paste any of the eight SQL statements inside <code>con.sql("""...""").show()</code> to see its result. For example, run Q1:</p>
+<pre><code class="language-python">con.sql("""
+    SELECT COUNT(*) AS n_rides,
+           ROUND(SUM(fare + tip), 2) AS revenue
+    FROM rides;
+""").show()</code></pre>
+<p>Try changing a month filter or the number of top fares, then compare the results. Add <code>EXPLAIN</code> before a query to inspect how DuckDB runs it. For dataframe versions of these examples, see <a href="starter/lab08_explore.ipynb" download><code>lab08_explore.ipynb</code></a> and run its setup cells first.</p>
 
 <!-- ============================================================ -->
-<h2 id="verify">Check the practice queries</h2>
+<h2 id="verify">Check the SQL examples</h2>
 
 <h3 id="function-tests">Test one query at a time</h3>
-<p>Run these commands from the starter directory. <code>--list</code> lists Q1–Q8. Use <code>--unit Q1</code> to run only Q1’s query from <code>assignment.sql</code>; unfinished queries are not run. Use <code>--unit</code> to check all eight queries.</p>
+<p>Run these commands from the starter directory. The checker loads the tables and compares the supplied queries in <code>assignment.sql</code> with reference results. <code>--list</code> lists Q1–Q8, <code>--unit Q1</code> checks only Q1, and <code>--unit</code> checks all eight.</p>
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py --list</span>
 <span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py --unit Q1</span>
 <span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py --unit</span></code></pre>
-<p>Each selected query uses the same correctness check as the full test run. Run <code>python3 test_duckdb.py</code> without flags to check all eight practice queries. This is practice feedback, not the grade for the core investigation.</p>
+<p>The checks are optional and do not grade the machine-learning investigation. If you change a query to ask a different question, its result may no longer match the reference.</p>
 
 <h3>Run the full tests</h3>
 
-<p>The passing output below is the target after completing the eight practice queries. On a fresh starter, failures marked <code>not implemented yet</code> or missing-query failures are expected. A unit check can pass while the remaining integration tests still fail.</p>
+<p>The supplied queries should produce eight passing checks:</p>
 
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py</span>
   <span class="t-pass">[PASS]</span> SQL: Q1 totals
@@ -606,10 +659,10 @@ how useful that partitioning is for these queries (consider the two folder sizes
 <h2 id="faq">FAQ</h2>
 
 <h3 class="keep-in-present">Do my model errors or timings need to match the reference?</h3>
-<p class="keep-in-present">No. Report your own model errors and explain them. Package versions can change exact values. The core submission is your model investigation. The eight SQL practice questions and storage measurements are optional. Runtime depends on hardware, caching, library versions, and the query. Report what you measured and use the plans and data layout to explain it, including cases where a speedup is smaller than expected.</p>
+<p class="keep-in-present">No. Report your own model errors and explain them. Package versions can change exact values. The core submission is your model investigation. The eight worked SQL examples and storage measurements are optional reference material. Runtime depends on hardware, caching, library versions, and the query. Report what you measured and use the plans and data layout to explain it, including cases where a speedup is smaller than expected.</p>
 
 <h3 class="keep-in-present">Why does the harness compute reference answers live instead of hardcoding?</h3>
-<p class="keep-in-present">Computing the reference results from the same files keeps the expected answers tied to the dataset used in the test. You can read the reference SQL to understand the required results, then explain how your own statements produce them.</p>
+<p class="keep-in-present">Computing the reference results from the same files keeps the expected answers tied to the dataset used in the test. The checks confirm that the supplied examples return those results on your local data.</p>
 
 <h3 class="keep-in-present">Is this really the city's taxi data? Can I use it elsewhere?</h3>
 <p class="keep-in-present">Yes. The sample comes from the TLC’s published 2024 yellow-taxi trip records after cleaning. Cite the TLC and describe the sampling and cleaning when using it in another project. The sample does not measure cash tips, and equal sampling per month means monthly sample totals are not estimates of total citywide revenue without appropriate weighting.</p>
