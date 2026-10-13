@@ -591,21 +591,6 @@ GROUP BY distance_group ORDER BY distance_group;</code></pre>
   <li><strong><code>plan_mapping.txt</code>:</strong> download your selections from the <a href="#ml-query-plans">operator-matching exercise</a>.</li>
 </ul>
 <p>This checkpoint has eight points: one for each of the four operator matches, one for a readable PNG, and one for each of its three plots. Image checks look for the expected structure and readable labels. They do not require an exact error value, a particular curve shape, or a match to the example image.</p>
-<h3>Submit these three files for review</h3>
-<ul>
-  <li><strong><code>ml_report.txt</code>:</strong> fill in the <a href="starter/ml_report.txt" download>report template</a> with your run settings, train/test counts, both models’ test errors, and your interpretation. Aim for about one page of answers.</li>
-  <li><strong><code>investigation.sql</code>:</strong> replace the starter’s overall comparison with your own query that groups test errors by payment type, pickup borough, distance, or another meaningful category. Include each group’s ride count and both models’ MAE.</li>
-  <li><strong><code>query-results.csv</code>:</strong> the output of your investigation, saved in <code>data/pytorch-results/</code>.</li>
-</ul>
-<p>Submit the report, query, and query results using the course submission instructions. These receive separate review. Keep the full predictions and saved model locally; they are not required uploads. <code>assignment.sql</code> and the old <code>8/8</code> SQL-practice score are not the submission for this investigation.</p>
-<h3>What a complete investigation shows</h3>
-<ul>
-  <li><strong>A fair comparison:</strong> train both models on January–October rides, learn scaling from those training rows, and evaluate on the same November–December rides.</li>
-  <li><strong>A correct query:</strong> calculate errors from the saved test predictions, join using the appropriate keys, and include sample sizes so small groups are visible.</li>
-  <li><strong>A supported conclusion:</strong> compare at least two groups, interpret the chart, explain DuckDB’s and PyTorch’s roles, and name one limitation and one follow-up question.</li>
-</ul>
-<p>These are the review criteria. You are not graded on beating the example’s MAE, training a larger model, or getting identical timings. The supplied script already runs; your contribution is the query and reasoning. The SQL practice harness does not assess this report.</p>
-<p>Project proposals remain due October 29; see the <a href="../../project.html">project instructions</a>.</p>
 
 <h2 id="reference">SQL and storage reference <span class="part-time">optional practice</span></h2>
 <p>Use these worked examples when you want to explore SQL or data layout. They support the core investigation. All eight queries are provided; the storage measurements are optional.</p>
