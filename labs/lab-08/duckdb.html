@@ -137,12 +137,36 @@ python gen_data.py</code></pre>
 with the same DuckDB installation. It fits a line on synthetic training rides, stores its coefficients,
 and scores separate test rides. Run with <code>--explain</code> to see how DuckDB reads the rides,
 selects training or test rows, fits the line, and applies it to each test ride. The diagrams it prints
-are called <strong>query execution plans</strong>. Change only a test fare:
-which changes, the fitted coefficients or the evaluation error? Explain why. Record what changes in your lab report.</p>
+are called <strong>query execution plans</strong>.</p>
 
 <p>The six-ride demo is already included in your cloned repository at <code>lectures/lecture-10/in_database_ml.py</code>. From <code>labs/lab-08/starter</code>, run:</p>
 <pre class="terminal"><code>python ../../../lectures/lecture-10/in_database_ml.py --explain</code></pre>
-<p>This tiny example makes the training and test split easy to inspect. Next, the main script fits the same kind of line on the real taxi sample and compares it with a neural network.</p>
+<p>This tiny example makes the training and test split easy to inspect. Next, we’ll use real taxi trips to see whether a neural network predicts fares more accurately than a straight line.</p>
+
+<div class="exercise" id="test-fare-experiment">
+  <span class="ex-label">Try it · change one test fare</span>
+  <ol>
+    <li>Run the demo above and note the slope, intercept, and reported prediction errors.</li>
+    <li>In <code>in_database_ml.py</code>, find test ride 5 in <code>SETUP_SQL</code>. Change <code>(5, 2.5, 9.0, 'test')</code> to <code>(5, 2.5, 10.0, 'test')</code>. This changes its recorded fare from <strong>$9 to $10</strong>. Leave its distance and all other values unchanged.</li>
+    <li>Save the file and run the same command again. Compare the slope, intercept, and reported errors before and after. Record the changes in your lab report and explain why only the errors change.</li>
+  </ol>
+  <details id="test-fare-answer">
+    <summary>Show answer</summary>
+    <p><strong>The model stays the same; its measured error increases.</strong> DuckDB fits the model using only rows where <code>split = 'train'</code>. You changed a test ride, so the four training rides still produce the same line: <code>predicted_fare = 3 + 2 * distance</code>.</p>
+    <table>
+      <thead><tr><th scope="col">Result</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Intercept</th><td>3</td><td>3</td></tr>
+        <tr><th scope="row">Slope</th><td>2</td><td>2</td></tr>
+        <tr><th scope="row">Prediction for test ride 5</th><td>$8</td><td>$8</td></tr>
+        <tr><th scope="row">Mean absolute error (MAE)</th><td>$1.00</td><td>$1.50</td></tr>
+        <tr><th scope="row">Root mean squared error (RMSE)</th><td>$1.00</td><td>about $1.58</td></tr>
+      </tbody>
+    </table>
+    <p>Ride 5 still travels 2.5 miles, so its prediction is still <code>3 + 2 * 2.5 = 8</code>. Against a $9 fare, that misses by $1. Against a $10 fare, it misses by $2. The other test ride still misses by $1, so the new MAE is <strong>($2 + $1) ÷ 2 = $1.50</strong>. RMSE squares the errors before averaging and taking the square root: <code>sqrt((2² + 1²) / 2) ≈ 1.58</code>.</p>
+    <p>The test fares tell us how close the predictions are to the recorded fares. They do not change the fitted line. Restore ride 5’s fare to $9 when you finish so later runs match the original example.</p>
+  </details>
+</div>
 
 <div class="callout note" id="ml-query-plans">
   <span class="label">The same plan-tree idea as microdb</span>
