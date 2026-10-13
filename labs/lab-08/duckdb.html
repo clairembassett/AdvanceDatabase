@@ -15,7 +15,7 @@
   <div class="toc-title">Lab 8 · analytics</div>
   <ul>
     <li><a href="#setup">Set up and load the data</a></li>
-    <li><a href="#the-data">Understand the taxi sample</a></li>
+    <li><a href="#the-data">Understand the tables</a></li>
     <li><a href="#going-further">Fit a model with SQL</a></li>
     <li><a href="#pytorch">Train, predict, and investigate</a></li>
     <li><a href="#investigation">Write your discovery query</a></li>
@@ -109,23 +109,9 @@ python gen_data.py</code></pre>
   <a class="chat-dl-btn" href="starter/ml_report.txt" download>ml_report.txt</a>
 </div>
 
-<h2 id="the-data">Understand the sample and cleaning rules <span class="part-time">~5 min</span></h2>
+<h2 id="the-data">Understand the tables <span class="part-time">~5 min</span></h2>
 
-<p>This lab uses 60,000 NYC yellow-taxi trips from 2024. The Taxi and Limousine Commission publishes monthly Parquet files containing millions of trip records. We first removed trips that failed the cleaning rules below. Then we randomly selected <strong>5,000 trips from each month</strong>. We saved this sample so everyone uses the same 60,000 trips.</p>
-<p>The selection used a <strong>fixed seed</strong>: a starting value for the random-number generator that makes the selection repeatable with the same input data and sampling code. You do not need to repeat that selection. <code>gen_data.py</code> unpacks the saved sample into the files used by the lab. Review the cleaning rules below: removing particular trips changes which rides your results describe.</p>
-
-<table>
-  <thead><tr><th>Rule</th><th>What it drops</th><th>Share of a raw month</th></tr></thead>
-  <tbody>
-    <tr><td>passengers between 1 and 6</td><td>missing counts and values outside the selected range</td><td>about 6%</td></tr>
-    <tr><td>distance between 0.1 and 100 miles</td><td>distances below 0.1 or above 100 miles</td><td>under 2%</td></tr>
-    <tr><td>fare between $1 and $500</td><td>fares outside the selected range, including negative and unusually large values</td><td>about 1%</td></tr>
-    <tr><td>payment is card or cash</td><td>disputes, no-charge trips, and unknown payment types</td><td>about 7%</td></tr>
-    <tr><td>duration between 1 and 180 minutes</td><td>durations outside the selected range, including negative and unusually long trips</td><td>under 1%</td></tr>
-  </tbody>
-</table>
-
-<p class="keep-in-present">Cash trips have <code>tip = 0</code> because the source records card tips but does not record cash tips. A zero in this field therefore does not prove that no tip was paid. Compare <code>tip</code> by <code>payment</code>, and explain the difference in terms of how the data was collected. In this lab, “revenue” means the recorded <code>fare + tip</code>, so it excludes unrecorded cash tips.</p>
+<p>This lab uses a prepared sample of 60,000 NYC yellow-taxi trips from 2024: 5,000 from each month. Everyone uses the same saved sample.</p>
 
 <h3 class="new-slide" data-kicker="The data">Join a fact table to a dimension table</h3>
 
@@ -140,7 +126,7 @@ one row per taxi zone with its borough, joined on <code>rides.pickup_zone = zone
     <tr><td><code>month</code>, <code>day</code>, <code>hour</code></td><td>INT</td><td>pickup time; <code>month</code> is also the partition key of the Parquet folders</td></tr>
     <tr><td><code>passengers</code></td><td>INT</td><td>1 to 6</td></tr>
     <tr><td><code>distance</code></td><td>DOUBLE</td><td>miles</td></tr>
-    <tr><td><code>fare</code>, <code>tip</code></td><td>DOUBLE</td><td>dollars; revenue in every question means <code>fare + tip</code></td></tr>
+    <tr><td><code>fare</code>, <code>tip</code></td><td>DOUBLE</td><td>dollars; revenue means <code>fare + tip</code>. Cash tips are not recorded.</td></tr>
     <tr><td><code>payment</code></td><td>TEXT</td><td><code>'card'</code> or <code>'cash'</code></td></tr>
     <tr><td><code>pickup_zone</code>, <code>dropoff_zone</code></td><td>INT</td><td>TLC zone ids; join to <code>zones.LocationID</code> for the borough and zone name</td></tr>
     <tr><td><code>duration_min</code></td><td>DOUBLE</td><td>trip length in minutes</td></tr>
@@ -626,7 +612,7 @@ how useful that partitioning is for these queries (consider the two folder sizes
 <p class="keep-in-present">Computing the reference results from the same files keeps the expected answers tied to the dataset used in the test. You can read the reference SQL to understand the required results, then explain how your own statements produce them.</p>
 
 <h3 class="keep-in-present">Is this really the city's taxi data? Can I use it elsewhere?</h3>
-<p class="keep-in-present">Yes. The sample comes from the TLC’s published 2024 yellow-taxi trip records after the listed cleaning filters. Cite the TLC and describe the sampling and cleaning when using it in another project. The sample does not measure cash tips, and equal sampling per month means monthly sample totals are not estimates of total citywide revenue without appropriate weighting.</p>
+<p class="keep-in-present">Yes. The sample comes from the TLC’s published 2024 yellow-taxi trip records after cleaning. Cite the TLC and describe the sampling and cleaning when using it in another project. The sample does not measure cash tips, and equal sampling per month means monthly sample totals are not estimates of total citywide revenue without appropriate weighting.</p>
 
 <h3 class="keep-in-present">DuckDB read my 60k-row CSV in 60ms. Why did the lecture make CSV sound so bad?</h3>
 <p class="keep-in-present">A 60 ms query may be fast enough for this dataset. At larger sizes or with repeated queries, parsing a whole CSV can become expensive. Parquet can avoid unused columns and nonmatching <span class="gloss" data-gloss="row-group">row groups</span>, but neither runtime nor speedup scales by a fixed factor. Use a larger dataset and inspect the plan to test how the difference changes.</p>
