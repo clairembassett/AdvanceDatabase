@@ -15,7 +15,7 @@
   <div class="toc-title">Lab 8 · analytics</div>
   <ul>
     <li><a href="#setup">Set up and load the data</a></li>
-    <li><a href="#the-data">Understand the tables</a></li>
+    <li><a href="#the-data">Understand the rides table</a></li>
     <li><a href="#going-further">Fit a model with SQL</a></li>
     <li><a href="#pytorch">Train, predict, and investigate</a></li>
     <li><a href="#investigation">Write your discovery query</a></li>
@@ -92,7 +92,7 @@ hover or tap for a plain-language explainer that opens right below the sentence 
 <span class="cl-line">cd labs/lab-08/starter</span></pre>
 
 <p>Create and activate a Python environment from <code>labs/lab-08/starter</code>, then load the saved taxi sample:</p>
-<pre><code class="language-bash">python3 -m venv .venv-pytorch
+<pre class="terminal"><code>python3 -m venv .venv-pytorch
 # macOS / Linux:
 source .venv-pytorch/bin/activate
 # Windows PowerShell: .venv-pytorch\Scripts\Activate.ps1
@@ -109,15 +109,11 @@ python gen_data.py</code></pre>
   <a class="chat-dl-btn" href="starter/ml_report.txt" download>ml_report.txt</a>
 </div>
 
-<h2 id="the-data">Understand the tables <span class="part-time">~5 min</span></h2>
+<h2 id="the-data">Understand the rides table <span class="part-time">~5 min</span></h2>
 
 <p>This lab uses a prepared sample of 60,000 NYC yellow-taxi trips from 2024: 5,000 from each month. Everyone uses the same saved sample.</p>
 
-<h3 class="new-slide" data-kicker="The data">Join a fact table to a dimension table</h3>
-
-<p class="keep-in-present">The two tables form a small <span class="gloss" data-gloss="star-schema">star schema</span>:
-<code>rides</code> is the fact table, one row per trip, and <code>zones</code> is a dimension table,
-one row per taxi zone with its borough, joined on <code>rides.pickup_zone = zones.LocationID</code>.</p>
+<p class="keep-in-present">The <code>rides</code> table has one row per trip:</p>
 
 <table>
   <thead><tr><th>Column</th><th>Type</th><th>Meaning</th></tr></thead>
@@ -128,7 +124,7 @@ one row per taxi zone with its borough, joined on <code>rides.pickup_zone = zone
     <tr><td><code>distance</code></td><td>DOUBLE</td><td>miles</td></tr>
     <tr><td><code>fare</code>, <code>tip</code></td><td>DOUBLE</td><td>dollars; revenue means <code>fare + tip</code>. Cash tips are not recorded.</td></tr>
     <tr><td><code>payment</code></td><td>TEXT</td><td><code>'card'</code> or <code>'cash'</code></td></tr>
-    <tr><td><code>pickup_zone</code>, <code>dropoff_zone</code></td><td>INT</td><td>TLC zone ids; join to <code>zones.LocationID</code> for the borough and zone name</td></tr>
+    <tr><td><code>pickup_zone</code>, <code>dropoff_zone</code></td><td>INT</td><td>TLC zone IDs for the pickup and drop-off locations</td></tr>
     <tr><td><code>duration_min</code></td><td>DOUBLE</td><td>trip length in minutes</td></tr>
   </tbody>
 </table>
