@@ -1,6 +1,6 @@
-"""Optional ML checks: no test-data leakage, and SQL calls the frozen network.
+"""ML checks: no test-data leakage, and SQL calls the frozen network.
 
-Run with the optional lab environment:
+Run with the Lab 8 environment:
     python -m unittest discover -s tests -p test_pytorch_fares.py -v
 """
 
@@ -20,7 +20,7 @@ if AVAILABLE:
     spec.loader.exec_module(demo)
 
 
-@unittest.skipUnless(AVAILABLE, "Install the optional Lab 8 PyTorch requirements to run these checks")
+@unittest.skipUnless(AVAILABLE, "Install the Lab 8 PyTorch requirements to run these checks")
 class TestPyTorchFares(unittest.TestCase):
     def prepared(self, directory, test_fare=9):
         con = duckdb.connect()

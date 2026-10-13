@@ -1,4 +1,6 @@
-"""Lab 8 test harness — run:  python3 test_duckdb.py
+"""Lab 8 optional SQL practice harness — run: python3 test_duckdb.py
+
+These Q1-Q8 checks do not grade the core machine-learning investigation.
 
 Parses your assignment.sql (one query under each "-- Qn:" marker), runs
 each against DuckDB, and diffs the result against the reference answer

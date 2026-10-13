@@ -238,7 +238,7 @@
     { kind: 'Lab',     num: '07', dir: 'labs/lab-07',         file: 'transactions.html', title: 'microdb 7 · transactions & recovery' },
     { kind: 'Lecture', num: '09', dir: 'lectures/lecture-09', file: 'optimizer.html',   title: 'The query optimizer + midterm review' },
     { kind: 'Lecture', num: '10', dir: 'lectures/lecture-10', file: 'analytics.html',   title: 'The analytics stack' },
-    { kind: 'Lab',     num: '08', dir: 'labs/lab-08',         file: 'duckdb.html',      title: 'DuckDB + partitioned Parquet' },
+    { kind: 'Lab',     num: '08', dir: 'labs/lab-08',         file: 'duckdb.html',      title: 'Fare prediction · DuckDB + PyTorch' },
     { kind: 'Lecture', num: '11', dir: 'lectures/lecture-11', file: 'vectors.html',     title: 'Vector databases' },
     { kind: 'Lab',     num: '09', dir: 'labs/lab-09',         file: 'microvector.html', title: 'microvector · the IVF index' },
     { kind: 'Lecture', num: '12', dir: 'lectures/lecture-12', file: 'rag.html',         title: 'RAG as a systems problem' },

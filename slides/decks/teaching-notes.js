@@ -1553,10 +1553,10 @@
     },
     "more-models-with-duckdb": {
       "idea": "DuckDB can prepare data for a neural network and query its predictions.",
-      "question": "In the optional PyTorch lab, which component updates the neural-network weights?",
+      "question": "In the core PyTorch lab, which component updates the neural-network weights?",
       "answer": "PyTorch updates the weights. DuckDB selects January–October training rows and sends batches through Arrow. During prediction, a DuckDB SQL function calls the already-trained PyTorch model. November–December rides are reserved for checking errors.",
       "builds": [
-        "Start with the DuckDB + PyTorch link and then open the optional Lab 8 activity. Distinguish the official article’s pretrained linear model from the lab’s small neural network. Both use the same integration idea. Point out that the community ML extension and the SQL-only research paper are alternative approaches. Ask students to compare the neural network with the straight-line baseline on the same reserved rides. More model complexity does not guarantee lower error."
+        "Start with the DuckDB + PyTorch link and then open the core Lab 8 investigation. Distinguish the official article’s pretrained linear model from the lab’s small neural network. Both use the same integration idea. Point out that the community ML extension and the SQL-only research paper are alternative approaches. Ask students to compare the neural network with the straight-line baseline on the same reserved rides. More model complexity does not guarantee lower error."
       ]
     },
     "duckdb-pytorch-fare-model": {

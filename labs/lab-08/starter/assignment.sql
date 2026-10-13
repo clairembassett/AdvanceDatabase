@@ -1,4 +1,5 @@
--- Lab 8 · DuckDB analytics over the rides dataset.
+-- Lab 8 · Optional SQL practice over the rides dataset.
+-- The core lab submission is the ML investigation described in duckdb.html.
 -- Fill in each query below its marker comment. Run the harness any time:
 --     python3 test_duckdb.py
 -- Rules: keep each query a single statement; when a question specifies an
@@ -64,5 +65,4 @@
 --     from Lecture 10 in miniature: rides is the fact table, zones the
 --     dimension table.
 -- YOUR QUERY:
-
 

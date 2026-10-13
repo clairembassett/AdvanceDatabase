@@ -1,4 +1,4 @@
-"""Optional Lab 8: DuckDB prepares batches; PyTorch trains; SQL calls the model.
+"""Lab 8 core: DuckDB prepares batches; PyTorch trains; SQL calls the model.
 
 Run gen_data.py first, then: python3 pytorch_fares.py
 Uses the existing TLC sample, a CPU, and no network service.

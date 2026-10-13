@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Lab 8 · DuckDB + Partitioned Parquet · Advanced Databases for Data Science</title>
+<title>Lab 8 · Machine Learning with DuckDB + PyTorch · Advanced Databases for Data Science</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
@@ -14,19 +14,23 @@
 <aside class="toc">
   <div class="toc-title">Lab 8 · analytics</div>
   <ul>
-    <li><a href="#try-it">Try analytical queries on a browser sample</a></li>
-    <li><a href="#window-explainer">See what a SQL window does</a></li>
-    <li><a href="#the-data">Understand the sample and cleaning rules</a></li>
-    <li><a href="#the-api">Write one SQL statement for each of eight questions</a></li>
-    <li><a href="#worked-example">Worked example</a></li>
+    <li><a href="#setup">Set up and load the data</a></li>
+    <li><a href="#the-data">Understand the taxi sample</a></li>
+    <li><a href="#going-further">Fit a model with SQL</a></li>
+    <li><a href="#pytorch">Train, predict, and investigate</a></li>
+    <li><a href="#investigation">Write your discovery query</a></li>
+    <li><a href="#assignment">What to turn in</a></li>
+    <li><a href="#reference">SQL and storage reference</a></li>
+    <li><a href="#try-it">Try SQL in the browser</a></li>
+    <li><a href="#window-explainer">See what a window does</a></li>
+    <li><a href="#the-api">Eight SQL practice questions</a></li>
+    <li><a href="#worked-example">Worked SQL example</a></li>
     <li><a href="#discovery">Database discovery workbench</a></li>
-    <li><a href="#build">Part 1 · Build</a></li>
-    <li><a href="#verify">Part 2 · Verify</a></li>
-    <li><a href="#measure">Part 3 · Measure</a></li>
-    <li><a href="#slow">Part 4 · Fix the slow query</a></li>
-    <li><a href="#assignment">Assignment</a></li>
-    <li><a href="#going-further">Going further</a></li>
-    <li><a href="#pytorch">Optional · DuckDB + PyTorch</a></li>
+    <li><a href="#build">Build the practice queries</a></li>
+    <li><a href="#verify">Check the practice queries</a></li>
+    <li><a href="#measure">Compare file formats</a></li>
+    <li><a href="#slow">Inspect slow queries</a></li>
+    <li><a href="#extensions">More experiments</a></li>
     <li><a href="#faq">FAQ</a></li>
   </ul>
   <div class="toc-foot">DS 6XXX · Fall 2026<br>due Tue Oct 20, class start</div>
@@ -41,24 +45,25 @@
 
 <header class="hero">
   <div class="eyebrow">DS 6XXX · Lab 8 · Tuesday October 13, 2026 · Act II, lab 1 of 4</div>
-  <h1>DuckDB + Partitioned Parquet</h1>
-  <div class="subtitle">Use DuckDB to answer analytical questions, then measure how file format and query shape affect the work.</div>
-  <div class="byline">Follows Lecture 10 (The Analytics Stack) · in class: 75 min · aim to finish Build + Verify · due Tue Oct 20 at class start</div>
+  <h1>Predict taxi fares with DuckDB + PyTorch</h1>
+  <div class="subtitle">Use SQL to prepare taxi trips, train a model, and discover where its predictions fail.</div>
+  <div class="byline">Follows Lecture 10 (The Analytics Stack) · in class: 75 min · train, predict, and investigate errors · due Tue Oct 20 at class start</div>
 </header>
 
 <nav class="callout note" id="ml-shortcuts" aria-label="Jump to machine learning">
-  <span class="label">Jump to machine learning · optional walkthroughs</span>
+  <span class="label">Start the lab · machine learning with SQL and Python</span>
+  <p><a href="#setup"><strong>Set up and load the data →</strong></a> Start here on a fresh checkout.</p>
   <p><a href="#going-further"><strong>Train and predict with SQL →</strong></a> Fit a straight-line model inside DuckDB.</p>
   <p><a href="#pytorch"><strong>DuckDB + PyTorch →</strong></a> Train a neural network, then call it from a SQL query.</p>
 </nav>
 
-<p class="lede">microSQL supports SELECT-FROM-WHERE, but not grouped revenue, running totals, or top-k results. In this lab you use DuckDB to answer those questions over 60,000 sampled NYC yellow-taxi trips from 2024. You then compare CSV and Parquet, inspect column projection and partition pruning, and use EXPLAIN to understand slow queries. Treat the reference timings as examples, not performance targets.</p>
+<p class="lede">Can trip distance predict a taxi fare? Use 60,000 real NYC taxi trips to compare a straight-line model fitted in SQL with a neural network trained by PyTorch. DuckDB prepares the rows, calls the trained network from SQL, and helps you find which trips have the largest errors. Your job is to run the pipeline, investigate a pattern, and explain what the evidence supports.</p>
 
 <div class="callout note" id="database-ml-intro">
   <span class="label">SQL and machine learning in one Python program</span>
   <p><strong>DuckDB is an in-process database.</strong> When you use it from Python, the database engine runs inside your Python program. You do not need a separate database server. SQL can prepare the data, and Python libraries can work with the results in the same program.</p>
-  <p><strong>In-database machine learning</strong> means training or applying a model through the database. In the optional <a href="#going-further">SQL example</a>, DuckDB fits a straight line to predict fare from distance. In the <a href="#pytorch">neural-network example</a>, DuckDB selects the rides, PyTorch trains the network, and a SQL query calls the trained network to make predictions. PyTorch does the neural-network training; it runs alongside DuckDB in the same Python process.</p>
-  <p><strong>The question:</strong> can distance help predict a taxi fare, and does a curve work better than a straight line? Test both models on rides they did not train on. These machine-learning activities are optional and need no cloud account.</p>
+  <p><strong>In-database machine learning</strong> means training or applying a model through the database. In the <a href="#going-further">SQL example</a>, DuckDB fits a straight line to predict fare from distance. In the <a href="#pytorch">neural-network example</a>, DuckDB selects the rides, PyTorch trains the network, and a SQL query calls the trained network to make predictions. PyTorch does the neural-network training; it runs alongside DuckDB in the same Python process.</p>
+  <p><strong>The question:</strong> can distance help predict a taxi fare, and does a curve work better than a straight line? Test both models on rides they did not train on. This investigation is the core of Lab 8 and needs no cloud account.</p>
 </div>
 
 <div class="cite">
@@ -77,7 +82,221 @@ hover or tap for a plain-language explainer that opens right below the sentence 
   <div id="glossary-content" class="glossary-content"></div>
 </div>
 
+<h2 id="setup">Set up the local lab <span class="part-time">~10 min</span></h2>
+<p>Use Python 3.11 or later and clone the complete repository so the bundled taxi data is included. Install the packages before class if possible. Everything runs locally on your CPU; no cloud account or database server is needed.</p>
+  <p class="viz-caption clone-label">If you do not have the course repository yet, open a terminal where you want to keep it and run:</p>
+<pre class="clone-cmd"><span class="cl-line">git clone https://github.com/researcher111/AdvanceDatabase.git</span>
+<span class="cl-line">cd AdvanceDatabase</span></pre>
+  <p class="viz-caption clone-label">If you already cloned the repository in Lab 1, use that existing folder. From the top-level <code>AdvanceDatabase</code> folder, pull the latest files and open this lab’s starter folder:</p>
+<pre class="clone-cmd"><span class="cl-line">git pull</span>
+<span class="cl-line">cd labs/lab-08/starter</span></pre>
+
+<p>Create and activate a Python environment from <code>labs/lab-08/starter</code>, then load the saved taxi sample:</p>
+<pre><code class="language-bash">python3 -m venv .venv-pytorch
+# macOS / Linux:
+source .venv-pytorch/bin/activate
+# Windows PowerShell: .venv-pytorch\Scripts\Activate.ps1
+
+python -m pip install -r requirements-pytorch.txt
+python gen_data.py</code></pre>
+<p><code>gen_data.py</code> writes <code>data/rides.parquet</code> and the other formats used in the reference exercises. It unpacks the same saved 60,000 trips for everyone.</p>
+<div class="chat-downloads">
+  <span class="chat-downloads-label">Core lab files:</span>
+  <a class="chat-dl-btn" href="starter/pytorch_fares.py" download>pytorch_fares.py</a>
+  <a class="chat-dl-btn" href="starter/requirements-pytorch.txt" download>requirements-pytorch.txt</a>
+  <a class="chat-dl-btn" href="starter/explore_predictions.py" download>explore_predictions.py</a>
+  <a class="chat-dl-btn" href="starter/investigation.sql" download>investigation.sql</a>
+  <a class="chat-dl-btn" href="starter/ml_report.txt" download>ml_report.txt</a>
+</div>
+
+<h2 id="the-data">Understand the sample and cleaning rules <span class="part-time">~5 min</span></h2>
+
+<p>This lab uses 60,000 NYC yellow-taxi trips from 2024. The Taxi and Limousine Commission publishes monthly Parquet files containing millions of trip records. We first removed trips that failed the cleaning rules below. Then we randomly selected <strong>5,000 trips from each month</strong>. We saved this sample so everyone uses the same 60,000 trips.</p>
+<p>The selection used a <strong>fixed seed</strong>: a starting value for the random-number generator that makes the selection repeatable with the same input data and sampling code. You do not need to repeat that selection. <code>gen_data.py</code> unpacks the saved sample into the files used by the lab. Review the cleaning rules below: removing particular trips changes which rides your results describe.</p>
+
+<table>
+  <thead><tr><th>Rule</th><th>What it drops</th><th>Share of a raw month</th></tr></thead>
+  <tbody>
+    <tr><td>passengers between 1 and 6</td><td>missing counts and values outside the selected range</td><td>about 6%</td></tr>
+    <tr><td>distance between 0.1 and 100 miles</td><td>distances below 0.1 or above 100 miles</td><td>under 2%</td></tr>
+    <tr><td>fare between $1 and $500</td><td>fares outside the selected range, including negative and unusually large values</td><td>about 1%</td></tr>
+    <tr><td>payment is card or cash</td><td>disputes, no-charge trips, and unknown payment types</td><td>about 7%</td></tr>
+    <tr><td>duration between 1 and 180 minutes</td><td>durations outside the selected range, including negative and unusually long trips</td><td>under 1%</td></tr>
+  </tbody>
+</table>
+
+<p class="keep-in-present">Cash trips have <code>tip = 0</code> because the source records card tips but does not record cash tips. A zero in this field therefore does not prove that no tip was paid. Compare <code>tip</code> by <code>payment</code>, and explain the difference in terms of how the data was collected. In this lab, “revenue” means the recorded <code>fare + tip</code>, so it excludes unrecorded cash tips.</p>
+
+<h3 class="new-slide" data-kicker="The data">Join a fact table to a dimension table</h3>
+
+<p class="keep-in-present">The two tables form a small <span class="gloss" data-gloss="star-schema">star schema</span>:
+<code>rides</code> is the fact table, one row per trip, and <code>zones</code> is a dimension table,
+one row per taxi zone with its borough, joined on <code>rides.pickup_zone = zones.LocationID</code>.</p>
+
+<table>
+  <thead><tr><th>Column</th><th>Type</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>ride_id</code></td><td>INT</td><td>0 to 59,999, in pickup-time order</td></tr>
+    <tr><td><code>month</code>, <code>day</code>, <code>hour</code></td><td>INT</td><td>pickup time; <code>month</code> is also the partition key of the Parquet folders</td></tr>
+    <tr><td><code>passengers</code></td><td>INT</td><td>1 to 6</td></tr>
+    <tr><td><code>distance</code></td><td>DOUBLE</td><td>miles</td></tr>
+    <tr><td><code>fare</code>, <code>tip</code></td><td>DOUBLE</td><td>dollars; revenue in every question means <code>fare + tip</code></td></tr>
+    <tr><td><code>payment</code></td><td>TEXT</td><td><code>'card'</code> or <code>'cash'</code></td></tr>
+    <tr><td><code>pickup_zone</code>, <code>dropoff_zone</code></td><td>INT</td><td>TLC zone ids; join to <code>zones.LocationID</code> for the borough and zone name</td></tr>
+    <tr><td><code>duration_min</code></td><td>DOUBLE</td><td>trip length in minutes</td></tr>
+  </tbody>
+</table>
+
 <!-- ============================================================ -->
+<h2 id="going-further">Fit a straight-line model with SQL <span class="part-time">~10 min</span></h2>
+
+<p class="keep-in-present"><strong>Train and apply a model in SQL.</strong> Run Lecture 10’s
+<a href="../../lectures/lecture-10/analytics.html#in-database-ml">in-database machine learning example</a>
+with the same DuckDB installation. It fits a line on synthetic training rides, stores its coefficients,
+and scores separate test rides. Use <code>--explain</code> with the
+<a href="../../lectures/lecture-10/in_database_ml.py" download>downloadable demo</a>
+to find the scan, filter, aggregate, and cross product in the plans. Change only a test fare:
+which changes, the fitted coefficients or the evaluation error? Explain why. Record what changes in your lab report.</p>
+
+<p>From the starter folder, run the supplied six-ride example:</p>
+<pre><code class="language-bash">python ../../../lectures/lecture-10/in_database_ml.py --explain</code></pre>
+<p>This tiny example makes the training and test split easy to inspect. Next, the main script fits the same kind of line on the real taxi sample and compares it with a neural network.</p>
+
+<h2 id="pytorch">Train, predict, and investigate <span class="part-time">~45 min</span></h2>
+
+<p><strong>Our question:</strong> does a model that can learn a curve predict fares better than a straight line? Use the same real taxi sample and the same input, distance, for both models. Keep November and December rides out of training, then compare predictions with their recorded fares.</p>
+<p>DuckDB selects the data. <strong>PyTorch trains the neural network.</strong> Then a SQL function calls that trained network, and DuckDB groups its errors. Everything runs in one local Python process on your CPU. This is the main lab exercise. Keep the training and test rides separate throughout the investigation.</p>
+
+<h3>1. Run the baseline and neural network</h3>
+<p>From the prepared <code>starter</code> folder, run:</p>
+<pre><code class="language-bash">python pytorch_fares.py</code></pre>
+<p>The script reads <code>data/rides.parquet</code> from the lab setup. It saves a chart, all test predictions, and the network weights in <code>data/pytorch-results/</code>. Open <code>fare-models.png</code> to see the results. Package installation may take longer than the small training run.</p>
+
+<h3>2. Follow a batch from SQL into the network</h3>
+<p>The script uses 50,000 January–October rides for training. This query selects only the two columns training needs. Arrow carries the query result in batches of up to 1,024 rows. A tensor is a numeric array: each input batch becomes one column of distances, and its targets become one column of fares.</p>
+<pre><code class="language-python">reader = con.execute("""
+    SELECT distance, fare FROM features
+    WHERE month &lt;= 10 ORDER BY hash(ride_id)
+""").to_arrow_reader(batch_size=1024)
+
+model = nn.Sequential(
+    nn.Linear(1, 16), nn.ReLU(), nn.Linear(16, 1)
+)</code></pre>
+<p>The network takes one distance, passes it through 16 hidden units, and returns one fare prediction. <code>ReLU</code> keeps positive intermediate values and replaces negative ones with zero, allowing the fitted curve to bend. PyTorch compares predictions with training fares and updates the weights. One <strong>epoch</strong> is one pass through all training rides; the example uses 30.</p>
+<p>Find <code>loss.backward()</code> and <code>optimizer.step()</code> in the script: these are the PyTorch operations that calculate gradients and update weights. DuckDB does the selection and ordering. Converting Arrow values to tensors allocates memory, so this handoff is not free. The script also learns the scaling of distances and fares from training rows only.</p>
+
+<h4 id="pytorch-scaling">What do the prediction and loss lines mean?</h4>
+<pre><code class="language-python">prediction = model((x - x_mean) / x_std)
+loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
+<p><code>x</code> contains the distances in one training batch. <code>y</code> contains the recorded fares for those same rides. Each distance gets one prediction. The <code>mean</code> variables hold training averages; the <code>std</code> variables hold standard deviations, which measure spread. Distance and fare each have their own mean and std. The script calculates these statistics once using <strong>all training rows</strong>, then reuses them for every batch and for later predictions.</p>
+<ol>
+  <li><strong>Scale each distance, then predict.</strong> <code>(x - x_mean) / x_std</code> subtracts the average distance and divides by its spread. A value of 0 means an average distance; 1 means one standard deviation above average. Keeping typical values near 0 can help training. <code>model(...)</code> uses the current network weights to predict a <em>scaled fare</em>. It receives distances, not recorded fares.</li>
+  <li><strong>Put the recorded fares on the same scale.</strong> <code>(y - y_mean) / y_std</code> scales the training targets. We can now compare each prediction with its target using matching units. The model's output is not yet a dollar amount. A negative scaled value simply means below the training average.</li>
+  <li><strong>Measure the batch error.</strong> The script defines <code>loss_fn = nn.MSELoss()</code>. It subtracts each target from its prediction, squares each error, then averages across the batch. This <strong>mean squared error</strong> is one number used during training. It differs from the mean absolute error in dollars reported later.</li>
+</ol>
+<p><strong>A made-up example:</strong> assume the full training set gave a distance mean of 3 miles and std of 2 miles, plus a fare mean of $20 and std of $10. These statistics come from the larger training set, not just the two rides below. Suppose the current model returns 0.2 and 0.8.</p>
+<table>
+  <thead><tr><th>Ride</th><th>Distance and scaled input</th><th>Fare and scaled target</th><th>Scaled prediction</th><th>Squared error</th></tr></thead>
+  <tbody>
+    <tr><td>A</td><td>3 miles: (3 − 3) ÷ 2 = 0</td><td>$20: (20 − 20) ÷ 10 = 0</td><td>0.2</td><td>(0.2 − 0)² = 0.04</td></tr>
+    <tr><td>B</td><td>5 miles: (5 − 3) ÷ 2 = 1</td><td>$30: (30 − 20) ÷ 10 = 1</td><td>0.8</td><td>(0.8 − 1)² = 0.04</td></tr>
+  </tbody>
+</table>
+<p>The batch loss is <strong>(0.04 + 0.04) ÷ 2 = 0.04</strong>, measured in squared scaled-fare units. It is not a $0.04 error. These two lines calculate predictions and loss without changing the weights. Next, <code>optimizer.zero_grad()</code> clears previous gradients, <code>loss.backward()</code> calculates gradients, and <code>optimizer.step()</code> updates the weights and biases.</p>
+<p><strong>Convert back to dollars for SQL.</strong> The prediction callback reverses the fare scaling:</p>
+<pre><code class="language-python">fares = model((x - x_mean) / x_std) * y_std + y_mean</code></pre>
+<p>Here, 0.2 × $10 + $20 = <strong>$22</strong>, and 0.8 × $10 + $20 = <strong>$28</strong>. Each toy prediction is $2 away from its recorded fare, so their mean absolute error is $2. Converting a new prediction needs only the saved training statistics, not that ride's actual fare. These invented numbers explain the calculation; the real lab results appear below. See <a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html">PyTorch's MSELoss definition</a> for the loss formula.</p>
+
+<h3>3. Call the trained network from SQL</h3>
+<h4 id="pytorch-arrow">What is an Arrow function?</h4>
+<p>Here, <strong>Arrow</strong> means <strong>Apache Arrow</strong>, a format for storing columns of values in memory. An <strong>Arrow Python UDF</strong> is a function we provide to DuckDB that accepts and returns batches in this format. UDF means <em>user-defined function</em>.</p>
+<p>We register the lab's prediction function like this:</p>
+<pre><code class="language-python">con.create_function(
+    "predict_fare_nn", predict_fare,
+    ["DOUBLE"], "DOUBLE",
+    type="arrow")</code></pre>
+<table>
+  <thead><tr><th>Argument</th><th>What it tells DuckDB</th></tr></thead>
+  <tbody>
+    <tr><td><code>"predict_fare_nn"</code></td><td>The function name to use in SQL.</td></tr>
+    <tr><td><code>predict_fare</code></td><td>The Python function to call. Passing its name without parentheses gives DuckDB the function itself.</td></tr>
+    <tr><td><code>["DOUBLE"], "DOUBLE"</code></td><td>One numeric SQL argument and one numeric result per row. <code>DOUBLE</code> is a floating-point number. These declarations describe row values, not batch sizes.</td></tr>
+    <tr><td><code>type="arrow"</code></td><td>Send column batches to Python and expect an Arrow batch back.</td></tr>
+  </tbody>
+</table>
+<p><strong>SQL still gets one fare per ride.</strong> DuckDB groups distances into a batch before calling Python. The <code>distances</code> parameter receives a PyArrow <code>ChunkedArray</code>, a column that can hold multiple chunks. The lab's callback converts it to a tensor and applies the saved model:</p>
+<pre><code class="language-python">def predict_fare(distances):
+    x = torch.tensor(
+        distances.to_numpy(), dtype=torch.float32
+    ).reshape(-1, 1)
+    with torch.inference_mode():
+        fares = model((x - x_mean) / x_std) * y_std + y_mean
+    return pa.array(fares.flatten().numpy().astype(np.float64))</code></pre>
+<p><code>pa</code> is the <code>pyarrow</code> module. <code>pa.array(...)</code> packages the predictions for DuckDB. Reusing the previous made-up example, the input batch <code>[3.0, 5.0]</code> returns fares <code>[22.0, 28.0]</code>. Return the <strong>same number of values in matching positions</strong>: the first fare belongs to the first distance. Sorting the predictions would attach them to the wrong rides. No weights change during prediction.</p>
+<p><strong>Why use batches?</strong> One Python call can process many distances, reducing call overhead. The model can also work on the whole tensor at once. This script uses <code>torch.tensor</code>, which copies data, so the conversion still has a cost. See <a href="https://duckdb.org/docs/stable/clients/python/function.html#arrow">DuckDB's Arrow function documentation</a>.</p>
+<p><strong>Two uses of Arrow in this lab:</strong> <code>to_arrow_reader(batch_size=1024)</code> sends query results to our Python <em>training loop</em>. <code>type="arrow"</code> lets a SQL query call our Python <em>prediction function</em> with batches. DuckDB controls the prediction batch sizes; the earlier 1,024 setting does not set them.</p>
+<h4>Use the registered function in SQL</h4>
+<pre><code class="language-sql">SELECT ride_id, distance, fare,
+       predict_fare_nn(distance) AS predicted_fare
+FROM features
+WHERE month &gt;= 11;</code></pre>
+<p>These 10,000 later rides are our <strong>test rides</strong>: records reserved for checking the model. Their fares were excluded from training and scaling. The function exists in the script's Python connection; it is not a built-in DuckDB function or a function automatically available in a separate SQL terminal. To call the live model in another query, edit the script after <code>register_predictor</code>. To explore the saved predictions without retraining, use <a href="#investigation"><code>explore_predictions.py</code></a> below.</p>
+<p>The script also fits the lecture's straight-line baseline with <code>regr_intercept(fare, distance)</code> and <code>regr_slope(fare, distance)</code> on the same training rows. Both models get the same single feature and the same test rides.</p>
+
+<h3>4. Discover where the models struggle</h3>
+<p>Start with mean absolute error (MAE): how many dollars does a prediction miss by, on average? Then group the errors by trip distance. Does the overall score hide a group with much larger errors?</p>
+<pre><code class="language-sql">SELECT CASE WHEN distance &lt; 2 THEN '1. Under 2 miles'
+            WHEN distance &lt; 5 THEN '2. 2 to under 5'
+            WHEN distance &lt; 10 THEN '3. 5 to under 10'
+            ELSE '4. 10 miles or more' END AS distance_group,
+       count(*) AS test_rides,
+       avg(abs(fare - linear_fare)) AS linear_mae,
+       avg(abs(fare - neural_fare)) AS neural_mae
+FROM predictions
+GROUP BY distance_group ORDER BY distance_group;</code></pre>
+<h4 id="investigation">Write and run your own discovery query</h4>
+<p><strong>Predict first:</strong> will card and cash rides have similar prediction errors? Or will the two models differ more for rides starting in certain boroughs? Choose one question, then edit <code>investigation.sql</code>. Replace its overall average with your own grouped comparison, including the number of rides in each group.</p>
+<pre><code class="language-bash">python explore_predictions.py</code></pre>
+<p>The explorer loads <code>predictions</code> from the saved test predictions, <code>rides</code> from the Parquet file, and <code>zones</code> from the zone lookup. It runs your query and saves <code>data/pytorch-results/query-results.csv</code>. You can rerun it after editing your query without retraining the model.</p>
+<p>Join <code>predictions p</code> to <code>rides r</code> on <code>p.ride_id = r.ride_id</code> to inspect payment types or pickup zones. For borough names, also join <code>zones z</code> on <code>r.pickup_zone = z.LocationID</code>. Start from <code>predictions</code> so the investigation uses only reserved test rides. Use qualified names such as <code>p.fare</code> when both tables contain the same column.</p>
+<p><strong>Record the result:</strong> compare at least two groups in <code>ml_report.txt</code>. Give their sample sizes and both models’ errors. Explain one possible reason for the pattern and what you would query next to check it.</p>
+<details>
+  <summary>See one completed run and its charts</summary>
+  <p>On the bundled sample, with seed 6042 and 30 epochs, our run gave a $3.53 MAE for the straight line and $3.26 for the neural network. For rides of 10 miles or more, those errors were $8.74 and $7.67. For rides from 5 to under 10 miles, both rounded to $4.75. More complexity did not improve every group equally.</p>
+  <figure>
+    <a href="pytorch-fares-example.png"><img src="pytorch-fares-example.png" alt="Three charts: training error falls over 30 epochs; predicted versus recorded test fares show misses; long trips have larger average errors for both models." style="width:100%;height:auto" loading="lazy"></a>
+    <figcaption>Example run with DuckDB 1.5.6 and PyTorch 2.14.1. The scatter shows 600 test rides; all 10,000 test rides contribute to the error metrics. The training curve measures batches while weights are changing. Values can vary with software versions.</figcaption>
+  </figure>
+</details>
+<ul>
+  <li><strong>Read the plots:</strong> on the scatter plot, points above the diagonal are overpredictions; points below it are underpredictions. Does lower training error guarantee better predictions on later rides?</li>
+  <li><strong>Investigate a miss:</strong> query the largest errors, then join <code>predictions.ride_id</code> back to <code>rides.ride_id</code> to inspect pickup zones. Could airport trips help explain some errors? A pattern suggests a follow-up question, not a proven cause.</li>
+  <li><strong>Trace the system:</strong> which work happens in DuckDB, which happens in PyTorch, and where do batches cross between them?</li>
+</ul>
+<p>If you change the model after looking at test errors, those rides become development feedback. Reserve a separate final test period before making a new accuracy claim. The dataset contains 5,000 sampled rides per month, so these scores describe this cleaned sample, not every NYC trip.</p>
+<p>Read more: <a href="https://duckdb.org/2023/07/07/python-udf#predicting-taxi-fare-costs-ibis--pyarrow-udf">DuckDB's PyTorch taxi example</a> demonstrates the function connection using a pretrained linear model. Our exercise uses that idea with a small neural network. See also <a href="https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html">PyTorch's training-loop tutorial</a>, the <a href="https://duckdb.org/community_extensions/extensions/ml">community ML extension</a>, and <a href="https://arxiv.org/abs/2312.17355">The Duck's Brain</a>, a research paper about expressing neural-network training in SQL.</p>
+
+<!-- ============================================================ -->
+<h2 id="assignment">What to turn in <span class="part-time">~5 min to check</span></h2>
+<p class="keep-in-present"><strong>Complete the machine-learning investigation by Tuesday October 20 at class start.</strong> Use the supplied model code as a working starting point. The required work is to reproduce the comparison, write an investigation query, and explain the evidence.</p>
+<ul>
+  <li><strong><code>ml_report.txt</code>:</strong> fill in the <a href="starter/ml_report.txt" download>report template</a> with your run settings, train/test counts, both models’ test errors, and your interpretation. Aim for about one page of answers.</li>
+  <li><strong><code>investigation.sql</code>:</strong> replace the starter’s overall comparison with your own query that groups test errors by payment type, pickup borough, distance, or another meaningful category. Include each group’s ride count and both models’ MAE.</li>
+  <li><strong><code>query-results.csv</code>:</strong> the output of your investigation, saved in <code>data/pytorch-results/</code>.</li>
+  <li><strong><code>fare-models.png</code>:</strong> the comparison chart from your run, also in <code>data/pytorch-results/</code>.</li>
+</ul>
+<p>Submit these four files using the course submission instructions. Keep the full predictions and saved model locally; they are not required uploads. <code>assignment.sql</code> and the old <code>8/8</code> SQL-practice score are not the submission for this investigation.</p>
+<h3>What a complete investigation shows</h3>
+<ul>
+  <li><strong>A fair comparison:</strong> train both models on January–October rides, learn scaling from those training rows, and evaluate on the same November–December rides.</li>
+  <li><strong>A correct query:</strong> calculate errors from the saved test predictions, join using the appropriate keys, and include sample sizes so small groups are visible.</li>
+  <li><strong>A supported conclusion:</strong> compare at least two groups, interpret the chart, explain DuckDB’s and PyTorch’s roles, and name one limitation and one follow-up question.</li>
+</ul>
+<p>These are the review criteria. You are not graded on beating the example’s MAE, training a larger model, or getting identical timings. The supplied script already runs; your contribution is the query and reasoning. The SQL practice harness does not assess this report.</p>
+<p>Project proposals remain due October 29; see the <a href="../../project.html">project instructions</a>.</p>
+
+<h2 id="reference">SQL and storage reference <span class="part-time">optional practice</span></h2>
+<p>Use these examples when you want more practice with SQL or data layout. They support the core investigation; completing Q1–Q8 and the storage measurements is optional.</p>
 <h2 id="try-it">Try analytical queries on a browser sample</h2>
 
 <p>The browser demonstration contains 600 rides sampled from the lab’s 60,000-row dataset. Run the presets to inspect grouping, aggregation, ordering, and limits. The browser recognizes those example patterns; use DuckDB in the starter folder to write and test your own queries.</p>
@@ -108,12 +327,6 @@ hover or tap for a plain-language explainer that opens right below the sentence 
     <a class="chat-dl-btn" href="starter/taxi_zone_lookup.csv" download>taxi_zone_lookup.csv</a>
     <a class="chat-dl-btn" href="starter/lab08_explore.ipynb" download>lab08_explore.ipynb</a>
   </div>
-  <p class="viz-caption clone-label">If you do not have the course repository yet, open a terminal where you want to keep it and run:</p>
-<pre class="clone-cmd"><span class="cl-line">git clone https://github.com/researcher111/AdvanceDatabase.git</span>
-<span class="cl-line">cd AdvanceDatabase</span></pre>
-  <p class="viz-caption clone-label">If you already cloned the repository in Lab 1, use that existing folder. From the top-level <code>AdvanceDatabase</code> folder, pull the latest files and open this lab’s starter folder:</p>
-<pre class="clone-cmd"><span class="cl-line">git pull</span>
-<span class="cl-line">cd labs/lab-08/starter</span></pre>
   <p class="viz-caption">These 600 rides come from the lab dataset. Aggregate totals differ from the full 60,000-row results, and smaller groups may differ in composition. The harness checks your DuckDB queries against the full file.</p>
 </div>
 
@@ -224,46 +437,7 @@ ORDER BY ride_id;</code></pre>
 </details>
 
 <!-- ============================================================ -->
-<h2 id="the-data">Understand the sample and cleaning rules</h2>
-
-<p>This lab uses 60,000 NYC yellow-taxi trips from 2024. The Taxi and Limousine Commission publishes monthly Parquet files containing millions of trip records. We first removed trips that failed the cleaning rules below. Then we randomly selected <strong>5,000 trips from each month</strong>. We saved this sample so everyone uses the same 60,000 trips.</p>
-<p>The selection used a <strong>fixed seed</strong>: a starting value for the random-number generator that makes the selection repeatable with the same input data and sampling code. You do not need to repeat that selection. <code>gen_data.py</code> unpacks the saved sample into the files used by the lab. Review the cleaning rules below: removing particular trips changes which rides your results describe.</p>
-
-<table>
-  <thead><tr><th>Rule</th><th>What it drops</th><th>Share of a raw month</th></tr></thead>
-  <tbody>
-    <tr><td>passengers between 1 and 6</td><td>missing counts and values outside the selected range</td><td>about 6%</td></tr>
-    <tr><td>distance between 0.1 and 100 miles</td><td>distances below 0.1 or above 100 miles</td><td>under 2%</td></tr>
-    <tr><td>fare between $1 and $500</td><td>fares outside the selected range, including negative and unusually large values</td><td>about 1%</td></tr>
-    <tr><td>payment is card or cash</td><td>disputes, no-charge trips, and unknown payment types</td><td>about 7%</td></tr>
-    <tr><td>duration between 1 and 180 minutes</td><td>durations outside the selected range, including negative and unusually long trips</td><td>under 1%</td></tr>
-  </tbody>
-</table>
-
-<p class="keep-in-present">Cash trips have <code>tip = 0</code> because the source records card tips but does not record cash tips. A zero in this field therefore does not prove that no tip was paid. Compare <code>tip</code> by <code>payment</code>, and explain the difference in terms of how the data was collected. In this lab, “revenue” means the recorded <code>fare + tip</code>, so it excludes unrecorded cash tips.</p>
-
-<h3 class="new-slide" data-kicker="The data">Join a fact table to a dimension table</h3>
-
-<p class="keep-in-present">The two tables form a small <span class="gloss" data-gloss="star-schema">star schema</span>:
-<code>rides</code> is the fact table, one row per trip, and <code>zones</code> is a dimension table,
-one row per taxi zone with its borough, joined on <code>rides.pickup_zone = zones.LocationID</code>.</p>
-
-<table>
-  <thead><tr><th>Column</th><th>Type</th><th>Meaning</th></tr></thead>
-  <tbody>
-    <tr><td><code>ride_id</code></td><td>INT</td><td>0 to 59,999, in pickup-time order</td></tr>
-    <tr><td><code>month</code>, <code>day</code>, <code>hour</code></td><td>INT</td><td>pickup time; <code>month</code> is also the partition key of the Parquet folders</td></tr>
-    <tr><td><code>passengers</code></td><td>INT</td><td>1 to 6</td></tr>
-    <tr><td><code>distance</code></td><td>DOUBLE</td><td>miles</td></tr>
-    <tr><td><code>fare</code>, <code>tip</code></td><td>DOUBLE</td><td>dollars; revenue in every question means <code>fare + tip</code></td></tr>
-    <tr><td><code>payment</code></td><td>TEXT</td><td><code>'card'</code> or <code>'cash'</code></td></tr>
-    <tr><td><code>pickup_zone</code>, <code>dropoff_zone</code></td><td>INT</td><td>TLC zone ids; join to <code>zones.LocationID</code> for the borough and zone name</td></tr>
-    <tr><td><code>duration_min</code></td><td>DOUBLE</td><td>trip length in minutes</td></tr>
-  </tbody>
-</table>
-
-<!-- ============================================================ -->
-<h2 id="the-api">Write one SQL statement for each of eight questions</h2>
+<h2 id="the-api">Eight SQL practice questions</h2>
 
 <p>Each is a marker comment in <code>assignment.sql</code>; write one statement under each.
 The harness compares your results against reference answers computed live: ordered
@@ -296,9 +470,9 @@ questions exactly, unordered ones as sets.</p>
 <!-- ============================================================ -->
 <h2 id="discovery">Start with a question about the city</h2>
 <p><a href="../../lectures/lecture-10/discovery.html"><strong>Open the database discovery workbench →</strong></a> Build a local DuckDB database from the bundled 60,000-trip taxi sample, then edit queries and inspect charts. Predict first: does JFK have a higher typical fare than LaGuardia, and does that comparison survive switching to fare per mile?</p>
-<p>The seven investigations cover sampling, recorded tips, airport routes, daily rhythms, trip mix, top destinations, and join cardinality. Save one finding, one limitation, and the next query you would run. These are ungraded discovery exercises; the lab’s required queries stay separate.</p>
+<p>The seven investigations cover sampling, recorded tips, airport routes, daily rhythms, trip mix, top destinations, and join cardinality. Save one finding, one limitation, and the next query you would run. These are ungraded discovery exercises; the core machine-learning investigation comes first.</p>
 
-<h2 id="build">Part 1 · Build <span class="part-time">~30 min in class</span></h2>
+<h2 id="build">Build the practice queries</h2>
 
 <p>After each query, use the <a href="#function-tests">query-level checks</a> to test it before completing the rest of the lab.</p>
 
@@ -306,7 +480,7 @@ questions exactly, unordered ones as sets.</p>
   <li><strong><code>python3 -m pip install duckdb</code></strong>, get the starter folder, run
   <code>python3 gen_data.py</code> once. It unpacks the shipped sample into <code>data/</code>:
   the CSV, the same rows as Parquet, twelve partition folders, the zones table, and a nested
-  JSON file for Part 4. Everyone gets the identical 60,000 rows.</li>
+  JSON file for the slow-query exercises. Everyone gets the identical 60,000 rows.</li>
   <li><strong>Work the queries in order</strong>: each adds a SQL concept. Test the query you just wrote with
   <code>python3 test_duckdb.py --unit Q1</code> (replace Q1 with its question number). The harness creates the <code>rides</code> and <code>zones</code> tables for you. For interactive exploration, use the supplied <code>lab08_explore.ipynb</code> notebook and run its setup cells first; a new DuckDB connection does not automatically contain those tables.</li>
   <li><strong>For Q5, average a card-payment indicator</strong>: use <code>AVG(CASE WHEN payment = 'card' THEN
@@ -327,18 +501,18 @@ questions exactly, unordered ones as sets.</p>
 </div>
 
 <!-- ============================================================ -->
-<h2 id="verify">Part 2 · Verify <span class="part-time">~15 min in class</span></h2>
+<h2 id="verify">Check the practice queries</h2>
 
 <h3 id="function-tests">Test one query at a time</h3>
 <p>Run these commands from the starter directory. <code>--list</code> lists Q1–Q8. Use <code>--unit Q1</code> to run only Q1’s query from <code>assignment.sql</code>; unfinished queries are not run. Use <code>--unit</code> to check all eight queries.</p>
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py --list</span>
 <span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py --unit Q1</span>
 <span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py --unit</span></code></pre>
-<p>Each selected query uses the same correctness check as the full test run. Before submitting, run <code>python3 test_duckdb.py</code> without flags to check all eight queries.</p>
+<p>Each selected query uses the same correctness check as the full test run. Run <code>python3 test_duckdb.py</code> without flags to check all eight practice queries. This is practice feedback, not the grade for the core investigation.</p>
 
 <h3>Run the full tests</h3>
 
-<p>The passing output below is the target after completing the required methods or queries. On a fresh starter, failures marked <code>not implemented yet</code> or missing-query failures are expected. A unit check can pass while the remaining integration tests still fail.</p>
+<p>The passing output below is the target after completing the eight practice queries. On a fresh starter, failures marked <code>not implemented yet</code> or missing-query failures are expected. A unit check can pass while the remaining integration tests still fail.</p>
 
 <pre class="terminal"><code><span class="t-prompt">$</span> <span class="t-cmd">python3 test_duckdb.py</span>
   <span class="t-pass">[PASS]</span> SQL: Q1 totals
@@ -359,7 +533,7 @@ questions exactly, unordered ones as sets.</p>
 </div>
 
 <!-- ============================================================ -->
-<h2 id="measure">Part 3 · Measure <span class="part-time">~25 min · finish as homework</span></h2>
+<h2 id="measure">Compare file formats <span class="part-time">optional</span></h2>
 
 <p>Example run on an Apple-silicon laptop. Timings and plan formatting vary by machine, cache state, and DuckDB version:</p>
 
@@ -391,7 +565,7 @@ plan's "Scanning Files" line and the time. Then explain, in one sentence, what t
 would have to be for that query to prune, and what Q2 would cost under that partitioning.</p>
 
 <!-- ============================================================ -->
-<h2 id="slow">Part 4 · Fix the slow query <span class="part-time">~20 min · homework</span></h2>
+<h2 id="slow">Inspect slow queries <span class="part-time">optional</span></h2>
 
 <p>Query structure can affect how much data an engine scans and how much it sends to Python. <code>slow_queries.py</code> compares three pairs of equivalent queries. Run them and use <code>EXPLAIN</code> to relate their timings to the chosen plans. Plan details and speedups can vary by DuckDB version.</p>
 
@@ -433,52 +607,7 @@ GROUP BY z.Borough ORDER BY revenue DESC LIMIT 5;</code></pre>
 </div>
 
 <!-- ============================================================ -->
-<h2 id="assignment">Assignment</h2>
-
-<p class="keep-in-present"><strong>Submit <code>assignment.sql</code> to Gradescope, per the course
-submission instructions, by Tuesday Oct 20 at class start.</strong> One file; the harness score you
-see locally is the grade.</p>
-
-<p>Project proposals remain due October 29; see the <a href="../../project.html">project instructions</a>.</p>
-
-<h3>Deliverables</h3>
-<ul>
-  <li>☐ <code>assignment.sql</code>: all eight queries pass (<code>8/8</code>).</li>
-</ul>
-<p>Submit only the file listed above. Grading uses the lab’s correctness tests; measurements and reflections are for class discussion.</p>
-
-<h3>Discussion prompts (not graded)</h3>
-<p>Use these questions to explain your query plans and measurements. They are not submitted or graded; bring your results and reasoning to class for discussion.</p>
-<ul>
-  <li>The four measurement blocks plus answers to the script's four questions (the two reasons
-  Parquet wins; where row storage was right; how far pruning pushes the predicate; which of the
-  three GROUP BYs you would use in a notebook), and the three questions
-  <code>slow_queries.py</code> asks about its pairs.</li>
-  <li>Reflection (3–5 sentences): (1)&nbsp;Q6's window ran over grouped rows: which of
-  Lecture 4's properties (streaming vs materializing) does each stage of that query have?
-  (2)&nbsp;Your microdb could, in principle, add a column layout. Which of its six required layers
-  would change, and which could keep their existing interfaces?</li>
-</ul>
-
-<h3>Grading</h3>
-<table>
-  <thead><tr><th>Component</th><th>Checked how</th><th>Weight</th></tr></thead>
-  <tbody>
-    <tr><td>Correctness</td><td>Gradescope runs the graded test group described above. Each test contributes an equal share of the points.</td><td>100%</td></tr>
-  </tbody>
-</table>
-
-<!-- ============================================================ -->
-<h2 id="going-further">Going further <span class="part-time">optional</span></h2>
-
-<p class="keep-in-present"><strong>Train and apply a model in SQL.</strong> Run Lecture 10’s
-<a href="../../lectures/lecture-10/analytics.html#in-database-ml">in-database machine learning example</a>
-with the same DuckDB installation. It fits a line on synthetic training rides, stores its coefficients,
-and scores separate test rides. Use <code>--explain</code> with the
-<a href="../../lectures/lecture-10/in_database_ml.py" download>downloadable demo</a>
-to find the scan, filter, aggregate, and cross product in the plans. Change only a test fare:
-which changes, the fitted coefficients or the evaluation error? Explain why. This extension is ungraded.</p>
-
+<h2 id="extensions">More storage experiments <span class="part-time">optional</span></h2>
 <p class="keep-in-present">Optional extensions: download one full month from the TLC's
 <a href="https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page">trip record page</a>
 (<code>yellow_tripdata_2024-01.parquet</code>, about 50 MB and three million rows) and point
@@ -488,126 +617,10 @@ the data and which stayed put? Re-declare the money columns as
 how useful that partitioning is for these queries (consider the two folder sizes and which queries filter on payment). Use scan counts and timings to compare the designs.</p>
 
 <!-- ============================================================ -->
-<h2 id="pytorch">Can a neural network predict taxi fares? <span class="part-time">optional · ~25 min</span></h2>
-
-<p><strong>Our question:</strong> does a model that can learn a curve predict fares better than a straight line? Use the same real taxi sample and the same input, distance, for both models. Keep November and December rides out of training, then compare predictions with their recorded fares.</p>
-<p>DuckDB selects the data. <strong>PyTorch trains the neural network.</strong> Then a SQL function calls that trained network, and DuckDB groups its errors. Everything runs in one local Python process on your CPU. This activity is ungraded and needs no cloud account or database server.</p>
-
-<h3>1. Run the local example</h3>
-<p>In the Lab 8 <code>starter</code> folder, use Python 3.11 or later. Get <a href="starter/pytorch_fares.py" download><code>pytorch_fares.py</code></a> and <a href="starter/requirements-pytorch.txt" download><code>requirements-pytorch.txt</code></a> if they are missing from your copy. The extra packages are only for this optional activity.</p>
-<pre><code class="language-bash">python3 -m venv .venv-pytorch
-# macOS / Linux:
-source .venv-pytorch/bin/activate
-# Windows PowerShell: .venv-pytorch\Scripts\Activate.ps1
-
-python -m pip install -r requirements-pytorch.txt
-python gen_data.py
-python pytorch_fares.py</code></pre>
-<p>The script reads <code>data/rides.parquet</code> from the lab setup. It saves a chart, all test predictions, and the network weights in <code>data/pytorch-results/</code>. Open <code>fare-models.png</code> to see the results. Package installation may take longer than the small training run.</p>
-
-<h3>2. Follow a batch from SQL into the network</h3>
-<p>The script uses 50,000 January–October rides for training. This query selects only the two columns training needs. Arrow carries the query result in batches of up to 1,024 rows. A tensor is a numeric array: each input batch becomes one column of distances, and its targets become one column of fares.</p>
-<pre><code class="language-python">reader = con.execute("""
-    SELECT distance, fare FROM features
-    WHERE month &lt;= 10 ORDER BY hash(ride_id)
-""").to_arrow_reader(batch_size=1024)
-
-model = nn.Sequential(
-    nn.Linear(1, 16), nn.ReLU(), nn.Linear(16, 1)
-)</code></pre>
-<p>The network takes one distance, passes it through 16 hidden units, and returns one fare prediction. <code>ReLU</code> keeps positive intermediate values and replaces negative ones with zero, allowing the fitted curve to bend. PyTorch compares predictions with training fares and updates the weights. One <strong>epoch</strong> is one pass through all training rides; the example uses 30.</p>
-<p>Find <code>loss.backward()</code> and <code>optimizer.step()</code> in the script: these are the PyTorch operations that calculate gradients and update weights. DuckDB does the selection and ordering. Converting Arrow values to tensors allocates memory, so this handoff is not free. The script also learns the scaling of distances and fares from training rows only.</p>
-
-<h4 id="pytorch-scaling">What do the prediction and loss lines mean?</h4>
-<pre><code class="language-python">prediction = model((x - x_mean) / x_std)
-loss = loss_fn(prediction, (y - y_mean) / y_std)</code></pre>
-<p><code>x</code> contains the distances in one training batch. <code>y</code> contains the recorded fares for those same rides. Each distance gets one prediction. The <code>mean</code> variables hold training averages; the <code>std</code> variables hold standard deviations, which measure spread. Distance and fare each have their own mean and std. The script calculates these statistics once using <strong>all training rows</strong>, then reuses them for every batch and for later predictions.</p>
-<ol>
-  <li><strong>Scale each distance, then predict.</strong> <code>(x - x_mean) / x_std</code> subtracts the average distance and divides by its spread. A value of 0 means an average distance; 1 means one standard deviation above average. Keeping typical values near 0 can help training. <code>model(...)</code> uses the current network weights to predict a <em>scaled fare</em>. It receives distances, not recorded fares.</li>
-  <li><strong>Put the recorded fares on the same scale.</strong> <code>(y - y_mean) / y_std</code> scales the training targets. We can now compare each prediction with its target using matching units. The model's output is not yet a dollar amount. A negative scaled value simply means below the training average.</li>
-  <li><strong>Measure the batch error.</strong> The script defines <code>loss_fn = nn.MSELoss()</code>. It subtracts each target from its prediction, squares each error, then averages across the batch. This <strong>mean squared error</strong> is one number used during training. It differs from the mean absolute error in dollars reported later.</li>
-</ol>
-<p><strong>A made-up example:</strong> assume the full training set gave a distance mean of 3 miles and std of 2 miles, plus a fare mean of $20 and std of $10. These statistics come from the larger training set, not just the two rides below. Suppose the current model returns 0.2 and 0.8.</p>
-<table>
-  <thead><tr><th>Ride</th><th>Distance and scaled input</th><th>Fare and scaled target</th><th>Scaled prediction</th><th>Squared error</th></tr></thead>
-  <tbody>
-    <tr><td>A</td><td>3 miles: (3 − 3) ÷ 2 = 0</td><td>$20: (20 − 20) ÷ 10 = 0</td><td>0.2</td><td>(0.2 − 0)² = 0.04</td></tr>
-    <tr><td>B</td><td>5 miles: (5 − 3) ÷ 2 = 1</td><td>$30: (30 − 20) ÷ 10 = 1</td><td>0.8</td><td>(0.8 − 1)² = 0.04</td></tr>
-  </tbody>
-</table>
-<p>The batch loss is <strong>(0.04 + 0.04) ÷ 2 = 0.04</strong>, measured in squared scaled-fare units. It is not a $0.04 error. These two lines calculate predictions and loss without changing the weights. Next, <code>optimizer.zero_grad()</code> clears previous gradients, <code>loss.backward()</code> calculates gradients, and <code>optimizer.step()</code> updates the weights and biases.</p>
-<p><strong>Convert back to dollars for SQL.</strong> The prediction callback reverses the fare scaling:</p>
-<pre><code class="language-python">fares = model((x - x_mean) / x_std) * y_std + y_mean</code></pre>
-<p>Here, 0.2 × $10 + $20 = <strong>$22</strong>, and 0.8 × $10 + $20 = <strong>$28</strong>. Each toy prediction is $2 away from its recorded fare, so their mean absolute error is $2. Converting a new prediction needs only the saved training statistics, not that ride's actual fare. These invented numbers explain the calculation; the real lab results appear below. See <a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html">PyTorch's MSELoss definition</a> for the loss formula.</p>
-
-<h3>3. Call the trained network from SQL</h3>
-<h4 id="pytorch-arrow">What is an Arrow function?</h4>
-<p>Here, <strong>Arrow</strong> means <strong>Apache Arrow</strong>, a format for storing columns of values in memory. An <strong>Arrow Python UDF</strong> is a function we provide to DuckDB that accepts and returns batches in this format. UDF means <em>user-defined function</em>.</p>
-<p>We register the lab's prediction function like this:</p>
-<pre><code class="language-python">con.create_function(
-    "predict_fare_nn", predict_fare,
-    ["DOUBLE"], "DOUBLE",
-    type="arrow")</code></pre>
-<table>
-  <thead><tr><th>Argument</th><th>What it tells DuckDB</th></tr></thead>
-  <tbody>
-    <tr><td><code>"predict_fare_nn"</code></td><td>The function name to use in SQL.</td></tr>
-    <tr><td><code>predict_fare</code></td><td>The Python function to call. Passing its name without parentheses gives DuckDB the function itself.</td></tr>
-    <tr><td><code>["DOUBLE"], "DOUBLE"</code></td><td>One numeric SQL argument and one numeric result per row. <code>DOUBLE</code> is a floating-point number. These declarations describe row values, not batch sizes.</td></tr>
-    <tr><td><code>type="arrow"</code></td><td>Send column batches to Python and expect an Arrow batch back.</td></tr>
-  </tbody>
-</table>
-<p><strong>SQL still gets one fare per ride.</strong> DuckDB groups distances into a batch before calling Python. The <code>distances</code> parameter receives a PyArrow <code>ChunkedArray</code>, a column that can hold multiple chunks. The lab's callback converts it to a tensor and applies the saved model:</p>
-<pre><code class="language-python">def predict_fare(distances):
-    x = torch.tensor(
-        distances.to_numpy(), dtype=torch.float32
-    ).reshape(-1, 1)
-    with torch.inference_mode():
-        fares = model((x - x_mean) / x_std) * y_std + y_mean
-    return pa.array(fares.flatten().numpy().astype(np.float64))</code></pre>
-<p><code>pa</code> is the <code>pyarrow</code> module. <code>pa.array(...)</code> packages the predictions for DuckDB. Reusing the previous made-up example, the input batch <code>[3.0, 5.0]</code> returns fares <code>[22.0, 28.0]</code>. Return the <strong>same number of values in matching positions</strong>: the first fare belongs to the first distance. Sorting the predictions would attach them to the wrong rides. No weights change during prediction.</p>
-<p><strong>Why use batches?</strong> One Python call can process many distances, reducing call overhead. The model can also work on the whole tensor at once. This script uses <code>torch.tensor</code>, which copies data, so the conversion still has a cost. See <a href="https://duckdb.org/docs/stable/clients/python/function.html#arrow">DuckDB's Arrow function documentation</a>.</p>
-<p><strong>Two uses of Arrow in this lab:</strong> <code>to_arrow_reader(batch_size=1024)</code> sends query results to our Python <em>training loop</em>. <code>type="arrow"</code> lets a SQL query call our Python <em>prediction function</em> with batches. DuckDB controls the prediction batch sizes; the earlier 1,024 setting does not set them.</p>
-<h4>Use the registered function in SQL</h4>
-<pre><code class="language-sql">SELECT ride_id, distance, fare,
-       predict_fare_nn(distance) AS predicted_fare
-FROM features
-WHERE month &gt;= 11;</code></pre>
-<p>These 10,000 later rides are our <strong>test rides</strong>: records reserved for checking the model. Their fares were excluded from training and scaling. The function exists in the script's Python connection; it is not a built-in DuckDB function or a function automatically available in a separate SQL terminal. To try more queries, edit the script after <code>register_predictor</code>.</p>
-<p>The script also fits the lecture's straight-line baseline with <code>regr_intercept(fare, distance)</code> and <code>regr_slope(fare, distance)</code> on the same training rows. Both models get the same single feature and the same test rides.</p>
-
-<h3>4. Discover where the models struggle</h3>
-<p>Start with mean absolute error (MAE): how many dollars does a prediction miss by, on average? Then group the errors by trip distance. Does the overall score hide a group with much larger errors?</p>
-<pre><code class="language-sql">SELECT CASE WHEN distance &lt; 2 THEN '1. Under 2 miles'
-            WHEN distance &lt; 5 THEN '2. 2 to under 5'
-            WHEN distance &lt; 10 THEN '3. 5 to under 10'
-            ELSE '4. 10 miles or more' END AS distance_group,
-       count(*) AS test_rides,
-       avg(abs(fare - linear_fare)) AS linear_mae,
-       avg(abs(fare - neural_fare)) AS neural_mae
-FROM predictions
-GROUP BY distance_group ORDER BY distance_group;</code></pre>
-<details>
-  <summary>See one completed run and its charts</summary>
-  <p>On the bundled sample, with seed 6042 and 30 epochs, our run gave a $3.53 MAE for the straight line and $3.26 for the neural network. For rides of 10 miles or more, those errors were $8.74 and $7.67. For rides from 5 to under 10 miles, both rounded to $4.75. More complexity did not improve every group equally.</p>
-  <figure>
-    <a href="pytorch-fares-example.png"><img src="pytorch-fares-example.png" alt="Three charts: training error falls over 30 epochs; predicted versus recorded test fares show misses; long trips have larger average errors for both models." style="width:100%;height:auto" loading="lazy"></a>
-    <figcaption>Example run with DuckDB 1.5.6 and PyTorch 2.14.1. The scatter shows 600 test rides; all 10,000 test rides contribute to the error metrics. The training curve measures batches while weights are changing. Values can vary with software versions.</figcaption>
-  </figure>
-</details>
-<ul>
-  <li><strong>Read the plots:</strong> on the scatter plot, points above the diagonal are overpredictions; points below it are underpredictions. Does lower training error guarantee better predictions on later rides?</li>
-  <li><strong>Investigate a miss:</strong> query the largest errors, then join <code>predictions.ride_id</code> back to <code>rides.ride_id</code> to inspect pickup zones. Could airport trips help explain some errors? A pattern suggests a follow-up question, not a proven cause.</li>
-  <li><strong>Trace the system:</strong> which work happens in DuckDB, which happens in PyTorch, and where do batches cross between them?</li>
-</ul>
-<p>If you change the model after looking at test errors, those rides become development feedback. Reserve a separate final test period before making a new accuracy claim. The dataset contains 5,000 sampled rides per month, so these scores describe this cleaned sample, not every NYC trip.</p>
-<p>Read more: <a href="https://duckdb.org/2023/07/07/python-udf#predicting-taxi-fare-costs-ibis--pyarrow-udf">DuckDB's PyTorch taxi example</a> demonstrates the function connection using a pretrained linear model. Our exercise uses that idea with a small neural network. See also <a href="https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html">PyTorch's training-loop tutorial</a>, the <a href="https://duckdb.org/community_extensions/extensions/ml">community ML extension</a>, and <a href="https://arxiv.org/abs/2312.17355">The Duck's Brain</a>, a research paper about expressing neural-network training in SQL.</p>
-
-<!-- ============================================================ -->
 <h2 id="faq">FAQ</h2>
 
-<h3 class="keep-in-present">Do my timings need to match the reference?</h3>
-<p class="keep-in-present">No. The eight SQL results are graded; timings and plan observations are for discussion. Runtime depends on hardware, caching, library versions, and the query. Report what you measured and use the plans and data layout to explain it, including cases where a speedup is smaller than expected.</p>
+<h3 class="keep-in-present">Do my model errors or timings need to match the reference?</h3>
+<p class="keep-in-present">No. Report your own model errors and explain them. Package versions can change exact values. The core submission is your model investigation. The eight SQL practice questions and storage measurements are optional. Runtime depends on hardware, caching, library versions, and the query. Report what you measured and use the plans and data layout to explain it, including cases where a speedup is smaller than expected.</p>
 
 <h3 class="keep-in-present">Why does the harness compute reference answers live instead of hardcoding?</h3>
 <p class="keep-in-present">Computing the reference results from the same files keeps the expected answers tied to the dataset used in the test. You can read the reference SQL to understand the required results, then explain how your own statements produce them.</p>
@@ -629,7 +642,7 @@ GROUP BY distance_group ORDER BY distance_group;</code></pre>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
-<script src="../_shared/lab-base.js?v=13"></script>
+<script src="../_shared/lab-base.js?v=14"></script>
 <script src="viz.js?v=2"></script>
 <script src="window-demo.js?v=1"></script>
 <script src="../_shared/teaching-traces.js?v=3"></script>

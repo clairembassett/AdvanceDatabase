@@ -304,7 +304,7 @@ Nearby numbers → store the first value and the changes
   <p><strong>Worked result:</strong> Four toy trips become monthly revenues 20 and 30. The window preserves two monthly rows and adds running totals 20 and 50.</p>
   <p>Enable JavaScript to step through the code and intermediate state.</p>
 </div>
-<p><a href="../../labs/lab-08/duckdb.html#worked-example">Lab 8</a> uses this pattern for cumulative revenue. These four trips are a small teaching example; the full dataset gives different totals.</p>
+<p><a href="../../labs/lab-08/duckdb.html#worked-example">Lab 8’s optional SQL practice</a> uses this pattern for cumulative revenue. These four trips are a small teaching example; the full dataset gives different totals.</p>
 
 <!-- ============================================================ -->
 <h2 id="duckdb">DuckDB runs the query. Parquet stores the data.</h2>
@@ -515,23 +515,20 @@ FROM ML.PREDICT(
 </div>
 
 <!-- ============================================================ -->
-<h2 id="thursday">Tuesday's lab: query, then measure</h2>
-
+<h2 id="thursday">Tuesday's lab: train, predict, and investigate</h2>
 <div class="layer-card">
-  <div class="lc-row"><span class="lc-k">Write queries</span><span>Answer eight questions about 60,000 taxi rides using <code>GROUP BY</code>, window functions, and <code>LIMIT</code>.</span></div>
-  <div class="lc-row"><span class="lc-k">Compare formats</span><span>Run the same query over CSV and Parquet.</span></div>
-  <div class="lc-row"><span class="lc-k">Select columns</span><span>Measure reading one column instead of all columns.</span></div>
-  <div class="lc-row"><span class="lc-k">Skip partitions</span><span>Measure a filter that rules out entire months.</span></div>
+  <div class="lc-row"><span class="lc-k">Prepare</span><span>Load the taxi sample and keep January–October training rides separate from November–December test rides.</span></div>
+  <div class="lc-row"><span class="lc-k">Train</span><span>Fit a straight line in DuckDB and train a small neural network with PyTorch.</span></div>
+  <div class="lc-row"><span class="lc-k">Predict</span><span>Call the trained network from SQL and compare both models on the same test rides.</span></div>
+  <div class="lc-row"><span class="lc-k">Discover</span><span>Write a query to find which groups have larger errors, then explain the chart and one limitation.</span></div>
 </div>
-
 <ul class="checklist">
-  <li>☐ Install: <code>python3 -m pip install duckdb</code>. Check: <code>python3 -c "import duckdb"</code>.</li>
-  <li>☐ Get the complete <a href="../../labs/lab-08/duckdb.html#try-it">Lab 8 starter folder</a>, including its data files. From that folder, run <code>python3 gen_data.py</code>.</li>
-  <li>☐ Run <code>python3 test_duckdb.py</code>. <strong>0/8</strong> is expected before you write the queries.</li>
-  <li>☐ Bring your estimate from the bytes-read exercise and one question about the taxi data.</li>
+  <li>☐ Follow the <a href="../../labs/lab-08/duckdb.html#setup">Lab 8 setup</a>: clone or update the repository, activate the Python environment, and install <code>requirements-pytorch.txt</code>.</li>
+  <li>☐ From the complete <code>starter</code> folder, run <code>python gen_data.py</code>.</li>
+  <li>☐ Bring a prediction: will a neural network beat a straight line for every distance group?</li>
+  <li>☐ See the <a href="../../labs/lab-08/duckdb.html#assignment">core deliverables</a>. The eight-query worksheet and storage measurements are optional practice.</li>
 </ul>
-
-<p>Everyone uses the same sample, so query results should match. Timings will vary by machine and cache state.</p>
+<p>The core lab runs locally on a CPU without a cloud account. Explain your measured model errors; you do not need to match the reference run’s numbers.</p>
 
 <!-- ============================================================ -->
 <h2 id="recap">Recap &amp; next time</h2>

@@ -86,7 +86,7 @@ is an optional extension.
 ## Requirements
 
 Python 3.11 or newer. Labs 1 to 7 are pure standard library. Later labs add
-`duckdb` (Lab 8) and optional `pandas` for the dataframe comparison. Lab 11’s
+DuckDB, PyTorch, PyArrow, NumPy, and Matplotlib for Lab 8’s core fare-prediction investigation (install `labs/lab-08/starter/requirements-pytorch.txt`). Optional storage experiments also use `pandas`. Lab 11’s
 graded portion uses only the standard library; its Spark and Ray exercises
 need `pyspark`, a compatible JDK (17 or newer), and `ray`.
 
@@ -104,8 +104,8 @@ python3 test_records.py --unit                     # all function-level checks
 python3 test_records.py                            # full integration tests
 ```
 
-Every lab's test script supports these options. In Lab 8, use query names such
-as `--unit Q1`. Lab 11 also provides local unit checks for the optional Spark and
+Every implementation/practice test script supports these options. Lab 8’s optional SQL worksheet uses query names such
+as `--unit Q1`; that harness does not grade the core ML report. Lab 11 also provides local unit checks for the optional Spark and
 Ray functions without starting either engine.
 
 Function-level checks provide known data and working helpers for unfinished
@@ -114,7 +114,15 @@ are practice feedback. Running without flags uses the original integration tests
 and grading rules; it never substitutes implementations. Unfinished methods still
 fail their own checks. Lab 5 is the exception to the implementation workflow:
 its supplied engine passes immediately, and students submit queries, predictions,
-measurements, and explanations. Other labs retain their stated grading rules.
+measurements, and explanations. Lab 8 also provides working model code: students submit an investigation query, its result, a comparison chart, and a short report. Other labs retain their stated grading rules.
+
+**Lab 8 instructor setup:** use a report-based assignment with manual review for
+`ml_report.txt`, `investigation.sql`, `query-results.csv`, and `fare-models.png`.
+The existing Q1–Q8 Gradescope autograder accepts only `assignment.sql` and is
+now practice feedback; it cannot grade the ML investigation. Configure the
+course’s submission assignment accordingly before collecting the four core files.
+The review criteria are listed on the lab page; exact MAE and runtime are not
+grading thresholds.
 
 ## Maintainer checks
 
