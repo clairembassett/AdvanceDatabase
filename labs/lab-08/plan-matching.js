@@ -73,7 +73,7 @@
   download.addEventListener('click', () => {
     if (!validate(answers()).ready) { render(); return; }
     window.LabBase.downloadBlob('plan_mapping.txt', serialize(answers()), 'text/plain;charset=utf-8');
-    status.textContent = 'Save plan_mapping.txt, then submit it with fare-models.png to the Lab 8 matching-and-chart autograder.';
+    status.textContent = 'Problem 1 saved. Submit plan_mapping.txt with pytorch_fares.py, model_challenge.txt, and fare-models.png to Lab 8. See “What to submit” for the four-file checklist.';
   });
   render();
 })();

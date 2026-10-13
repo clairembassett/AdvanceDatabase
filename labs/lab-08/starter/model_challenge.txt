@@ -1,4 +1,7 @@
-LAB 8: IMPROVE FARE PREDICTIONS FOR RIDES OF FIVE MILES OR MORE
+LAB 8, PROBLEM 2: IMPROVE FARE PREDICTIONS FOR RIDES OF FIVE MILES OR MORE
+
+Submit this completed file with pytorch_fares.py and fare-models.png from your
+chosen trial, plus plan_mapping.txt from Problem 1. Upload all four to Lab 8.
 
 Name:
 
@@ -12,7 +15,7 @@ Linear-model MAE:
 Starter neural-network MAE:
 
 TRIAL 1
-What I changed in fit() and why:
+What I changed in fit() or the training options, and why:
 Command (include epochs, batch size, and output folder):
 Number of 5+ mile benchmark rides:
 Linear-model MAE (should be unchanged):
@@ -42,7 +45,7 @@ FAIR COMPARISON CHECK
 [ ] January-October rides supply all training and scaling values.
 [ ] Every run scores the same November-December rides; no difficult rows removed.
 [ ] The linear model, seed 6042, nn.MSELoss(), and scoring code are unchanged.
-[ ] I changed the network or its training in fit(), not the predictions or metrics.
+[ ] I changed the network or training settings, not the predictions or metrics.
 [ ] My script and chart come from the trial identified above.
 
 These benchmark rides helped me choose my model. Why does that mean I still

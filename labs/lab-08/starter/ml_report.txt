@@ -1,4 +1,7 @@
 Lab 8: Can distance predict a taxi fare?
+OPTIONAL EXPLORATION NOTES. Keep this file locally; it is not a submission.
+Required uploads: plan_mapping.txt, pytorch_fares.py, model_challenge.txt,
+and fare-models.png. See the lab's "What to submit" section.
 Name:
 
 1. Reproduce the baseline run
@@ -20,18 +23,18 @@ My prediction before running the query:
 Which tables and join keys does my query use?
 
 4. Interpret the evidence
-Attach investigation.sql and its query-results.csv.
+Keep investigation.sql and its query-results.csv with your local notes.
 Describe at least two groups: their sample sizes and each model's MAE.
 Where does the network help? Where does it fail to help?
 What does one feature (distance) leave out that might matter?
 Give one limitation and one follow-up query. A pattern is not proof of a cause.
 
 5. Read the chart
-Submit data/pytorch-results/fare-models.png from your run with plan_mapping.txt
-to the matching-and-chart autograder. Use that chart for the answers below.
+Use your run's fare-models.png for the answers below. For the required model
+challenge, submit the chart from your chosen trial with the other three files.
 Explain one feature of the training curve, one of the test scatter plot,
 and one of the grouped-error bars. Is lower training error enough to
 conclude that the model predicts later rides better? Why?
 
-Completion is based on a reproducible run, correct SQL, and evidence-based
-reasoning. You do not have to beat the example's MAE or tune the network.
+These questions support optional exploration. The required tuning challenge
+and submission checklist are described in Problems 1 and 2 on the lab page.
