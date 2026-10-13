@@ -1,0 +1,9 @@
+# Lab 8: DuckDB to microdb operator matching
+# Write one microdb operator after each equals sign. Use each operator once:
+# ProductScan, TableScan, ProjectScan, SelectScan
+# Keep the format line and operation names unchanged.
+format=lab08-plan-mapping-v1
+SEQ_SCAN=
+FILTERS=
+PROJECTION=
+CROSS_PRODUCT=

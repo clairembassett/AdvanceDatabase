@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 <link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 </head>
 <body>
@@ -17,6 +17,7 @@
     <li><a href="#setup">Set up and load the data</a></li>
     <li><a href="#the-data">Understand the rides table</a></li>
     <li><a href="#going-further">Fit a model with SQL</a></li>
+    <li><a href="#ml-query-plans">Match plan operators</a></li>
     <li><a href="#pytorch">Train, predict, and investigate</a></li>
     <li><a href="#investigation">Write your discovery query</a></li>
     <li><a href="#assignment">What to turn in</a></li>
@@ -168,11 +169,73 @@ are called <strong>query execution plans</strong>.</p>
   </details>
 </div>
 
-<div class="callout note" id="ml-query-plans">
-  <span class="label">The same plan-tree idea as microdb</span>
-  <p>These diagrams are like the <a href="../lab-05/sqlfrontend.html#worked-example">operator trees microdb builds</a>: each box does one job, and the lines show how rows flow between operators. Read from the bottom up.</p>
-  <p><code>SEQ_SCAN</code> reads a table, like microdb’s <code>TableScan</code>. The <code>Filters</code> inside it do the job of <code>SelectScan</code>. <code>PROJECTION</code> chooses output fields, like <code>ProjectScan</code>; DuckDB can also calculate expressions there. <code>CROSS_PRODUCT</code> pairs rows from two inputs, like <code>ProductScan</code>.</p>
-</div>
+<section class="exercise plan-matching" id="ml-query-plans" aria-labelledby="plan-match-title">
+  <h3 id="plan-match-title">Match DuckDB’s plan to microdb</h3>
+  <p>These diagrams use the same operator-tree idea as <a href="../lab-05/sqlfrontend.html#worked-example">microdb’s plans</a>. Each box does one job; read the tree from the bottom up. Match each DuckDB operation to the microdb operator that does the same job. Use each microdb operator once.</p>
+  <p><strong>Your choices:</strong> <code>ProductScan</code>, <code>TableScan</code>, <code>ProjectScan</code>, <code>SelectScan</code>.</p>
+  <form id="plan-match-form">
+    <div class="plan-match-headings" aria-hidden="true"><span>DuckDB operation</span><span></span><span>Your microdb match</span></div>
+    <div class="plan-match-row">
+      <div class="plan-match-source"><label for="plan-match-SEQ_SCAN"><span class="plan-match-number">1</span> <code>SEQ_SCAN</code></label><p id="plan-hint-SEQ_SCAN">Read rows from a table.</p></div>
+      <span class="plan-match-arrow" aria-hidden="true">→</span>
+      <div class="plan-match-target">
+        <select id="plan-match-SEQ_SCAN" data-plan-operator="SEQ_SCAN" aria-label="microdb match for SEQ_SCAN" aria-describedby="plan-hint-SEQ_SCAN" required disabled>
+          <option value="">Choose a microdb operator</option>
+          <option value="ProductScan">ProductScan</option>
+          <option value="TableScan">TableScan</option>
+          <option value="ProjectScan">ProjectScan</option>
+          <option value="SelectScan">SelectScan</option>
+        </select>
+      </div>
+    </div>
+    <div class="plan-match-row">
+      <div class="plan-match-source"><label for="plan-match-FILTERS"><span class="plan-match-number">2</span> <code>Filters</code></label><p id="plan-hint-FILTERS">Keep rows that satisfy a condition.</p></div>
+      <span class="plan-match-arrow" aria-hidden="true">→</span>
+      <div class="plan-match-target">
+        <select id="plan-match-FILTERS" data-plan-operator="FILTERS" aria-label="microdb match for Filters" aria-describedby="plan-hint-FILTERS" required disabled>
+          <option value="">Choose a microdb operator</option>
+          <option value="ProductScan">ProductScan</option>
+          <option value="TableScan">TableScan</option>
+          <option value="ProjectScan">ProjectScan</option>
+          <option value="SelectScan">SelectScan</option>
+        </select>
+      </div>
+    </div>
+    <div class="plan-match-row">
+      <div class="plan-match-source"><label for="plan-match-PROJECTION"><span class="plan-match-number">3</span> <code>PROJECTION</code></label><p id="plan-hint-PROJECTION">Choose output fields; DuckDB can also calculate expressions.</p></div>
+      <span class="plan-match-arrow" aria-hidden="true">→</span>
+      <div class="plan-match-target">
+        <select id="plan-match-PROJECTION" data-plan-operator="PROJECTION" aria-label="microdb match for PROJECTION" aria-describedby="plan-hint-PROJECTION" required disabled>
+          <option value="">Choose a microdb operator</option>
+          <option value="ProductScan">ProductScan</option>
+          <option value="TableScan">TableScan</option>
+          <option value="ProjectScan">ProjectScan</option>
+          <option value="SelectScan">SelectScan</option>
+        </select>
+      </div>
+    </div>
+    <div class="plan-match-row">
+      <div class="plan-match-source"><label for="plan-match-CROSS_PRODUCT"><span class="plan-match-number">4</span> <code>CROSS_PRODUCT</code></label><p id="plan-hint-CROSS_PRODUCT">Pair each row from one input with every row from the other.</p></div>
+      <span class="plan-match-arrow" aria-hidden="true">→</span>
+      <div class="plan-match-target">
+        <select id="plan-match-CROSS_PRODUCT" data-plan-operator="CROSS_PRODUCT" aria-label="microdb match for CROSS_PRODUCT" aria-describedby="plan-hint-CROSS_PRODUCT" required disabled>
+          <option value="">Choose a microdb operator</option>
+          <option value="ProductScan">ProductScan</option>
+          <option value="TableScan">TableScan</option>
+          <option value="ProjectScan">ProjectScan</option>
+          <option value="SelectScan">SelectScan</option>
+        </select>
+      </div>
+    </div>
+    <div class="plan-match-actions">
+      <button type="button" class="btn primary" id="plan-match-download" disabled>Download plan_mapping.txt</button>
+      <button type="button" class="btn" id="plan-match-reset" disabled>Clear matches</button>
+    </div>
+    <p id="plan-match-status" class="plan-match-status" role="status" aria-live="polite">Choose all four matches to enable the download.</p>
+  </form>
+  <p>Download your matches, then submit <code>plan_mapping.txt</code> to the plan-matching autograder. The file contains your selections; downloading it does not check whether they are correct.</p>
+  <p class="viz-caption">If the controls are unavailable, download the <a href="starter/plan_mapping.txt" download>text template</a> and fill in one operator after each equals sign.</p>
+</section>
 
 <h3 class="new-slide" data-kicker="SQL model demo" id="ml-training-plan">Training: four rides become one model</h3>
 <p class="keep-in-present">Start at the bottom: read <code>ml_rides</code> and keep <code>split = 'train'</code>. The projection supplies fare and distance to the regression functions. At the top, <code>UNGROUPED_AGGREGATE</code> combines all four training rides into one result: intercept <strong>3</strong>, slope <strong>2</strong>, and training count <strong>4</strong>.</p>
@@ -313,6 +376,7 @@ GROUP BY distance_group ORDER BY distance_group;</code></pre>
   <li><strong><code>fare-models.png</code>:</strong> the comparison chart from your run, also in <code>data/pytorch-results/</code>.</li>
 </ul>
 <p>Submit these four files using the course submission instructions. Keep the full predictions and saved model locally; they are not required uploads. <code>assignment.sql</code> and the old <code>8/8</code> SQL-practice score are not the submission for this investigation.</p>
+<p>The <a href="#ml-query-plans">plan-matching checkpoint</a> has a separate submission: download <code>plan_mapping.txt</code> from the matching exercise and upload it to the plan-matching autograder.</p>
 <h3>What a complete investigation shows</h3>
 <ul>
   <li><strong>A fair comparison:</strong> train both models on January–October rides, learn scaling from those training rows, and evaluate on the same November–December rides.</li>
@@ -725,6 +789,7 @@ how useful that partitioning is for these queries (consider the two folder sizes
 <script src="../_shared/lab-base.js?v=14"></script>
 <script src="viz.js?v=2"></script>
 <script src="window-demo.js?v=1"></script>
+<script src="plan-matching.js?v=1"></script>
 <script src="../_shared/teaching-traces.js?v=3"></script>
 <script src="../_shared/teaching-trace.js?v=1"></script>
 </body>

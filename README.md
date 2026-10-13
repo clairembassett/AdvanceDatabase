@@ -124,6 +124,12 @@ course’s submission assignment accordingly before collecting the four core fil
 The review criteria are listed on the lab page; exact MAE and runtime are not
 grading thresholds.
 
+**Lab 8 plan matching:** the browser exercise exports `plan_mapping.txt` for a
+separate four-point checkpoint. The instructor repository contains its ready-to-upload
+package at `labs/lab-08/autograder/plan-matching/autograder.zip` and setup instructions
+in the adjacent `README.md`. Upload and test that package in Gradescope before
+collecting matching submissions; the legacy SQL grader does not accept this file.
+
 ## Maintainer checks
 
 Website downloads link directly to the tracked files in this repository;

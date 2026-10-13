@@ -16,6 +16,29 @@
 .query-plan-figure figcaption { margin-top: 8px; font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--ink-mute); }
 body.presentation-mode .query-plan-figure img { max-height: 65vh; object-fit: contain; object-position: left top; }
 
+/* Accessible operator matching: native selects also work on touch screens. */
+.plan-matching h3 { margin: 0 0 12px; }
+.plan-match-headings, .plan-match-row { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); gap: 12px; align-items: center; }
+.plan-match-headings { font-family: var(--sans); font-size: 13px; font-weight: 700; margin: 20px 0 8px; }
+.plan-match-row { border-top: 1px solid var(--rule); padding: 14px 0; }
+.plan-match-source label { font-weight: 700; }
+.plan-match-source p { font-size: 14px; line-height: 1.5; margin: 4px 0 0; }
+.plan-match-number { font-family: var(--sans); color: var(--ink-mute); }
+.plan-match-arrow { color: var(--accent); text-align: center; }
+.plan-match-target { min-width: 0; }
+.plan-match-target select { width: 100%; box-sizing: border-box; padding: 10px 8px; border: 1px solid var(--rule); border-radius: 6px; background: white; color: var(--ink); font-family: var(--mono); font-size: 13px; }
+.plan-match-target select:focus-visible, .plan-match-actions button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.plan-match-row.has-duplicate select { border-color: var(--accent); }
+.plan-match-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.plan-matching .plan-match-status { font-family: var(--sans); font-size: 14px; line-height: 1.5; min-height: 3em; margin: 10px 0; }
+.plan-matching button:disabled, .plan-matching select:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (max-width: 600px) {
+  .plan-matching { scroll-margin-top: 65px; }
+  .plan-match-headings { display: none; }
+  .plan-match-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .plan-match-arrow { display: none; }
+}
+
 .repl {
   font-family: var(--mono);
   font-size: 13px;
