@@ -298,8 +298,8 @@ are called <strong>query execution plans</strong>.</p>
 
 <h3>1. Run the baseline and neural network</h3>
 <p>From the prepared <code>starter</code> folder, run:</p>
-<pre><code class="language-bash">python pytorch_fares.py</code></pre>
-<p>The script reads <code>data/rides.parquet</code> from the lab setup. It saves a chart, all test predictions, and the network weights in <code>data/pytorch-results/</code>. Open <code>fare-models.png</code> to see the results. Package installation may take longer than the small training run.</p>
+<pre class="terminal"><code>python pytorch_fares.py</code></pre>
+<p>The script reads <code>data/rides.parquet</code> from the lab setup. It saves a chart, all test predictions, and the network weights in <code>data/pytorch-results/</code>. Open <code>fare-models.png</code> to see the results.</p>
 
 <h3>2. Follow a batch from SQL into the network</h3>
 <p>The script uses 50,000 January–October rides for training. This query selects only the two columns training needs. Arrow carries the query result in batches of up to 1,024 rows. A tensor is a numeric array: each input batch becomes one column of distances, and its targets become one column of fares.</p>
