@@ -117,18 +117,23 @@ its supplied engine passes immediately, and students submit queries, predictions
 measurements, and explanations. Lab 8 also provides working model code: students submit an investigation query, its result, a comparison chart, and a short report. Other labs retain their stated grading rules.
 
 **Lab 8 instructor setup:** use a report-based assignment with manual review for
-`ml_report.txt`, `investigation.sql`, `query-results.csv`, and `fare-models.png`.
+`ml_report.txt`, `investigation.sql`, and `query-results.csv`.
 The existing Q1–Q8 Gradescope autograder accepts only `assignment.sql` and is
 now practice feedback; it cannot grade the ML investigation. Configure the
-course’s submission assignment accordingly before collecting the four core files.
+course’s submission assignment accordingly before collecting those three files.
 The review criteria are listed on the lab page; exact MAE and runtime are not
 grading thresholds.
 
-**Lab 8 plan matching:** the browser exercise exports `plan_mapping.txt` for a
-separate four-point checkpoint. The instructor repository contains its ready-to-upload
+**Lab 8 matching and chart:** collect `plan_mapping.txt` and `fare-models.png`
+together in an eight-point checkpoint. Four points check operator matches;
+four check a readable PNG and the training curve, test scatter, and grouped bars.
+These are approximate image checks, not an accuracy score or proof of authorship.
+Review a complete chart manually if it is flagged. The instructor repository contains its ready-to-upload
 package at `labs/lab-08/autograder/plan-matching/autograder.zip` and setup instructions
 in the adjacent `README.md`. Upload and test that package in Gradescope before
-collecting matching submissions; the legacy SQL grader does not accept this file.
+collecting submissions, and change the assignment total from four to eight points.
+The package needs Pillow, NumPy, and Tesseract (installed by its setup script).
+The legacy SQL grader does not accept these files.
 
 ## Maintainer checks
 

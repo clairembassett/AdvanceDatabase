@@ -27,7 +27,8 @@ What does one feature (distance) leave out that might matter?
 Give one limitation and one follow-up query. A pattern is not proof of a cause.
 
 5. Read the chart
-Attach fare-models.png from your run.
+Submit data/pytorch-results/fare-models.png from your run with plan_mapping.txt
+to the matching-and-chart autograder. Use that chart for the answers below.
 Explain one feature of the training curve, one of the test scatter plot,
 and one of the grouped-error bars. Is lower training error enough to
 conclude that the model predicts later rides better? Why?

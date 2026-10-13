@@ -73,7 +73,7 @@
   download.addEventListener('click', () => {
     if (!validate(answers()).ready) { render(); return; }
     window.LabBase.downloadBlob('plan_mapping.txt', serialize(answers()), 'text/plain;charset=utf-8');
-    status.textContent = 'Save plan_mapping.txt, then submit it to the plan-matching autograder.';
+    status.textContent = 'Save plan_mapping.txt, then submit it with fare-models.png to the Lab 8 matching-and-chart autograder.';
   });
   render();
 })();
