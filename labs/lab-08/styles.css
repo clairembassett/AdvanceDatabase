@@ -9,6 +9,13 @@
   margin-left: 10px;
 }
 
+/* Keep the supplied EXPLAIN screenshots readable and openable at full size. */
+.query-plan-figure { margin: 20px 0 28px; }
+.query-plan-figure a { display: block; }
+.query-plan-figure img { display: block; width: 100%; height: auto; border-radius: 6px; }
+.query-plan-figure figcaption { margin-top: 8px; font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--ink-mute); }
+body.presentation-mode .query-plan-figure img { max-height: 65vh; object-fit: contain; object-position: left top; }
+
 .repl {
   font-family: var(--mono);
   font-size: 13px;

@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
 <link rel="stylesheet" href="../_shared/lab-base.css?v=21">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=3">
 <link rel="stylesheet" href="../_shared/teaching-trace.css?v=1">
 </head>
 <body>
@@ -141,8 +141,29 @@ are called <strong>query execution plans</strong>. Change only a test fare:
 which changes, the fitted coefficients or the evaluation error? Explain why. Record what changes in your lab report.</p>
 
 <p>The six-ride demo is already included in your cloned repository at <code>lectures/lecture-10/in_database_ml.py</code>. From <code>labs/lab-08/starter</code>, run:</p>
-<pre><code class="language-bash">python ../../../lectures/lecture-10/in_database_ml.py --explain</code></pre>
+<pre class="terminal"><code>python ../../../lectures/lecture-10/in_database_ml.py --explain</code></pre>
 <p>This tiny example makes the training and test split easy to inspect. Next, the main script fits the same kind of line on the real taxi sample and compares it with a neural network.</p>
+
+<div class="callout note" id="ml-query-plans">
+  <span class="label">The same plan-tree idea as microdb</span>
+  <p>These diagrams are like the <a href="../lab-05/sqlfrontend.html#worked-example">operator trees microdb builds</a>: each box does one job, and the lines show how rows flow between operators. Read from the bottom up.</p>
+  <p><code>SEQ_SCAN</code> reads a table, like microdb’s <code>TableScan</code>. The <code>Filters</code> inside it do the job of <code>SelectScan</code>. <code>PROJECTION</code> chooses output fields, like <code>ProjectScan</code>; DuckDB can also calculate expressions there. <code>CROSS_PRODUCT</code> pairs rows from two inputs, like <code>ProductScan</code>.</p>
+</div>
+
+<h3 class="new-slide" data-kicker="SQL model demo" id="ml-training-plan">Training: four rides become one model</h3>
+<p class="keep-in-present">Start at the bottom: read <code>ml_rides</code> and keep <code>split = 'train'</code>. The projection supplies fare and distance to the regression functions. At the top, <code>UNGROUPED_AGGREGATE</code> combines all four training rides into one result: intercept <strong>3</strong>, slope <strong>2</strong>, and training count <strong>4</strong>.</p>
+<figure class="query-plan-figure">
+  <a href="sql-training-plan.png" aria-label="Open the full-size training query plan"><img src="sql-training-plan.png" width="1102" height="1080" loading="lazy" alt="Training query plan, read bottom to top: a sequential scan of ml_rides filters to training rides, a projection supplies fare and distance, and an ungrouped aggregate computes the regression intercept, slope, and row count."></a>
+  <figcaption>The model is fitted by a SQL aggregate. Select the image to see it at full size.</figcaption>
+</figure>
+
+<h3 class="new-slide" data-kicker="SQL model demo" id="ml-scoring-plan">Scoring: apply the saved model to each test ride</h3>
+<p class="keep-in-present">The left branch reads the two test rides. The right branch reads the single row in <code>fare_model</code>. <code>CROSS_PRODUCT</code> pairs each test ride with that model row: <strong>2 rides × 1 model = 2 predictions</strong>. The top projection calculates <code>intercept + slope * distance</code> for each ride.</p>
+<figure class="query-plan-figure">
+  <a href="sql-scoring-plan.png" aria-label="Open the full-size scoring query plan"><img src="sql-scoring-plan.png" width="1098" height="1308" loading="lazy" alt="Scoring query plan: the left branch scans ml_rides and keeps test rides; the right branch scans the single fare_model row. CROSS_PRODUCT pairs each ride with the model, and the top projection calculates predicted_fare."></a>
+  <figcaption>Scoring means making predictions with the fitted model. The model’s coefficients stay the same.</figcaption>
+</figure>
+<p class="keep-in-present"><strong>Why does the screenshot say ~3 rows?</strong> The tilde means an estimate from <code>EXPLAIN</code>. This demo actually has four training rides, two test rides, and one saved model row.</p>
 
 <h2 id="pytorch">Train, predict, and investigate <span class="part-time">~45 min</span></h2>
 
