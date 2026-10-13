@@ -16,6 +16,27 @@
 .query-plan-figure figcaption { margin-top: 8px; font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--ink-mute); }
 body.presentation-mode .query-plan-figure img { max-height: 65vh; object-fit: contain; object-position: left top; }
 
+/* Follow the scoring plan through its two input tables and predictions. */
+.scoring-tables { margin: 24px 0; padding: 18px; border: 1px solid var(--rule); border-radius: 8px; background: #f3f7f4; font-family: var(--sans); }
+.scoring-tables .scoring-intro, .scoring-tables .scoring-takeaway { margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
+.scoring-tables .scoring-takeaway { margin: 14px 0 0; }
+.scoring-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.scoring-card { min-width: 0; padding: 12px; border: 1px solid var(--rule); border-radius: 6px; background: white; }
+.scoring-card p { margin: 10px 0 0; font-size: 13px; line-height: 1.5; }
+.scoring-tables table { width: 100%; margin: 0; font-size: 13px; background: white; }
+.scoring-tables caption { text-align: left; margin-bottom: 10px; font-size: 14px; font-weight: 700; }
+.scoring-tables th, .scoring-tables td { padding: 8px 5px; text-align: left; }
+.scoring-tables th code { font-size: 11px; padding: 0; background: transparent; }
+.scoring-model tbody, .scoring-tables .scoring-prediction { background: #dcece3; font-weight: 700; }
+.scoring-tables .scoring-pairing { margin: 16px 0; font-size: 14px; line-height: 1.6; text-align: center; }
+.scoring-pairing > span { display: block; font-size: 24px; color: #2b795b; }
+.scoring-output { overflow-x: auto; }
+.scoring-output table { min-width: 460px; }
+.scoring-output:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 760px) {
+  .scoring-inputs { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Accessible operator matching: native selects also work on touch screens. */
 .plan-matching h3 { margin: 0 0 12px; }
 .plan-match-headings, .plan-match-row { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); gap: 12px; align-items: center; }
